@@ -1,0 +1,11 @@
+type,ending,count,percent
+one_stem,da,377,44.72
+one_stem,dä,91,10.79
+one_stem,ta,137,16.25
+one_stem,tä,26,3.08
+one_stem,i,69,8.19
+two_stem,da,15,1.78
+two_stem,dä,1,0.12
+two_stem,ta,66,7.83
+two_stem,tä,19,2.25
+other,other,30,3.56
