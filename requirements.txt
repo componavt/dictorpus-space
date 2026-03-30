@@ -1,0 +1,6 @@
+pandas
+nltk
+tqdm
+deep_translator
+transformers
+torch
