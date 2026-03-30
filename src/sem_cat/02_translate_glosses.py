@@ -5,21 +5,16 @@ Results are saved to data/sem_cat/glosses_translated.csv.
 Already-cached translations are never re-computed (incremental mode).
 """
 
-import sys
-import os
 import pandas as pd
 import argparse
 import time
 from pathlib import Path
 from tqdm import tqdm
 
-# Add the parent directory to the path to allow importing from sibling packages
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
-from utils.vepkar_loader import load_meanings
-from utils.gloss_normalizer import primary_gloss
-from translators.marian_translator import MarianTranslator
-from translators.google_translator import GoogleTranslator
+from src.sem_cat.utils.vepkar_loader import load_meanings
+from src.sem_cat.utils.gloss_normalizer import primary_gloss
+from src.sem_cat.translators.marian_translator import MarianTranslator
+from src.sem_cat.translators.google_translator import GoogleTranslator
 
 
 def main():

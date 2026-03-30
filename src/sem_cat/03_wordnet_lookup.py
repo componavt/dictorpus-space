@@ -5,8 +5,6 @@ Input:  data/sem_cat/glosses_translated.csv  (from 02_translate_glosses.py)
 Output: data/sem_cat/glosses_wn_domains.csv
 """
 
-import sys
-import os
 import pandas as pd
 import argparse
 from pathlib import Path
@@ -18,10 +16,7 @@ from tqdm import tqdm
 nltk.download('wordnet', quiet=True)
 nltk.download('omw-1.4', quiet=True)
 
-# Add the parent directory to the path to allow importing from sibling packages
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
-from utils.wn_domains import load_wn_domains, synset_to_key
+from src.sem_cat.utils.wn_domains import load_wn_domains, synset_to_key
 from nltk.corpus import wordnet as wn
 
 

@@ -5,19 +5,14 @@ Outputs one enriched file per language:
     data/sem_cat/results/meanings_{lang}_domains.csv
 """
 
-import sys
-import os
 import pandas as pd
 import argparse
 from pathlib import Path
 from collections import Counter
 from tqdm import tqdm
 
-# Add the parent directory to the path to allow importing from sibling packages
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
-from utils.vepkar_loader import load_meanings
-from utils.gloss_normalizer import primary_gloss
+from src.sem_cat.utils.vepkar_loader import load_meanings
+from src.sem_cat.utils.gloss_normalizer import primary_gloss
 
 
 def main():
