@@ -4,3 +4,5 @@ tqdm
 deep_translator
 transformers
 torch
+sentencepiece
+sacremoses

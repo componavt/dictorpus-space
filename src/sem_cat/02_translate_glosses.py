@@ -1,15 +1,27 @@
 """
 Translates all unique primary Russian glosses from VepKar meanings files
 into English, using a pluggable backend (MarianMT by default).
-Results are saved to data/sem_cat/glosses_translated.csv.
+Results are saved to data/sem_cat/glosses_translated_{backend}.csv.
 Already-cached translations are never re-computed (incremental mode).
 """
 
+import sys
+import pathlib
 import pandas as pd
 import argparse
 import time
-from pathlib import Path
 from tqdm import tqdm
+from math import ceil
+
+# Add project root to sys.path to allow absolute imports
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent))
+
+# Anchor all default paths to the project root (2 levels up from this file).
+# This file lives at:  <project_root>/src/sem_cat/02_translate_glosses.py
+_THIS_FILE = pathlib.Path(__file__).resolve()
+_PROJECT_ROOT = _THIS_FILE.parent.parent.parent   # → <project_root>
+_DEFAULT_DATA_DIR = _PROJECT_ROOT / "data" / "vepkar"
+_DEFAULT_OUT_DIR = _PROJECT_ROOT / "data" / "sem_cat"
 
 from src.sem_cat.utils.vepkar_loader import load_meanings
 from src.sem_cat.utils.gloss_normalizer import primary_gloss
@@ -17,42 +29,86 @@ from src.sem_cat.translators.marian_translator import MarianTranslator
 from src.sem_cat.translators.google_translator import GoogleTranslator
 
 
+def is_valid_translation(ru: str, en: str) -> bool:
+    """Return False if translation is empty, too short, or a repetition loop."""
+    if not en or not en.strip():
+        return False
+    # Flag if English output is more than 5x longer than Russian input
+    if len(en) > max(80, len(ru) * 5):
+        return False
+    # Flag if the output is all punctuation/spaces
+    import re
+    if re.fullmatch(r"[\W\s]+", en):
+        return False
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(description="Translate Russian glosses to English")
-    parser.add_argument("--data-dir", type=str, default="../../data/vepkar",
-                        help="path to data/vepkar/ (default: ../../data/vepkar)")
-    parser.add_argument("--out-file", type=str, default="../../data/sem_cat/glosses_translated.csv",
-                        help="output CSV path (default: ../../data/sem_cat/glosses_translated.csv)")
+    parser.add_argument("--data-dir", type=str, default=str(_DEFAULT_DATA_DIR),
+                        help=f"path to data/vepkar/ (default: {_DEFAULT_DATA_DIR})")
+    parser.add_argument("--out-dir", type=str, default=str(_DEFAULT_OUT_DIR),
+                        help=f"output directory for translated CSV (default: {_DEFAULT_OUT_DIR})")
     parser.add_argument("--backend", type=str, choices=["marian", "google"], default="marian",
                         help='translation backend: "marian" or "google" (default: marian)')
     parser.add_argument("--batch-size", type=int, default=64,
                         help="batch size for translation (default: 64)")
+    parser.add_argument(
+        "--device", type=str, default="cpu",
+        help='Device for MarianMT: "cpu" or "cuda" (default: cpu)'
+    )
 
     args = parser.parse_args()
+    
+    # Compute output path from backend
+    out_dir = pathlib.Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"glosses_translated_{args.backend}.csv"
+
+    # Validate data directory exists
+    data_dir = pathlib.Path(args.data_dir)
+    if not data_dir.exists():
+        print(f"ERROR: data directory not found: {data_dir}")
+        print(f"  Expected structure: {data_dir}/meanings_vep.csv  etc.")
+        print(f"  Run from the project root or pass --data-dir explicitly.")
+        sys.exit(1)
+
+    # Show warning for Marian model download
+    if args.backend == "marian":
+        print("MarianMT backend selected. Model 'Helsinki-NLP/opus-mt-ru-en' "
+              "will be downloaded on first run (~300 MB). "
+              "Subsequent runs use the local HuggingFace cache.")
 
     # Load meanings
     print("Loading meanings...")
-    df = load_meanings(args.data_dir)
+    df = load_meanings(data_dir)
 
     # Extract unique primary glosses
     print("Extracting unique primary glosses...")
-    unique_glosses = set()
-    for _, row in df.iterrows():
-        gloss_primary = primary_gloss(row['meaning_ru'])
-        if gloss_primary:  # Only add non-empty glosses
-            unique_glosses.add(gloss_primary)
-
-    unique_glosses = list(unique_glosses)
+    unique_glosses = (
+        df["meaning_ru"]
+        .dropna()
+        .apply(primary_gloss)
+        .pipe(lambda s: s[s.str.len() > 0])
+        .unique()
+        .tolist()
+    )
     total_unique = len(unique_glosses)
     print(f"Found {total_unique} unique glosses")
 
     # Load existing cache if it exists
-    out_path = Path(args.out_file)
     cached_glosses = set()
     if out_path.exists():
         print("Loading existing cache...")
-        cache_df = pd.read_csv(out_path)
-        cached_glosses = set(cache_df['gloss_ru'].tolist())
+        try:
+            cache_df = pd.read_csv(out_path, encoding="utf-8")
+            if "gloss_ru" not in cache_df.columns:
+                print("WARNING: cache file exists but has no 'gloss_ru' column — ignoring cache.")
+                cache_df = pd.DataFrame(columns=["gloss_ru", "gloss_en"])
+        except Exception as e:
+            print(f"WARNING: could not read cache file ({e}) — starting fresh.")
+            cache_df = pd.DataFrame(columns=["gloss_ru", "gloss_en"])
+        cached_glosses = set(cache_df["gloss_ru"].dropna().tolist())
         already_cached = len(cached_glosses)
         print(f"Found {already_cached} cached translations")
     else:
@@ -69,53 +125,81 @@ def main():
 
     # Initialize translator
     if args.backend == "marian":
-        translator = MarianTranslator()
+        translator = MarianTranslator(device=args.device)
     else:  # google
         translator = GoogleTranslator()
 
     # Translate the remaining glosses
     print(f"Translating with {args.backend} backend...")
-    translated_results = []
+    total_written = 0
+    total_invalid = 0
 
     if args.backend == "marian":
-        # Use translate_batch for efficiency
-        translated_texts = translator.translate_batch(glosses_to_translate, batch_size=args.batch_size)
-        for i, original_gloss in enumerate(glosses_to_translate):
-            translated_results.append({
-                'gloss_ru': original_gloss,
-                'gloss_en': translated_texts[i],
-                'backend': args.backend
-            })
+        # Use translate_batch for efficiency with incremental saves
+        n = len(glosses_to_translate)
+        n_batches = ceil(n / args.batch_size)
+
+        for batch_idx in range(n_batches):
+            batch = glosses_to_translate[batch_idx * args.batch_size :
+                                          (batch_idx + 1) * args.batch_size]
+            translated_texts = translator.translate_batch(batch, batch_size=len(batch))
+            
+            batch_rows = []
+            for orig, trans in zip(batch, translated_texts):
+                valid = is_valid_translation(orig, trans)
+                batch_rows.append({
+                    "gloss_ru": orig,
+                    "gloss_en": trans if valid else "",
+                })
+                if not valid:
+                    total_invalid += 1
+            batch_df = pd.DataFrame(batch_rows)
+            
+            # append to CSV; write header only on the very first write of this run
+            write_header = not out_path.exists() and batch_idx == 0 and already_cached == 0
+            batch_df.to_csv(
+                out_path, mode="a",
+                header=write_header,
+                index=False,
+                encoding="utf-8"
+            )
+            total_written += len(batch_rows)
+            print(f"  Batch {batch_idx + 1}/{n_batches} saved ({total_written} total written)")
     else:  # google
-        # Process with batch_size=1 and delay
-        for gloss in tqdm(glosses_to_translate, desc="Translating"):
+        # Process with batch_size=1 and delay, with incremental saves every 100 items
+        batch_rows = []
+        for idx, gloss in enumerate(tqdm(glosses_to_translate, desc="Translating")):
             translated_text = translator.translate(gloss)
-            translated_results.append({
+            valid = is_valid_translation(gloss, translated_text)
+            batch_rows.append({
                 'gloss_ru': gloss,
-                'gloss_en': translated_text,
-                'backend': args.backend
+                'gloss_en': translated_text if valid else '',
             })
+            if not valid:
+                total_invalid += 1
             time.sleep(0.3)  # Sleep 0.3s between calls
 
-    # Count failed translations (empty results)
-    failed_count = sum(1 for result in translated_results if not result['gloss_en'])
-
-    # Append new results to the cache CSV
-    new_results_df = pd.DataFrame(translated_results)
-    
-    # Write to file (append mode, with header only if file doesn't exist)
-    if out_path.exists():
-        new_results_df.to_csv(out_path, mode='a', header=False, index=False)
-    else:
-        new_results_df.to_csv(out_path, mode='w', header=True, index=False)
+            # Save every 100 items or at the end
+            if len(batch_rows) >= 100 or idx == len(glosses_to_translate) - 1:
+                batch_df = pd.DataFrame(batch_rows)
+                # append to CSV; write header only on the very first write of this run
+                write_header = not out_path.exists() and idx < 100 and already_cached == 0
+                batch_df.to_csv(
+                    out_path, mode="a",
+                    header=write_header,
+                    index=False,
+                    encoding="utf-8"
+                )
+                total_written += len(batch_rows)
+                print(f"  Saved batch of {len(batch_rows)} items ({total_written} total written)")
+                batch_rows = []  # Reset for next batch
 
     # Print summary
-    newly_translated = len(translated_results)
     print(f"\nSummary:")
     print(f"Total unique glosses: {total_unique}")
     print(f"Already cached: {already_cached}")
-    print(f"Newly translated: {newly_translated}")
-    print(f"Failed: {failed_count}")
+    print(f"Newly translated: {total_written}")
+    print(f"Invalid/empty translations (flagged): {total_invalid}")
 
 
 if __name__ == "__main__":

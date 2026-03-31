@@ -26,7 +26,15 @@ class MarianTranslator(Translator):
         """Translate single string. Use max_length=64."""
         inputs = self.tokenizer(text, return_tensors="pt", padding=True).to(self.device)
         with torch.no_grad():
-            outputs = self.model.generate(**inputs, max_length=64)
+            outputs = self.model.generate(
+                **inputs,
+                max_length=64,
+                max_new_tokens=40,
+                num_beams=4,
+                no_repeat_ngram_size=3,
+                repetition_penalty=3.0,
+                early_stopping=True,
+            )
         translated = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
         return translated
 
@@ -37,10 +45,20 @@ class MarianTranslator(Translator):
         results = []
         for i in tqdm(range(0, len(texts), batch_size), desc="Translating batches"):
             batch = texts[i:i + batch_size]
-            inputs = self.tokenizer(batch, return_tensors="pt", padding=True, truncation=True).to(self.device)
+            encoded = self.tokenizer(
+                batch, return_tensors="pt", padding=True,
+                truncation=True, max_length=64
+            ).to(self.device)
             
             with torch.no_grad():
-                outputs = self.model.generate(**inputs, max_length=64)
+                outputs = self.model.generate(
+                    **encoded,
+                    max_new_tokens=40,
+                    num_beams=4,
+                    no_repeat_ngram_size=3,
+                    repetition_penalty=3.0,
+                    early_stopping=True,
+                )
             
             for output in outputs:
                 translated = self.tokenizer.decode(output, skip_special_tokens=True)
