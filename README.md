@@ -75,23 +75,6 @@ pip install -U pip
 pip install -r requirements.txt
 ```
 
-If you don’t have a `requirements.txt` yet, you can create one manually with at least:
-
-```text
-pandas
-tqdm
-deep-translator
-transformers
-torch
-nltk
-```
-
-Then install:
-
-```bash
-pip install -r requirements.txt
-```
-
 ---
 
 ## 📚 NLTK data (WordNet resources)
