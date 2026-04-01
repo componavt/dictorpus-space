@@ -10,6 +10,7 @@ import pathlib
 import pandas as pd
 import argparse
 import time
+import re
 from tqdm import tqdm
 from math import ceil
 
@@ -29,6 +30,20 @@ from src.sem_cat.translators.marian_translator import MarianTranslator
 from src.sem_cat.translators.google_translator import GoogleTranslator
 
 
+def _looks_like_proper_name(ru: str, en: str) -> bool:
+    """Return True if ru is likely a common noun but en looks like a proper name."""
+    # Russian input: no capital letter = common noun or particle
+    ru_is_common = ru and ru[0].islower()
+    # English output: single capitalized word (proper name pattern)
+    en_words = en.strip().split()
+    en_is_proper = (
+        len(en_words) == 1
+        and en_words[0][0].isupper()
+        and en_words[0].isalpha()
+    )
+    return ru_is_common and en_is_proper
+
+
 def is_valid_translation(ru: str, en: str) -> bool:
     """Return False if translation is empty, too short, or a repetition loop."""
     if not en or not en.strip():
@@ -37,8 +52,10 @@ def is_valid_translation(ru: str, en: str) -> bool:
     if len(en) > max(80, len(ru) * 5):
         return False
     # Flag if the output is all punctuation/spaces
-    import re
     if re.fullmatch(r"[\W\s]+", en):
+        return False
+    # Flag if ru is common noun but en looks like proper name
+    if _looks_like_proper_name(ru, en):
         return False
     return True
 
@@ -55,15 +72,33 @@ def main():
                         help="batch size for translation (default: 64)")
     parser.add_argument(
         "--device", type=str, default="cpu",
-        help='Device for MarianMT: "cpu" or "cuda" (default: cpu)'
+        help='Device for MarianMT: "cpu" or "cuda" (default: cpu)',
+    )
+    parser.add_argument(
+        "--out-file", type=str, default=None,
+        help=(
+            "Full path to output CSV file. If provided, overrides --out-dir "
+            "and the auto-generated filename. "
+            "Example: data/sem_cat/glosses_translated_marian_2026.csv"
+        ),
+    )
+    parser.add_argument(
+        "--round-trip", action="store_true", default=False,
+        help="also back-translate gloss_en→ru for quality checking (marian only)",
     )
 
     args = parser.parse_args()
     
-    # Compute output path from backend
-    out_dir = pathlib.Path(args.out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"glosses_translated_{args.backend}.csv"
+    # Compute output path
+    if args.out_file:
+        out_path = pathlib.Path(args.out_file)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        out_dir = pathlib.Path(args.out_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f"glosses_translated_{args.backend}.csv"
+    
+    print(f"Output file: {out_path}")
 
     # Validate data directory exists
     data_dir = pathlib.Path(args.data_dir)
@@ -126,8 +161,17 @@ def main():
     # Initialize translator
     if args.backend == "marian":
         translator = MarianTranslator(device=args.device)
+        # If round-trip is enabled, initialize back-translator
+        if args.round_trip:
+            back_translator = MarianTranslator(
+                device=args.device,
+                model_name="Helsinki-NLP/opus-mt-en-ru"
+            )
     else:  # google
         translator = GoogleTranslator()
+        # Round-trip is only supported for marian backend
+        if args.round_trip:
+            print("Warning: --round-trip is only supported with marian backend, ignoring flag.")
 
     # Translate the remaining glosses
     print(f"Translating with {args.backend} backend...")
@@ -138,43 +182,59 @@ def main():
         # Use translate_batch for efficiency with incremental saves
         n = len(glosses_to_translate)
         n_batches = ceil(n / args.batch_size)
+        
+        # Track if header has been written
+        header_written = already_cached > 0
 
         for batch_idx in range(n_batches):
             batch = glosses_to_translate[batch_idx * args.batch_size :
-                                          (batch_idx + 1) * args.batch_size]
+                                  (batch_idx + 1) * args.batch_size]
             translated_texts = translator.translate_batch(batch, batch_size=len(batch))
             
+            # If round-trip is enabled, back-translate the results
+            if args.round_trip:
+                back_translated_texts = back_translator.translate_batch(translated_texts, batch_size=len(translated_texts))
+            
             batch_rows = []
-            for orig, trans in zip(batch, translated_texts):
+            for i, (orig, trans) in enumerate(zip(batch, translated_texts)):
                 valid = is_valid_translation(orig, trans)
-                batch_rows.append({
+                row_data = {
                     "gloss_ru": orig,
                     "gloss_en": trans if valid else "",
-                })
+                }
+                # Add back-translation if round-trip is enabled
+                if args.round_trip:
+                    row_data["gloss_ru_back"] = back_translated_texts[i] if valid else ""
+                batch_rows.append(row_data)
                 if not valid:
                     total_invalid += 1
             batch_df = pd.DataFrame(batch_rows)
             
             # append to CSV; write header only on the very first write of this run
-            write_header = not out_path.exists() and batch_idx == 0 and already_cached == 0
             batch_df.to_csv(
                 out_path, mode="a",
-                header=write_header,
+                header=not header_written,
                 index=False,
                 encoding="utf-8"
             )
+            if not header_written:
+                header_written = True
             total_written += len(batch_rows)
             print(f"  Batch {batch_idx + 1}/{n_batches} saved ({total_written} total written)")
     else:  # google
         # Process with batch_size=1 and delay, with incremental saves every 100 items
         batch_rows = []
+        header_written = already_cached > 0
+        
         for idx, gloss in enumerate(tqdm(glosses_to_translate, desc="Translating")):
             translated_text = translator.translate(gloss)
             valid = is_valid_translation(gloss, translated_text)
-            batch_rows.append({
+            row_data = {
                 'gloss_ru': gloss,
                 'gloss_en': translated_text if valid else '',
-            })
+            }
+            # For Google backend, round-trip is not supported, so don't add gloss_ru_back
+            batch_rows.append(row_data)
             if not valid:
                 total_invalid += 1
             time.sleep(0.3)  # Sleep 0.3s between calls
@@ -183,13 +243,14 @@ def main():
             if len(batch_rows) >= 100 or idx == len(glosses_to_translate) - 1:
                 batch_df = pd.DataFrame(batch_rows)
                 # append to CSV; write header only on the very first write of this run
-                write_header = not out_path.exists() and idx < 100 and already_cached == 0
                 batch_df.to_csv(
                     out_path, mode="a",
-                    header=write_header,
+                    header=not header_written,
                     index=False,
                     encoding="utf-8"
                 )
+                if not header_written:
+                    header_written = True
                 total_written += len(batch_rows)
                 print(f"  Saved batch of {len(batch_rows)} items ({total_written} total written)")
                 batch_rows = []  # Reset for next batch

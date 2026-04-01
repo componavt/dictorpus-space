@@ -13,22 +13,22 @@ from .base import Translator
 class MarianTranslator(Translator):
     MODEL_NAME = "Helsinki-NLP/opus-mt-ru-en"
 
-    def __init__(self, device: str = "cpu"):
+    def __init__(self, device: str = "cpu", model_name: str = None):
         """Load tokenizer and model on init. Log model name and device."""
         self.device = device
+        self.MODEL_NAME = model_name if model_name else self.MODEL_NAME
         print(f"Loading model {self.MODEL_NAME} on device {device}")
         self.tokenizer = MarianTokenizer.from_pretrained(self.MODEL_NAME)
-        self.model = MarianMTModel.from_pretrained(self.MODEL_NAME)
+        self.model = MarianMTModel.from_pretrained(self.MODEL_NAME, use_safetensors=True)
         self.model.to(self.device)
         print(f"Model {self.MODEL_NAME} loaded successfully on {device}")
 
     def translate(self, text: str) -> str:
-        """Translate single string. Use max_length=64."""
+        """Translate single string."""
         inputs = self.tokenizer(text, return_tensors="pt", padding=True).to(self.device)
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_length=64,
                 max_new_tokens=40,
                 num_beams=4,
                 no_repeat_ngram_size=3,

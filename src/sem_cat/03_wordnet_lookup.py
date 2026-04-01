@@ -3,8 +3,11 @@ For each unique (gloss_en, pos) pair, finds the best NLTK WordNet synset
 and maps it to a WordNet Domain label using the wn-domains-3.2 file.
 Input:  data/sem_cat/glosses_translated.csv  (from 02_translate_glosses.py)
 Output: data/sem_cat/glosses_wn_domains.csv
+Columns: gloss_ru, gloss_en, wn_synset, wn_domain
 """
 
+import sys
+import pathlib
 import pandas as pd
 import argparse
 from pathlib import Path
@@ -16,13 +19,26 @@ from tqdm import tqdm
 nltk.download('wordnet', quiet=True)
 nltk.download('omw-1.4', quiet=True)
 
+# Add project root to sys.path to allow absolute imports
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent))
+
+# Anchor all default paths to the project root (2 levels up from this file).
+# This file lives at:  <project_root>/src/sem_cat/03_wordnet_lookup.py
+_THIS_FILE = pathlib.Path(__file__).resolve()
+_PROJECT_ROOT = _THIS_FILE.parent.parent.parent   # → <project_root>
+_DEFAULT_OUT_DIR = _PROJECT_ROOT / "data" / "sem_cat"
+
 from src.sem_cat.utils.wn_domains import load_wn_domains, synset_to_key
 from nltk.corpus import wordnet as wn
 
 
 POS_MAP = {
-    "NOUN": "n", "VERB": "v",
-    "ADJ": "a",  "ADV": "r",
+    "NOUN": "n",
+    "VERB": "v",
+    "ADJ":  "a",
+    "ADV":  "r",
+    "NUM":  None,
+    "PROPN": None,
 }
 
 
@@ -56,18 +72,20 @@ def lookup_domain(gloss_en, wn_pos, wn_domains):
 
 def main():
     parser = argparse.ArgumentParser(description="Map English glosses to WordNet domains")
-    parser.add_argument("--translated-file", type=str, required=True,
-                        help="path to glosses_translated.csv")
+    parser.add_argument("--translated-file", type=str,
+                        default=str(_DEFAULT_OUT_DIR / "glosses_translated_marian.csv"),
+                        help="path to glosses_translated_*.csv (default: glosses_translated_marian.csv)")
     parser.add_argument("--wn-domains-file", type=str, required=True,
                         help="path to wn-domains-3.2-20070223")
-    parser.add_argument("--out-file", type=str, default="../../data/sem_cat/glosses_wn_domains.csv",
-                        help="output CSV path (default: ../../data/sem_cat/glosses_wn_domains.csv)")
+    parser.add_argument("--out-file", type=str,
+                        default=str(_DEFAULT_OUT_DIR / "glosses_wn_domains.csv"),
+                        help="output CSV path (default: <project_root>/data/sem_cat/glosses_wn_domains.csv)")
     parser.add_argument("--pos-file", type=str, default=None,
                         help="optional: path to a CSV with columns [gloss_ru, pos]")
 
     args = parser.parse_args()
 
-    # Load glosses_translated.csv into a DataFrame (gloss_ru, gloss_en, backend)
+    # Load glosses_translated.csv into a DataFrame (gloss_ru, gloss_en)
     print("Loading translated glosses...")
     df = pd.read_csv(args.translated_file)
 
@@ -100,7 +118,6 @@ def main():
             results.append({
                 'gloss_ru': row['gloss_ru'],
                 'gloss_en': row['gloss_en'],
-                'backend': row['backend'],
                 'wn_synset': "",
                 'wn_domain': "factotum"
             })
@@ -114,7 +131,6 @@ def main():
         results.append({
             'gloss_ru': row['gloss_ru'],
             'gloss_en': row['gloss_en'],
-            'backend': row['backend'],
             'wn_synset': synset_name,
             'wn_domain': domain
         })
@@ -122,7 +138,7 @@ def main():
     # Convert results to DataFrame
     results_df = pd.DataFrame(results)
 
-    # Save output CSV with columns: gloss_ru, gloss_en, backend, wn_synset, wn_domain
+    # Save output CSV with columns: gloss_ru, gloss_en, wn_synset, wn_domain
     out_path = Path(args.out_file)
     results_df.to_csv(out_path, index=False)
 
