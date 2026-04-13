@@ -123,43 +123,193 @@ Loaded via `utils.wn_domains.load_wn_domains()` into:
 
 Script: `src/sem_cat/02_translate_glosses.py`  
 
-Purpose: translate all **unique primary** Russian glosses to English and store them in a cache.
+Purpose:
+- load VepKar meanings,
+- extract unique primary Russian glosses,
+- translate them into English,
+- save a translation cache CSV,
+- attach QA metadata for later review.
 
-Primary gloss is defined as:
-
-- take the first part before `;`,
-- remove all parentheticals `(…)`,
-- lowercase and strip whitespace.
-
-### CLI usage
-
-From the repository root:
+Run from repository root:
 
 ```bash
 source .venv/bin/activate
-python3 -m src.sem_cat.02_translate_glosses \
-    --data-dir data/vepkar \
-    --out-file data/sem_cat/glosses_translated.csv \
-    --backend marian \
-    --batch-size 64
+python3 -m src.sem_cat.02_translate_glosses --backend marian
 ```
 
-Arguments:
+Typical custom output file:
 
-- `--data-dir` — path to `meanings_*.csv` (default: `../../data/vepkar` from script dir),
-- `--out-file` — translation cache CSV (default: `../../data/sem_cat/glosses_translated.csv`),
-- `--backend` — `"marian"` or `"google"` (default: `"marian"`),
-- `--batch-size` — batch size for MarianMT (default: `64`).
+```bash
+python3 -m src.sem_cat.02_translate_glosses \
+    --backend marian \
+    --device cuda \
+    --out-file data/sem_cat/glosses_translated_marian_2026.csv
+```
 
-Cache format:
+Useful development run on a slow laptop:
+
+```bash
+python3 -m src.sem_cat.02_translate_glosses \
+    --backend marian \
+    --device cpu \
+    --limit 50
+```
+
+Focused subset run:
+
+```bash
+python3 -m src.sem_cat.02_translate_glosses \
+    --backend marian \
+    --offset 500 \
+    --limit 100
+```
+
+Round-trip QA run:
+
+```bash
+python3 -m src.sem_cat.02_translate_glosses \
+    --backend marian \
+    --device cuda \
+    --round-trip \
+    --out-file data/sem_cat/glosses_translated_marian_rt.csv
+```
+
+Context-aware experimental run:
+
+```bash
+python3 -m src.sem_cat.02_translate_glosses \
+    --backend marian \
+    --translation-input-mode pos_meaning \
+    --limit 200
+```
+
+#### Input
+
+By default the script reads VepKar meanings from:
 
 ```text
-gloss_ru,gloss_en,backend
-"помощь","help","marian"
-...
+data/vepkar/meanings_vep.csv
+data/vepkar/meanings_olo.csv
+data/vepkar/meanings_lud.csv
+data/vepkar/meanings_krl.csv
 ```
 
-If the file already exists, previously translated `gloss_ru` values are skipped.
+Expected important columns in these files:
+
+- `lemma`
+- `lang`
+- `pos`
+- `meaning_ru`
+
+#### Main arguments
+
+- `--data-dir`  
+  Path to the directory with `meanings_*.csv`.
+
+- `--out-dir`  
+  Output directory used when `--out-file` is not given.
+
+- `--out-file`  
+  Full output path for the translation cache CSV.
+
+- `--backend {marian,google}`  
+  Translation backend.  
+  `marian` = local HuggingFace MarianMT.  
+  `google` = Google Translate via Python backend.
+
+- `--device {cpu,cuda}`  
+  Device for Marian translation.
+
+- `--batch-size`  
+  Batch size for Marian translation.
+
+- `--round-trip`  
+  After RU → EN translation, also run EN → RU back-translation and save QA fields.
+
+- `--offset`  
+  Skip the first N glosses after cache filtering.
+
+- `--limit`  
+  Process at most N glosses after cache filtering and offset.
+
+- `--shuffle`  
+  Shuffle remaining glosses before applying offset and limit.
+
+- `--seed`  
+  Random seed used with `--shuffle`.
+
+- `--gloss-filter`  
+  Translate only glosses containing the given substring.
+
+- `--translation-input-mode {raw,pos,pos_meaning}`  
+  Controls what is sent to the translator:
+  - `raw`: only `gloss_ru`
+  - `pos`: `POS | gloss_ru`
+  - `pos_meaning`: `POS | gloss_ru | meaning_hint`
+
+#### Output file
+
+Default output file if `--out-file` is not specified:
+
+```text
+data/sem_cat/glosses_translated_{backend}.csv
+```
+
+Typical output columns:
+
+- always:
+  - `gloss_ru`
+  - `gloss_en`
+  - `qa_keep`
+  - `qa_score`
+  - `qa_flags`
+
+- with `--round-trip`:
+  - `gloss_ru_back`
+  - `roundtrip_distance`
+
+- with `--translation-input-mode pos` or `pos_meaning`:
+  - `pos_hint`
+  - `meaning_hint`
+  - `source_count`
+
+Example:
+
+```csv
+gloss_ru,gloss_en,qa_keep,qa_score,qa_flags
+помощь,help,True,0.0,
+тоня,"Tonia, turn it on.",True,0.2,multiword_for_singleword
+..., ,False,1.0,empty_translation
+```
+
+Meaning of QA fields:
+
+- `qa_keep`  
+  `True` if the translation is kept in `gloss_en`.  
+  `False` only for clearly unusable output.
+
+- `qa_score`  
+  Heuristic suspicion score from `0.0` to `1.0`.
+
+- `qa_flags`  
+  Semicolon-separated QA flags, for example:
+  - `empty_translation`
+  - `punctuation_only`
+  - `repeated_token_loop`
+  - `too_long_for_gloss`
+  - `multiword_for_singleword`
+  - `no_ascii_letters`
+  - `roundtrip_far`
+
+#### Incremental behavior
+
+If the output CSV already exists and contains column `gloss_ru`, previously translated glosses are skipped automatically.
+
+This allows:
+- interrupted runs,
+- continuing on another computer,
+- small subset experiments without redoing the whole dataset.
+
 
 ---
 
@@ -167,41 +317,216 @@ If the file already exists, previously translated `gloss_ru` values are skipped.
 
 Script: `src/sem_cat/03_wordnet_lookup.py`  
 
-Purpose: for each `(gloss_en, pos)` pair, find the best WordNet synset and map it to a WordNet Domain.
+Purpose:
+- load translated glosses from `02_translate_glosses.py`,
+- attach POS information,
+- look up WordNet synsets for English glosses,
+- map synsets to WordNet Domains,
+- save an enriched CSV for further analysis.
 
-### POS mapping
+Run from repository root:
+
+```bash
+source .venv/bin/activate
+python3 -m src.sem_cat.03_wordnet_lookup \
+    --translated-file data/sem_cat/glosses_translated_marian_2026.csv \
+    --wn-domains-file data/wn-domains-3.2-20070223
+```
+
+#### Input
+
+Main input:
+- translated CSV from `02_translate_glosses.py`
+
+Example:
+
+```csv
+gloss_ru,gloss_en,qa_keep,qa_score,qa_flags
+помощь,help,True,0.0,
+бежать,run,True,0.0,
+тоня,"Tonia, turn it on.",True,0.2,multiword_for_singleword
+```
+
+WordNet Domains file:
+- `data/wn-domains-3.2-20070223`
+
+Format example:
+
+```text
+00001740-n    factotum
+00001930-n    cognition
+```
+
+#### Main arguments
+
+- `--translated-file`  
+  Input CSV produced by `02_translate_glosses.py`.
+
+- `--wn-domains-file`  
+  Path to the WordNet Domains mapping file.
+
+- `--out-file`  
+  Output CSV path.  
+  Default: `data/sem_cat/glosses_wn_domains.csv`
+
+- `--data-dir`  
+  Path to `data/vepkar/`, used when POS is derived from meanings files.
+
+- `--pos-source {none,file,meanings}`  
+  Source of POS values:
+  - `none` = do not use POS
+  - `file` = read POS from `--pos-file`
+  - `meanings` = derive dominant POS from VepKar meanings
+
+- `--pos-file`  
+  Optional CSV with columns `gloss_ru,pos` when `--pos-source file` is used.
+
+#### POS mapping to WordNet
+
+Current mapping:
 
 ```python
 POS_MAP = {
     "NOUN": "n",
     "VERB": "v",
-    "ADJ":  "a",
-    "ADV":  "r",
+    "ADJ": "a",
+    "ADV": "r",
+    "NUM": None,
+    "PROPN": None,
 }
 ```
 
-All other POS are treated as **non-WordNet** and default to `"factotum"`.
+`NUM` and `PROPN` are not looked up in WordNet and fall back to `factotum`.
 
-### CLI usage
+#### Output file
+
+Default output file:
+
+```text
+data/sem_cat/glosses_wn_domains.csv
+```
+
+Typical output columns:
+
+- `gloss_ru`
+- `gloss_en`
+- `pos`
+- `wn_pos`
+- `wn_synset`
+- `synset_count`
+- `lookup_status`
+- `wn_domain`
+- `qa_skip_reason`
+
+If input QA columns exist, they are preserved:
+- `qa_keep`
+- `qa_score`
+- `qa_flags`
+
+Example:
+
+```csv
+gloss_ru,gloss_en,pos,wn_pos,wn_synset,synset_count,lookup_status,wn_domain,qa_skip_reason,qa_keep,qa_score,qa_flags
+помощь,help,NOUN,n,aid.n.02,14,found,act,,True,0.0,
+бежать,run,VERB,v,run.v.01,57,found,motion,,True,0.0,
+тоня,"Tonia, turn it on.",NOUN,n,,0,not_found,factotum,,True,0.2,multiword_for_singleword
+, ,NOUN,n,,0,skipped_empty,factotum,empty_gloss_en,False,1.0,empty_translation
+```
+
+Meaning of main fields:
+
+- `wn_synset`  
+  Best synset selected by NLTK WordNet.
+
+- `synset_count`  
+  Number of synsets returned by lookup.
+
+- `lookup_status`  
+  Lookup result status, for example:
+  - `found`
+  - `not_found`
+  - `skipped_empty`
+  - `skipped_pos`
+
+- `wn_domain`  
+  Domain label from wn-domains, or `factotum` as fallback.
+
+- `qa_skip_reason`  
+  Additional explanation related to QA or empty input.
+
+#### Optimization
+
+The script caches lookup results by `(gloss_en, wn_pos)`, so repeated identical lookups are not recomputed.
+
+---
+
+## Recommended run order
+
+Full basic pipeline:
 
 ```bash
 source .venv/bin/activate
+
+python3 -m src.sem_cat.02_translate_glosses \
+    --backend marian \
+    --device cuda \
+    --out-file data/sem_cat/glosses_translated_marian_2026.csv
+
 python3 -m src.sem_cat.03_wordnet_lookup \
-    --translated-file data/sem_cat/glosses_translated.csv \
-    --wn-domains-file data/sem_cat/wn-domains-3.2-20070223 \
-    --out-file data/sem_cat/glosses_wn_domains.csv
+    --translated-file data/sem_cat/glosses_translated_marian_2026.csv \
+    --wn-domains-file data/wn-domains-3.2-20070223 \
+    --out-file data/sem_cat/glosses_wn_domains_2026.csv
 ```
 
-Output CSV:
+Fast development loop on a weak laptop:
 
-```text
-gloss_ru,gloss_en,backend,wn_synset,wn_domain
-"помощь","help","marian","aid.n.02","act"
-"бежать","run","marian","run.v.01","motion"
-...
+```bash
+python3 -m src.sem_cat.02_translate_glosses \
+    --backend marian \
+    --device cpu \
+    --limit 50
+
+python3 -m src.sem_cat.03_wordnet_lookup \
+    --translated-file data/sem_cat/glosses_translated_marian.csv \
+    --wn-domains-file data/wn-domains-3.2-20070223
+```
+
+Comparison run with Google:
+
+```bash
+python3 -m src.sem_cat.02_translate_glosses \
+    --backend google \
+    --out-file data/sem_cat/glosses_translated_google.csv
 ```
 
 ---
+
+## Notes
+
+- `02_translate_glosses.py` is incremental: existing `gloss_ru` values are skipped.
+- `03_wordnet_lookup.py` works best with POS information.
+- Short and ambiguous glosses still need expert review even after QA flags and WordNet lookup.
+- The most useful rows for manual review are usually:
+  - high `qa_score`
+  - non-empty `qa_flags`
+  - `lookup_status=not_found`
+  - `wn_domain=factotum`
+
+---
+
+## Files produced by the pipeline
+
+Most important intermediate files:
+
+- `data/sem_cat/glosses_translated_marian.csv`
+- `data/sem_cat/glosses_translated_google.csv`
+- `data/sem_cat/glosses_wn_domains.csv`
+
+These files are suitable for:
+- manual expert review,
+- backend comparison,
+- WordNet coverage analysis,
+- later merge into enriched meanings files.
 
 ## 🏷️ Step 3 — Assign domains to meanings (`04_assign_domains.py`)
 
