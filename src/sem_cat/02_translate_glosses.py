@@ -194,10 +194,16 @@ def build_gloss_metadata(df_meanings: pd.DataFrame) -> pd.DataFrame:
         # Filter to those that contain the gloss
         meaning_candidates = meaning_candidates[meaning_candidates.str.contains(gloss, regex=False)]
         if len(meaning_candidates) > 0:
-            # Pick shortest one as hint
-            meaning_hint = meaning_candidates.loc[meaning_candidates.str.len().idxmin()]
+            # Pick shortest meaning_ru that contains this gloss
+            meaning_hint = meaning_candidates.loc[
+                meaning_candidates.str.len().idxmin()
+            ]
         else:
-            meaning_hint = group['meaning_ru'].dropna().iloc[0] if len(group) > 0 else None
+            meaning_hint = (
+                group['meaning_ru'].dropna().iloc[0]
+                if len(group['meaning_ru'].dropna()) > 0
+                else None
+            )
         
         gloss_metadata.append({
             'gloss_ru': gloss,
@@ -443,11 +449,12 @@ def main():
             batch_inputs = input_texts[batch_idx * args.batch_size :
                                 (batch_idx + 1) * args.batch_size]
             
-            translated_texts = translator.translate_batch(batch_inputs, batch_size=len(batch_inputs))
+            translated_texts = [t or "" for t in translator.translate_batch(batch_inputs, batch_size=len(batch_inputs))]
             
             # If round-trip is enabled, back-translate the results
             if args.round_trip and back_translator is not None:
-                back_translated_texts = back_translator.translate_batch(translated_texts, batch_size=len(translated_texts))
+                _raw_back = back_translator.translate_batch(translated_texts, batch_size=len(translated_texts))
+                back_translated_texts = [t or "" for t in _raw_back]
             else:
                 back_translated_texts = [None] * len(translated_texts)
             
@@ -504,13 +511,25 @@ def main():
             total_written += len(batch_rows)
             print(f"  Batch {batch_idx + 1}/{n_batches} saved ({total_written} total written)")
     else:  # google
+        # Initialize back-translator if round-trip is enabled
+        # GoogleTranslator(source="en", target="ru") — confirmed supported (src/sem_cat/translators/google_translator.py:12)
+        if args.round_trip:
+            back_translator = GoogleTranslator(source="en", target="ru")
+        
         # Process with batch_size=1 and delay, with incremental saves every 100 items
         batch_rows = []
         header_written = already_cached > 0
         
         for idx, (gloss, input_text) in enumerate(tqdm(zip(glosses_to_translate, input_texts), total=len(glosses_to_translate), desc="Translating")):
-            translated_text = translator.translate(input_text)
-            keep, qa_flags, qa_score = analyze_translation(gloss, translated_text)
+            translated_text = translator.translate(input_text) or ""
+            
+            # Back-translate if round-trip is enabled and forward translation is non-blank
+            roundtrip_text = None
+            if args.round_trip and translated_text.strip():
+                roundtrip_text = back_translator.translate(translated_text)
+                time.sleep(0.3)  # back-translation call (0.3s) + forward call below (0.3s) = ~0.6s/row
+            
+            keep, qa_flags, qa_score = analyze_translation(gloss, translated_text, roundtrip_text)
             
             row_data = {
                 'gloss_ru': gloss,
@@ -519,10 +538,15 @@ def main():
                 'qa_score': round(qa_score, 2),
                 'qa_flags': ';'.join(qa_flags) if qa_flags else '',
             }
-            # For Google backend, round-trip is not supported
+            # Add round-trip data if enabled
             if args.round_trip:
-                row_data["gloss_ru_back"] = ""
-                row_data["roundtrip_distance"] = ""
+                if roundtrip_text:
+                    row_data["gloss_ru_back"] = roundtrip_text
+                    distance = _normalized_edit_distance(gloss, roundtrip_text)
+                    row_data["roundtrip_distance"] = round(distance, 3)
+                else:
+                    row_data["gloss_ru_back"] = ""
+                    row_data["roundtrip_distance"] = ""
             
             # Add metadata columns if using context mode
             if args.translation_input_mode in ['pos', 'pos_meaning']:
