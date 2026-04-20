@@ -84,6 +84,72 @@ src/sem_cat/
 
 ---
 
+## 🧩 Input formats
+
+### `data/vepkar/meanings_*.csv`
+
+Expected columns (all strings):
+
+| Column | Description |
+|--------|-------------|
+| `id` | Row id inside this export file |
+| `lemma_id` | Id of the lemma in VepKar |
+| `meaning_id` | Id of the meaning in VepKar |
+| `meaning_num` | Number of the meaning within the lemma (1, 2, 3…) |
+| `lemma` | Lemma form in Veps or Karelian |
+| `lang` | Language code: `vep`, `olo`, `lud`, `krl` |
+| `pos` | POS tag (UPOS+custom, e.g. `NOUN`, `VERB`, `PROPN`) |
+| `meaning_ru` | Short Russian gloss (1–3 words; may contain `;` and `(...)`) |
+
+### `data/sem_cat/00_wn-domains-3.2-20070223`
+
+WordNet Domains 3.2 mapping file. Format:
+
+```text
+00001740-n    factotum
+00001930-n    cognition
+```
+
+Left column: 8-digit offset + POS letter (`n`, `v`, `a`, `r`).
+Right column: one of 164 fine-grained domain labels.
+
+Loaded via `utils.wn_domains.load_wn_domains()` → `{"00001740-n": ["factotum"], ...}`
+
+---
+
+## 🧩 Input formats
+
+### `data/vepkar/meanings_*.csv`
+
+Expected columns (all strings):
+
+| Column | Description |
+|--------|-------------|
+| `id` | Row id inside this export file |
+| `lemma_id` | Id of the lemma in VepKar |
+| `meaning_id` | Id of the meaning in VepKar |
+| `meaning_num` | Number of the meaning within the lemma (1, 2, 3…) |
+| `lemma` | Lemma form in Veps or Karelian |
+| `lang` | Language code: `vep`, `olo`, `lud`, `krl` |
+| `pos` | POS tag (UPOS+custom, e.g. `NOUN`, `VERB`, `PROPN`) |
+| `meaning_ru` | Short Russian gloss (1–3 words; may contain `;` and `(...)`) |
+
+### `data/sem_cat/00_wn-domains-3.2-20070223`
+
+WordNet Domains 3.2 mapping file. Format:
+
+```text
+00001740-n    factotum
+00001930-n    cognition
+```
+
+Left column: 8-digit offset + POS letter (`n`, `v`, `a`, `r`).
+Right column: one of 164 fine-grained domain labels.
+
+Loaded via `utils.wn_domains.load_wn_domains()` → `{"00001740-n": ["factotum"], ...}`
+
+---
+
 ## 🔧 Step 1 — Translate glosses (`02_translate_glosses.py`)
 
 **Purpose:** load VepKar meanings, extract unique Russian glosses, translate to English, save cache with QA metadata.
@@ -167,6 +233,18 @@ python3 -m src.sem_cat.02_translate_glosses \
 - **Always:** `gloss_ru`, `gloss_en`, `qa_keep`, `qa_score`, `qa_flags`
 - **With `--round-trip`:** `+ gloss_ru_back`, `roundtrip_distance`
 - **With `--translation-input-mode pos/pos_meaning`:** `+ pos_hint`, `meaning_hint`, `source_count`
+
+**Example output rows:**
+
+```csv
+gloss_ru,gloss_en,qa_keep,qa_score,qa_flags
+помощь,help,True,0.0,
+тоня,"Tonia, turn it on.",True,0.2,multiword_for_singleword
+-же,,False,1.0,empty_translation
+```
+
+> 💡 Even when `qa_keep=False`, `gloss_en` is saved as-is so experts can
+> diagnose what the backend produced.
 
 ### QA flags reference
 
@@ -270,6 +348,14 @@ python3 -m src.sem_cat.05_assign_domains \
     --out-dir data/sem_cat/results
 ```
 
+### CLI arguments
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--data-dir` | `data/vepkar/` | Path to VepKar meanings directory |
+| `--domains-file` | `data/sem_cat/04_glosses_wn_domains.csv` | WN domains CSV from Step 3 |
+| `--out-dir` | `data/sem_cat/results/` | Output directory for enriched CSVs |
+
 For each language `{vep, olo, lud, krl}` creates:
 
 ```text
@@ -314,18 +400,22 @@ python3 -m src.sem_cat.05_assign_domains \
 Fast dev loop on a weak laptop 🐢:
 
 ```bash
+# Translate 50 glosses with Marian (CPU, ~3 min per batch on old hardware)
 python3 -m src.sem_cat.02_translate_glosses \
     --backend marian --device cpu --limit 50
+
+# Run WordNet lookup on the partial result
 python3 -m src.sem_cat.04_wordnet_lookup \
     --translated-file data/sem_cat/02_glosses_translated_marian.csv \
-    --wn-domains-file data/sem_cat/00_wn-domains-3.2-20070223
+    --wn-domains-file data/sem_cat/00_wn-domains-3.2-20070223 \
+    --out-file data/sem_cat/04_glosses_wn_domains_dev.csv
 ```
 
 ---
 
 ## Notes
 
-- `02_translate_glosses.py` is incremental: existing `gloss_ru` values are skipped.
-- `04_wordnet_lookup.py` works best with POS information.
-- Short and ambiguous glosses still need expert review even after QA flags.
+- `02_translate_glosses.py` is incremental: existing `gloss_ru` values are skipped automatically on reruns.
+- `04_wordnet_lookup.py` works best with POS information; use `--pos-source meanings` to derive POS automatically.
+- Short and ambiguous glosses still need expert review even after QA flags and WordNet lookup.
 - Best candidates for manual review: high `qa_score`, non-empty `qa_flags`, `lookup_status=not_found`, `wn_domain=factotum`.
