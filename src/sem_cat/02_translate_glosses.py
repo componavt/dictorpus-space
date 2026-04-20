@@ -275,8 +275,14 @@ def main():
                         help=f"path to data/vepkar/ (default: {_DEFAULT_DATA_DIR})")
     parser.add_argument("--out-dir", type=str, default=str(_DEFAULT_OUT_DIR),
                         help=f"output directory for translated CSV (default: {_DEFAULT_OUT_DIR})")
-    parser.add_argument("--backend", type=str, choices=["marian", "google"], default="marian",
-                        help='translation backend: "marian" or "google" (default: marian)')
+    parser.add_argument("--backend", type=str, choices=["marian", "google", "nllb"], default="marian",
+                        help='translation backend: "marian", "google", or "nllb" (default: marian)')
+    parser.add_argument(
+        "--nllb-model",
+        type=str,
+        default="facebook/nllb-200-distilled-1.3B",
+        help="NLLB model name from HuggingFace (default: facebook/nllb-200-distilled-1.3B)",
+    )
     parser.add_argument("--batch-size", type=int, default=64,
                         help="batch size for translation (default: 64)")
     parser.add_argument(
@@ -346,7 +352,7 @@ def main():
     else:
         out_dir = pathlib.Path(args.out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
-        out_path = out_dir / f"glosses_translated_{args.backend}.csv"
+        out_path = out_dir / f"02_glosses_translated_{args.backend}.csv"
     
     print(f"Output file: {out_path}")
 
@@ -356,6 +362,9 @@ def main():
         print("Running test translation: 'дом' → expected 'house'")
         if args.backend == "marian":
             test_translator = MarianTranslator(device=args.device)
+        elif args.backend == "nllb":
+            from src.sem_cat.translators.nllb_translator import NLLBTranslator
+            test_translator = NLLBTranslator(model_name=args.nllb_model, device=args.device)
         else:
             test_translator = GoogleTranslator()
         try:
@@ -474,7 +483,20 @@ def main():
         if args.round_trip:
             back_translator = MarianTranslator(
                 device=args.device,
-                model_name="Helsinki-NLP/opus-mt-en-ru"
+                back_model_name="Helsinki-NLP/opus-mt-en-ru"
+            )
+    elif args.backend == "nllb":
+        from src.sem_cat.translators.nllb_translator import NLLBTranslator
+        translator = NLLBTranslator(
+            model_name=args.nllb_model,
+            device=args.device,
+        )
+        if args.round_trip:
+            back_translator = NLLBTranslator(
+                model_name=args.nllb_model,
+                src_lang="eng_Latn",
+                tgt_lang="rus_Cyrl",
+                device=args.device,
             )
     else:  # google
         translator = GoogleTranslator()
@@ -696,6 +718,8 @@ def main():
         print(f"  - Google raw None responses: {google_none_count}")
         print(f"  - Google raw empty responses: {google_empty_count}")
         print(f"  - Google raw OK responses: {google_ok_count}")
+    elif args.backend == "nllb":
+        print(f"  - NLLB model: {args.nllb_model}")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,12 @@
-"""Local translation backend using Helsinki-NLP/opus-mt-ru-en
+"""Local translation backend using Helsinki-NLP/opus-mt-tc-big-ru-en
 (MarianMT via HuggingFace transformers). No API key, no rate limits.
 Optimal for translating all 42k unique VepKar glosses offline.
+
+# Upgraded from opus-mt-ru-en (transformer-align, ~300 MB)
+# to opus-mt-tc-big-ru-en (transformer-big, ~600 MB).
+# Same API, better quality on ambiguous single-word glosses.
+# If the big model fails to download, pass model_name="Helsinki-NLP/opus-mt-ru-en"
+# to fall back to the original model.
 """
 
 from typing import List
@@ -11,12 +17,17 @@ from .base import Translator
 
 
 class MarianTranslator(Translator):
-    MODEL_NAME = "Helsinki-NLP/opus-mt-ru-en"
+    # Default model: opus-mt-tc-big-ru-en (transformer-big, ~600 MB)
+    # Fallback: opus-mt-ru-en (transformer-align, ~300 MB)
+    MODEL_NAME = "Helsinki-NLP/opus-mt-tc-big-ru-en"
+    # Back-translation model: opus-mt-en-ru (tc-big variant not available for en→ru)
+    BACK_MODEL_NAME = "Helsinki-NLP/opus-mt-en-ru"
 
-    def __init__(self, device: str = "cpu", model_name: str = None):
+    def __init__(self, device: str = "cpu", model_name: str = None, back_model_name: str = None):
         """Load tokenizer and model on init. Log model name and device."""
         self.device = device
         self.MODEL_NAME = model_name if model_name else self.MODEL_NAME
+        self.BACK_MODEL_NAME = back_model_name if back_model_name else self.BACK_MODEL_NAME
         print(f"Loading model {self.MODEL_NAME} on device {device}")
         self.tokenizer = MarianTokenizer.from_pretrained(self.MODEL_NAME)
         self.model = MarianMTModel.from_pretrained(self.MODEL_NAME, use_safetensors=True)
