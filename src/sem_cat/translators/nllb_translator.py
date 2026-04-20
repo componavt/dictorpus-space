@@ -74,11 +74,12 @@ class NLLBTranslator(Translator):
             print(f"NLLB translate error: {e}")
             return None
     
-    def translate_batch(self, texts: List[str]) -> List[Optional[str]]:
+    def translate_batch(self, texts: List[str], batch_size: int | None = None) -> List[Optional[str]]:
         """Translate a list of texts in batch.
         
         Args:
             texts: List of input texts to translate
+            batch_size: Optional batch size override (uses self._batch_size if None)
             
         Returns:
             List of translated texts (or None for failed items) in same order
@@ -86,8 +87,10 @@ class NLLBTranslator(Translator):
         if not texts:
             return []
         
+        effective_batch_size = batch_size if batch_size is not None else self._batch_size
+        
         try:
-            results = self._pipe(texts, batch_size=self._batch_size)
+            results = self._pipe(texts, batch_size=effective_batch_size)
             # results is list[{"translation_text": str}]
             translated = [r["translation_text"] if r and r.get("translation_text") else None for r in results]
             return translated

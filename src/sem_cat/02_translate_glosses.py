@@ -1,7 +1,7 @@
 """
 Translates all unique primary Russian glosses from VepKar meanings files
 into English, using a pluggable backend (MarianMT by default).
-Results are saved to data/sem_cat/glosses_translated_{backend}.csv.
+Results are saved to data/sem_cat/02_glosses_translated_{backend}.csv.
 Already-cached translations are never re-computed (incremental mode).
 """
 
@@ -28,8 +28,6 @@ _DEFAULT_OUT_DIR = _PROJECT_ROOT / "data" / "sem_cat"
 
 from src.sem_cat.utils.vepkar_loader import load_meanings
 from src.sem_cat.utils.gloss_normalizer import primary_gloss
-from src.sem_cat.translators.marian_translator import MarianTranslator
-from src.sem_cat.translators.google_translator import GoogleTranslator
 
 
 def _is_punctuation_only(text: str) -> bool:
@@ -299,7 +297,7 @@ def main():
     )
     parser.add_argument(
         "--round-trip", action="store_true", default=False,
-        help="also back-translate gloss_en→ru for quality checking (marian only)",
+        help="also back-translate gloss_en→ru for quality checking",
     )
     parser.add_argument(
         "--offset", type=int, default=0,
@@ -361,11 +359,13 @@ def main():
         print(f"\nBackend: {args.backend}")
         print("Running test translation: 'дом' → expected 'house'")
         if args.backend == "marian":
+            from src.sem_cat.translators.marian_translator import MarianTranslator
             test_translator = MarianTranslator(device=args.device)
         elif args.backend == "nllb":
             from src.sem_cat.translators.nllb_translator import NLLBTranslator
             test_translator = NLLBTranslator(model_name=args.nllb_model, device=args.device)
         else:
+            from src.sem_cat.translators.google_translator import GoogleTranslator
             test_translator = GoogleTranslator()
         try:
             test_result = test_translator.translate("дом")
@@ -478,12 +478,13 @@ def main():
     # Initialize translator
     back_translator = None
     if args.backend == "marian":
+        from src.sem_cat.translators.marian_translator import MarianTranslator
         translator = MarianTranslator(device=args.device)
         # If round-trip is enabled, initialize back-translator
         if args.round_trip:
             back_translator = MarianTranslator(
                 device=args.device,
-                back_model_name="Helsinki-NLP/opus-mt-en-ru"
+                model_name="Helsinki-NLP/opus-mt-en-ru",
             )
     elif args.backend == "nllb":
         from src.sem_cat.translators.nllb_translator import NLLBTranslator
@@ -499,6 +500,7 @@ def main():
                 device=args.device,
             )
     else:  # google
+        from src.sem_cat.translators.google_translator import GoogleTranslator
         translator = GoogleTranslator()
         # Round-trip: initialize back-translator
         back_translator = None
@@ -525,7 +527,7 @@ def main():
             input_text = prepare_translation_input(gloss, args.translation_input_mode, pos_hint, meaning_hint)
             input_texts.append(input_text)
 
-    if args.backend == "marian":
+    if args.backend in ("marian", "nllb"):
         # Use translate_batch for efficiency with incremental saves
         n = len(glosses_to_translate)
         n_batches = ceil(n / args.batch_size) if n > 0 else 0
@@ -534,25 +536,36 @@ def main():
         header_written = already_cached > 0
 
         for batch_idx in range(n_batches):
-            batch_glosses = glosses_to_translate[batch_idx * args.batch_size :
-                                          (batch_idx + 1) * args.batch_size]
-            batch_inputs = input_texts[batch_idx * args.batch_size :
-                                (batch_idx + 1) * args.batch_size]
+            batch_glosses = glosses_to_translate[
+                batch_idx * args.batch_size : (batch_idx + 1) * args.batch_size
+            ]
+            batch_inputs = input_texts[
+                batch_idx * args.batch_size : (batch_idx + 1) * args.batch_size
+            ]
             
-            translated_texts = [t or "" for t in translator.translate_batch(batch_inputs, batch_size=len(batch_inputs))]
+            translated_texts = [
+                t or "" for t in translator.translate_batch(
+                    batch_inputs, batch_size=len(batch_inputs)
+                )
+            ]
             
             # If round-trip is enabled, back-translate the results
             if args.round_trip and back_translator is not None:
-                _raw_back = back_translator.translate_batch(translated_texts, batch_size=len(translated_texts))
+                _raw_back = back_translator.translate_batch(
+                    translated_texts, batch_size=len(translated_texts)
+                )
                 back_translated_texts = [t or "" for t in _raw_back]
             else:
                 back_translated_texts = [None] * len(translated_texts)
             
             batch_rows = []
-            for i, (gloss_ru, input_text, trans) in enumerate(zip(batch_glosses, batch_inputs, translated_texts)):
+            for i, (gloss_ru, input_text, trans) in enumerate(
+                zip(batch_glosses, batch_inputs, translated_texts)
+            ):
                 roundtrip_text = back_translated_texts[i] if args.round_trip else None
-                keep, qa_flags, qa_score = analyze_translation(gloss_ru, trans, roundtrip_text)
-                
+                keep, qa_flags, qa_score = analyze_translation(
+                    gloss_ru, trans, roundtrip_text
+                )
                 row_data = {
                     "gloss_ru": gloss_ru,
                     "gloss_en": trans,
@@ -560,47 +573,41 @@ def main():
                     "qa_score": round(qa_score, 2),
                     "qa_flags": ";".join(qa_flags) if qa_flags else "",
                 }
-                
-                # Add back-translation if round-trip is enabled
                 if args.round_trip:
-                    row_data["gloss_ru_back"] = roundtrip_text if roundtrip_text else ""
-                    # Compute roundtrip distance
+                    row_data["gloss_ru_back"] = roundtrip_text or ""
                     if roundtrip_text:
-                        distance = _normalized_edit_distance(gloss_ru, roundtrip_text)
-                        row_data["roundtrip_distance"] = round(distance, 3)
+                        row_data["roundtrip_distance"] = round(
+                            _normalized_edit_distance(gloss_ru, roundtrip_text), 3
+                        )
                     else:
                         row_data["roundtrip_distance"] = ""
-                
-                # Add metadata columns if using context mode
-                if args.translation_input_mode in ['pos', 'pos_meaning']:
-                    metadata = gloss_metadata.get(gloss_ru, {})
-                    row_data["pos_hint"] = metadata.get('dominant_pos', '')
-                    row_data["meaning_hint"] = metadata.get('meaning_hint', '')
-                    row_data["source_count"] = metadata.get('source_count', 0)
-                
+                if args.translation_input_mode in ("pos", "pos_meaning"):
+                    meta = gloss_metadata.get(gloss_ru, {})
+                    row_data["pos_hint"] = meta.get("dominant_pos", "")
+                    row_data["meaning_hint"] = meta.get("meaning_hint", "")
+                    row_data["source_count"] = meta.get("source_count", 0)
+
                 batch_rows.append(row_data)
-                
                 if not keep:
                     total_blank += 1
                 elif qa_flags:
                     total_suspicious += 1
                 else:
                     total_kept += 1
-                    
+
             batch_df = pd.DataFrame(batch_rows)
-            
-            # append to CSV; write header only on the very first write of this run
             batch_df.to_csv(
-                out_path, mode="a",
-                header=not header_written,
-                index=False,
-                encoding="utf-8"
+                out_path, mode="a", header=not header_written,
+                index=False, encoding="utf-8"
             )
             if not header_written:
                 header_written = True
             total_written += len(batch_rows)
-            print(f"  Batch {batch_idx + 1}/{n_batches} saved ({total_written} total written)")
-    else:  # google
+            print(
+                f"  Batch {batch_idx + 1}/{n_batches} saved "
+                f"({total_written} total written)"
+            )
+    elif args.backend == "google":
         # Initialize back-translator if round-trip is enabled
         # GoogleTranslator(source="en", target="ru") — confirmed supported (src/sem_cat/translators/google_translator.py:12)
         back_translator = None

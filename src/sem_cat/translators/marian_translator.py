@@ -1,12 +1,9 @@
-"""Local translation backend using Helsinki-NLP/opus-mt-tc-big-ru-en
+"""Local translation backend using Helsinki-NLP/opus-mt-ru-en
 (MarianMT via HuggingFace transformers). No API key, no rate limits.
 Optimal for translating all 42k unique VepKar glosses offline.
 
-# Upgraded from opus-mt-ru-en (transformer-align, ~300 MB)
-# to opus-mt-tc-big-ru-en (transformer-big, ~600 MB).
-# Same API, better quality on ambiguous single-word glosses.
-# If the big model fails to download, pass model_name="Helsinki-NLP/opus-mt-ru-en"
-# to fall back to the original model.
+Default model: Helsinki-NLP/opus-mt-ru-en (~300 MB)
+Reverse model: Helsinki-NLP/opus-mt-en-ru (for back-translation)
 """
 
 from typing import List
@@ -17,22 +14,24 @@ from .base import Translator
 
 
 class MarianTranslator(Translator):
-    # Default model: opus-mt-tc-big-ru-en (transformer-big, ~600 MB)
-    # Fallback: opus-mt-ru-en (transformer-align, ~300 MB)
-    MODEL_NAME = "Helsinki-NLP/opus-mt-tc-big-ru-en"
-    # Back-translation model: opus-mt-en-ru (tc-big variant not available for en→ru)
-    BACK_MODEL_NAME = "Helsinki-NLP/opus-mt-en-ru"
+    """MarianMT-based Russian-to-English translator."""
+    
+    MODEL_NAME = "Helsinki-NLP/opus-mt-ru-en"
 
-    def __init__(self, device: str = "cpu", model_name: str = None, back_model_name: str = None):
-        """Load tokenizer and model on init. Log model name and device."""
+    def __init__(self, device: str = "cpu", model_name: str | None = None):
+        """Load tokenizer and model on init. Log model name and device.
+        
+        Args:
+            device: "cpu" or "cuda"
+            model_name: Optional override for model name (default: MODEL_NAME)
+        """
         self.device = device
-        self.MODEL_NAME = model_name if model_name else self.MODEL_NAME
-        self.BACK_MODEL_NAME = back_model_name if back_model_name else self.BACK_MODEL_NAME
-        print(f"Loading model {self.MODEL_NAME} on device {device}")
-        self.tokenizer = MarianTokenizer.from_pretrained(self.MODEL_NAME)
-        self.model = MarianMTModel.from_pretrained(self.MODEL_NAME, use_safetensors=True)
+        self.model_name = model_name or self.MODEL_NAME
+        print(f"Loading model {self.model_name} on device {device}")
+        self.tokenizer = MarianTokenizer.from_pretrained(self.model_name)
+        self.model = MarianMTModel.from_pretrained(self.model_name)
         self.model.to(self.device)
-        print(f"Model {self.MODEL_NAME} loaded successfully on {device}")
+        print(f"Model {self.model_name} loaded successfully on {device}")
 
     def translate(self, text: str) -> str:
         """Translate single string."""
