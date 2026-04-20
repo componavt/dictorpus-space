@@ -241,6 +241,34 @@ def prepare_translation_input(gloss_ru: str, mode: str, pos_hint: str | None = N
         return gloss_ru
 
 
+def _translate_with_retry(translator, text: str, retries: int, retry_delay: float) -> str | None:
+    """
+    Translate with retry logic for empty/None responses.
+    
+    Args:
+        translator: Translator instance with .translate() method
+        text: Input text to translate
+        retries: Number of retry attempts for empty/None responses
+        retry_delay: Additional sleep in seconds before each retry
+    
+    Returns:
+        Translation result or None if all attempts failed
+    """
+    for attempt in range(retries + 1):
+        try:
+            result = translator.translate(text)
+            if result and result.strip():
+                return result
+            if attempt < retries:
+                time.sleep(retry_delay)
+        except Exception as e:
+            if attempt < retries:
+                time.sleep(retry_delay)
+            else:
+                raise
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description="Translate Russian glosses to English")
     parser.add_argument("--data-dir", type=str, default=str(_DEFAULT_DATA_DIR),
@@ -292,6 +320,22 @@ def main():
         default="raw",
         help="How to prepare input for translator (default: raw)"
     )
+    parser.add_argument(
+        "--debug-sample", type=int, default=0,
+        help="Print raw translation output for first N items (default: 0 = off)"
+    )
+    parser.add_argument(
+        "--google-retries", type=int, default=2,
+        help="Number of retry attempts for empty/None Google responses (default: 2)"
+    )
+    parser.add_argument(
+        "--google-retry-delay", type=float, default=1.0,
+        help="Additional sleep in seconds before each retry (default: 1.0)"
+    )
+    parser.add_argument(
+        "--backend-info", action="store_true",
+        help="Print backend configuration, run a single test translation, then exit"
+    )
 
     args = parser.parse_args()
     
@@ -305,6 +349,28 @@ def main():
         out_path = out_dir / f"glosses_translated_{args.backend}.csv"
     
     print(f"Output file: {out_path}")
+
+    # Handle --backend-info: quick sanity check
+    if args.backend_info:
+        print(f"\nBackend: {args.backend}")
+        print("Running test translation: 'дом' → expected 'house'")
+        if args.backend == "marian":
+            test_translator = MarianTranslator(device=args.device)
+        else:
+            test_translator = GoogleTranslator()
+        try:
+            test_result = test_translator.translate("дом")
+            if test_result and test_result.strip():
+                status = "OK"
+            else:
+                status = "EMPTY"
+        except Exception as e:
+            test_result = f"ERROR: {type(e).__name__}: {e}"
+            status = "ERROR"
+        print(f"Test input:  дом")
+        print(f"Test output: {test_result!r}")
+        print(f"Status: {status}")
+        return
 
     # Validate data directory exists
     data_dir = pathlib.Path(args.data_dir)
@@ -412,9 +478,11 @@ def main():
             )
     else:  # google
         translator = GoogleTranslator()
-        # Round-trip is only supported for marian backend
+        # Round-trip: initialize back-translator
+        back_translator = None
         if args.round_trip:
-            print("Warning: --round-trip is only supported with marian backend, ignoring flag.")
+            back_translator = GoogleTranslator(source="en", target="ru")
+            print("Round-trip enabled: back-translating EN→RU with GoogleTranslator.")
 
     # Translate the remaining glosses
     print(f"Translating with {args.backend} backend (mode: {args.translation_input_mode})...")
@@ -465,7 +533,7 @@ def main():
                 
                 row_data = {
                     "gloss_ru": gloss_ru,
-                    "gloss_en": trans if keep else "",
+                    "gloss_en": trans,
                     "qa_keep": keep,
                     "qa_score": round(qa_score, 2),
                     "qa_flags": ";".join(qa_flags) if qa_flags else "",
@@ -513,27 +581,57 @@ def main():
     else:  # google
         # Initialize back-translator if round-trip is enabled
         # GoogleTranslator(source="en", target="ru") — confirmed supported (src/sem_cat/translators/google_translator.py:12)
+        back_translator = None
         if args.round_trip:
             back_translator = GoogleTranslator(source="en", target="ru")
+            print("Round-trip enabled: back-translating EN→RU with GoogleTranslator.")
         
         # Process with batch_size=1 and delay, with incremental saves every 100 items
         batch_rows = []
         header_written = already_cached > 0
         
+        # Counters for raw response diagnostics
+        google_none_count = 0
+        google_empty_count = 0
+        google_ok_count = 0
+        
         for idx, (gloss, input_text) in enumerate(tqdm(zip(glosses_to_translate, input_texts), total=len(glosses_to_translate), desc="Translating")):
-            translated_text = translator.translate(input_text) or ""
+            # Translate with retry logic
+            try:
+                raw_translation = _translate_with_retry(translator, input_text, args.google_retries, args.google_retry_delay)
+            except Exception as e:
+                print(f"\n[GOOGLE ERROR] idx={idx} gloss='{gloss}': {type(e).__name__}: {e}")
+                raw_translation = None
+            
+            # Track raw response diagnostics
+            if raw_translation is None:
+                google_none_count += 1
+            elif not raw_translation.strip():
+                google_empty_count += 1
+            else:
+                google_ok_count += 1
+            
+            translated_text = raw_translation or ""
+            
+            # Print debug sample if requested
+            if args.debug_sample > 0 and idx < args.debug_sample:
+                print(f"[DEBUG #{idx}] gloss_ru='{gloss}' → raw='{translated_text!r}'")
             
             # Back-translate if round-trip is enabled and forward translation is non-blank
             roundtrip_text = None
-            if args.round_trip and translated_text.strip():
-                roundtrip_text = back_translator.translate(translated_text)
+            if args.round_trip and back_translator is not None and translated_text.strip():
+                try:
+                    roundtrip_text = _translate_with_retry(back_translator, translated_text, args.google_retries, args.google_retry_delay)
+                except Exception as e:
+                    print(f"\n[BACK-TRANSLATE ERROR] idx={idx} gloss_en='{translated_text}': {type(e).__name__}: {e}")
+                    roundtrip_text = None
                 time.sleep(0.3)  # back-translation call (0.3s) + forward call below (0.3s) = ~0.6s/row
             
             keep, qa_flags, qa_score = analyze_translation(gloss, translated_text, roundtrip_text)
             
             row_data = {
                 'gloss_ru': gloss,
-                'gloss_en': translated_text if keep else '',
+                'gloss_en': translated_text,
                 'qa_keep': keep,
                 'qa_score': round(qa_score, 2),
                 'qa_flags': ';'.join(qa_flags) if qa_flags else '',
@@ -594,6 +692,10 @@ def main():
     print(f"  - Kept (good quality): {total_kept}")
     print(f"  - Kept (suspicious, flagged): {total_suspicious}")
     print(f"  - Blank/broken (qa_keep=False): {total_blank}")
+    if args.backend == "google":
+        print(f"  - Google raw None responses: {google_none_count}")
+        print(f"  - Google raw empty responses: {google_empty_count}")
+        print(f"  - Google raw OK responses: {google_ok_count}")
 
 
 if __name__ == "__main__":
