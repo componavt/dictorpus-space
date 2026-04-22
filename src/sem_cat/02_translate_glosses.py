@@ -285,7 +285,7 @@ def main():
                         help="batch size for translation (default: 64)")
     parser.add_argument(
         "--device", type=str, default="cpu",
-        help='Device for MarianMT: "cpu" or "cuda" (default: cpu)',
+        help='Device for local HuggingFace models: "cpu" or "cuda" (default: cpu)',
     )
     parser.add_argument(
         "--out-file", type=str, default=None,
@@ -362,8 +362,14 @@ def main():
             from src.sem_cat.translators.marian_translator import MarianTranslator
             test_translator = MarianTranslator(device=args.device)
         elif args.backend == "nllb":
-            from src.sem_cat.translators.nllb_translator import NLLBTranslator
-            test_translator = NLLBTranslator(model_name=args.nllb_model, device=args.device)
+            try:
+                from src.sem_cat.translators.nllb_translator import NLLBTranslator
+                test_translator = NLLBTranslator(model_name=args.nllb_model, device=args.device)
+            except ImportError as e:
+                print("NLLB backend is unavailable in the current environment.")
+                print("Install required packages in the active virtualenv:")
+                print("  pip install torch transformers sentencepiece sacremoses")
+                sys.exit(1)
         else:
             from src.sem_cat.translators.google_translator import GoogleTranslator
             test_translator = GoogleTranslator()
@@ -487,18 +493,24 @@ def main():
                 model_name="Helsinki-NLP/opus-mt-en-ru",
             )
     elif args.backend == "nllb":
-        from src.sem_cat.translators.nllb_translator import NLLBTranslator
-        translator = NLLBTranslator(
-            model_name=args.nllb_model,
-            device=args.device,
-        )
-        if args.round_trip:
-            back_translator = NLLBTranslator(
+        try:
+            from src.sem_cat.translators.nllb_translator import NLLBTranslator
+            translator = NLLBTranslator(
                 model_name=args.nllb_model,
-                src_lang="eng_Latn",
-                tgt_lang="rus_Cyrl",
                 device=args.device,
             )
+            if args.round_trip:
+                back_translator = NLLBTranslator(
+                    model_name=args.nllb_model,
+                    src_lang="eng_Latn",
+                    tgt_lang="rus_Cyrl",
+                    device=args.device,
+                )
+        except ImportError as e:
+            print("NLLB backend is unavailable in the current environment.")
+            print("Install required packages in the active virtualenv:")
+            print("  pip install torch transformers sentencepiece sacremoses")
+            sys.exit(1)
     else:  # google
         from src.sem_cat.translators.google_translator import GoogleTranslator
         translator = GoogleTranslator()
