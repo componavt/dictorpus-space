@@ -1,257 +1,66 @@
 """
 Translates all unique primary Russian glosses from VepKar meanings files
-into English, using a pluggable backend (MarianMT by default).
-Results are saved to data/sem_cat/02_glosses_translated_{backend}.csv.
+into English, using a pluggable model from the translator registry.
+Results are saved to data/sem_cat/02_glosses_translated_{model_key}.csv.
 Already-cached translations are never re-computed (incremental mode).
 """
 
 import sys
 import pathlib
-import pandas as pd
 import argparse
 import time
-import re
-from tqdm import tqdm
-from math import ceil
-from collections import Counter
 import random
+from math import ceil
+
+import pandas as pd
 
 # Add project root to sys.path to allow absolute imports
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent))
 
 # Anchor all default paths to the project root (2 levels up from this file).
-# This file lives at:  <project_root>/src/sem_cat/02_translate_glosses.py
 _THIS_FILE = pathlib.Path(__file__).resolve()
-_PROJECT_ROOT = _THIS_FILE.parent.parent.parent   # → <project_root>
+_PROJECT_ROOT = _THIS_FILE.parent.parent.parent
 _DEFAULT_DATA_DIR = _PROJECT_ROOT / "data" / "vepkar"
 _DEFAULT_OUT_DIR = _PROJECT_ROOT / "data" / "sem_cat"
 
 from src.sem_cat.utils.vepkar_loader import load_meanings
-from src.sem_cat.utils.gloss_normalizer import primary_gloss
+from src.sem_cat.translators.model_registry import (
+    get_model_spec,
+    list_model_keys,
+    resolve_legacy_args_to_model_key,
+)
+from src.sem_cat.translators.factory import build_translator, build_reverse_translator
+from src.sem_cat.translators.base import Translator
+from src.sem_cat.pipeline.translation_input import (
+    extract_unique_primary_glosses,
+    build_gloss_metadata_map,
+    prepare_translation_input,
+    GlossMetadata,
+)
+from src.sem_cat.qa.translation_qa import (
+    analyze_translation,
+    TranslationQAConfig,
+    QAResult,
+)
+from src.sem_cat.io.translation_cache import (
+    load_translation_cache,
+    build_cached_gloss_set,
+    count_cached_rows,
+)
+from src.sem_cat.io.translation_rows import (
+    build_translation_row,
+    CANONICAL_COLUMNS,
+    QA_VERSION,
+)
 
 
-def _is_punctuation_only(text: str) -> bool:
-    """Return True if text contains only punctuation/whitespace."""
-    if not text or not text.strip():
-        return True
-    return bool(re.fullmatch(r"[\W\s]+", text))
-
-
-def _detect_repetition(text: str) -> bool:
-    """Detect obvious repetition loops like 'No, no, no, no...' or '. . . . .'."""
-    if not text or not text.strip():
-        return False
-    
-    text = text.strip()
-    
-    # Tokenize by whitespace and punctuation
-    tokens = re.findall(r'\w+|[^\w\s]', text, re.UNICODE)
-    
-    if len(tokens) < 4:
-        return False
-    
-    # Check for repeated single token (e.g., "no no no no")
-    token_counts = Counter(tokens)
-    most_common_token, most_common_count = token_counts.most_common(1)[0]
-    if most_common_count >= int(len(tokens) * 0.7) and len(tokens) >= 4:
-        return True
-    
-    # Check for repeated 2-grams
-    if len(tokens) >= 6:
-        bigrams = [(tokens[i], tokens[i+1]) for i in range(len(tokens)-1)]
-        bigram_counts = Counter(bigrams)
-        most_common_bigram, most_common_bigram_count = bigram_counts.most_common(1)[0]
-        if most_common_bigram_count >= int(len(bigrams) * 0.6):
-            return True
-    
-    # Check for repeated 3-grams
-    if len(tokens) >= 8:
-        trigrams = [(tokens[i], tokens[i+1], tokens[i+2]) for i in range(len(tokens)-2)]
-        trigram_counts = Counter(trigrams)
-        most_common_trigram, most_common_trigram_count = trigram_counts.most_common(1)[0]
-        if most_common_trigram_count >= int(len(trigrams) * 0.5):
-            return True
-    
-    return False
-
-
-def _normalized_edit_distance(s1: str, s2: str) -> float:
-    """Compute normalized edit distance between two strings (0.0 = identical, 1.0 = completely different)."""
-    if not s1 and not s2:
-        return 0.0
-    if not s1 or not s2:
-        return 1.0
-    
-    # Use Levenshtein distance
-    len1, len2 = len(s1), len(s2)
-    max_len = max(len1, len2)
-    
-    # Create distance matrix
-    dp = [[0] * (len2 + 1) for _ in range(len1 + 1)]
-    
-    for i in range(len1 + 1):
-        dp[i][0] = i
-    for j in range(len2 + 1):
-        dp[0][j] = j
-    
-    for i in range(1, len1 + 1):
-        for j in range(1, len2 + 1):
-            if s1[i-1] == s2[j-1]:
-                dp[i][j] = dp[i-1][j-1]
-            else:
-                dp[i][j] = 1 + min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
-    
-    return dp[len1][len2] / max_len
-
-
-def analyze_translation(ru: str, en: str, roundtrip_text: str | None = None) -> tuple[bool, list[str], float]:
-    """
-    Analyzes a translation and returns QA information.
-    
-    Args:
-        ru: Original Russian gloss
-        en: Translated English gloss
-        roundtrip_text: Optional back-translated Russian text
-    
-    Returns:
-        keep_translation: bool - False only for truly unusable output
-        qa_flags: list[str] - List of QA flag identifiers
-        qa_score: float - 0.0 (good) to 1.0 (suspicious)
-    """
-    qa_flags: list[str] = []
-    qa_score = 0.0
-    
-    # Check for empty/whitespace only
-    if not en or not en.strip():
-        return False, ["empty_translation"], 1.0
-    
-    # Check for punctuation-only
-    if _is_punctuation_only(en):
-        return False, ["punctuation_only"], 1.0
-    
-    # Check for repetition loops
-    if _detect_repetition(en):
-        return False, ["repeated_token_loop"], 1.0
-    
-    # Check for no ASCII letters (may indicate transliteration or garbage)
-    if not any(c.isalpha() and ord(c) < 128 for c in en):
-        qa_flags.append("no_ascii_letters")
-        qa_score += 0.3
-    
-    # Check for suspicious length ratio (English > 5x Russian)
-    if ru and len(en) > max(80, len(ru) * 5):
-        qa_flags.append("too_long_for_gloss")
-        qa_score += 0.4
-    
-    # Check for multi-word English from single-word Russian
-    ru_words = ru.strip().split()
-    en_words = en.strip().split()
-    if len(ru_words) == 1 and len(en_words) > 2:
-        qa_flags.append("multiword_for_singleword")
-        qa_score += 0.2
-    
-    # Check round-trip distance if provided
-    if roundtrip_text is not None and ru:
-        distance = _normalized_edit_distance(ru, roundtrip_text)
-        if distance > 0.5:
-            qa_flags.append("roundtrip_far")
-            qa_score += 0.3
-    
-    # Cap qa_score at 1.0
-    qa_score = min(1.0, qa_score)
-    
-    # keep_translation is True unless we already flagged as unusable
-    keep_translation = True
-    
-    return keep_translation, qa_flags, qa_score
-
-
-def build_gloss_metadata(df_meanings: pd.DataFrame) -> pd.DataFrame:
-    """
-    Build per-primary-gloss metadata from meanings DataFrame.
-    
-    Returns DataFrame with columns:
-        gloss_ru, dominant_pos, meaning_hint, source_count
-    """
-    # Extract primary gloss for each row
-    df_meanings = df_meanings.copy()
-    df_meanings['primary_gloss'] = df_meanings['meaning_ru'].apply(
-        lambda x: primary_gloss(x) if pd.notna(x) else ''
-    )
-    df_meanings = df_meanings[df_meanings['primary_gloss'].str.len() > 0]
-    
-    # Group by primary gloss
-    gloss_metadata = []
-    for gloss, group in df_meanings.groupby('primary_gloss'):
-        # Most frequent POS
-        pos_counts = group['pos'].dropna().value_counts()
-        dominant_pos = pos_counts.index[0] if len(pos_counts) > 0 else None
-        
-        # Shortest meaning_ru containing this gloss (as a hint)
-        meaning_candidates = group['meaning_ru'].dropna()
-        # Filter to those that contain the gloss
-        meaning_candidates = meaning_candidates[meaning_candidates.str.contains(gloss, regex=False)]
-        if len(meaning_candidates) > 0:
-            # Pick shortest meaning_ru that contains this gloss
-            meaning_hint = meaning_candidates.loc[
-                meaning_candidates.str.len().idxmin()
-            ]
-        else:
-            meaning_hint = (
-                group['meaning_ru'].dropna().iloc[0]
-                if len(group['meaning_ru'].dropna()) > 0
-                else None
-            )
-        
-        gloss_metadata.append({
-            'gloss_ru': gloss,
-            'dominant_pos': dominant_pos,
-            'meaning_hint': meaning_hint,
-            'source_count': len(group)
-        })
-    
-    return pd.DataFrame(gloss_metadata)
-
-
-def prepare_translation_input(gloss_ru: str, mode: str, pos_hint: str | None = None, meaning_hint: str | None = None) -> str:
-    """
-    Prepare the input string for translation based on the mode.
-    
-    Args:
-        gloss_ru: The Russian gloss
-        mode: One of 'raw', 'pos', 'pos_meaning'
-        pos_hint: Optional POS hint
-        meaning_hint: Optional meaning hint
-    
-    Returns:
-        Input string to send to translator
-    """
-    if mode == 'raw':
-        return gloss_ru
-    elif mode == 'pos':
-        pos = pos_hint if pos_hint else 'UNKNOWN'
-        return f"{pos} | {gloss_ru}"
-    elif mode == 'pos_meaning':
-        pos = pos_hint if pos_hint else 'UNKNOWN'
-        meaning = meaning_hint if meaning_hint else ''
-        return f"{pos} | {gloss_ru} | {meaning}"
-    else:
-        return gloss_ru
-
-
-def _translate_with_retry(translator, text: str, retries: int, retry_delay: float) -> str | None:
-    """
-    Translate with retry logic for empty/None responses.
-    
-    Args:
-        translator: Translator instance with .translate() method
-        text: Input text to translate
-        retries: Number of retry attempts for empty/None responses
-        retry_delay: Additional sleep in seconds before each retry
-    
-    Returns:
-        Translation result or None if all attempts failed
-    """
+def _translate_with_retry(
+    translator: Translator,
+    text: str,
+    retries: int,
+    retry_delay: float,
+) -> str | None:
+    """Translate with retry logic for empty/None responses."""
     for attempt in range(retries + 1):
         try:
             result = translator.translate(text)
@@ -259,7 +68,7 @@ def _translate_with_retry(translator, text: str, retries: int, retry_delay: floa
                 return result
             if attempt < retries:
                 time.sleep(retry_delay)
-        except Exception as e:
+        except Exception:
             if attempt < retries:
                 time.sleep(retry_delay)
             else:
@@ -267,19 +76,132 @@ def _translate_with_retry(translator, text: str, retries: int, retry_delay: floa
     return None
 
 
-def main():
+def _run_google_batch(
+    translator: Translator,
+    batch_glosses: list[str],
+    batch_inputs: list[str],
+    retries: int,
+    retry_delay: float,
+    debug_sample: int,
+    global_offset: int,
+) -> tuple[list[str], dict[str, int]]:
+    """Run translation for Google backend (one-at-a-time with retry).
+
+    Returns (translated_texts, diagnostic_counters).
+    """
+    translated: list[str] = []
+    counters = {"none": 0, "empty": 0, "ok": 0}
+
+    for i, (gloss, input_text) in enumerate(zip(batch_glosses, batch_inputs)):
+        try:
+            raw = _translate_with_retry(translator, input_text, retries, retry_delay)
+        except Exception as e:
+            global_idx = global_offset + i
+            print(f"\n[GOOGLE ERROR] idx={global_idx} gloss='{gloss}': {type(e).__name__}: {e}")
+            raw = None
+
+        if raw is None:
+            counters["none"] += 1
+        elif not raw.strip():
+            counters["empty"] += 1
+        else:
+            counters["ok"] += 1
+
+        translated.append(raw or "")
+
+        if debug_sample > 0 and (global_offset + i) < debug_sample:
+            print(f"[DEBUG] gloss_ru='{gloss}' -> raw='{raw!r}'")
+
+        time.sleep(0.3)
+
+    return translated, counters
+
+
+def _run_back_translate(
+    back_translator: Translator | None,
+    translated_texts: list[str],
+    is_google: bool,
+    retries: int,
+    retry_delay: float,
+) -> list[str | None]:
+    """Back-translate a batch of English texts to Russian."""
+    if back_translator is None:
+        return [None] * len(translated_texts)
+
+    if is_google:
+        results: list[str | None] = []
+        for trans in translated_texts:
+            if trans.strip():
+                try:
+                    rt = _translate_with_retry(back_translator, trans, retries, retry_delay)
+                    results.append(rt or "")
+                except Exception as e:
+                    print(f"\n[BACK-TRANSLATE ERROR] gloss_en='{trans}': {type(e).__name__}: {e}")
+                    results.append("")
+                time.sleep(0.3)
+            else:
+                results.append("")
+        return results
+
+    # HF models: use translate_batch
+    raw_back = back_translator.translate_batch(translated_texts, batch_size=len(translated_texts))
+    return [t or "" for t in raw_back]
+
+
+def _print_summary(
+    total_unique: int,
+    already_cached: int,
+    remaining_after_cache: int,
+    to_translate_count: int,
+    total_written: int,
+    total_kept: int,
+    total_suspicious: int,
+    total_blank: int,
+    total_roundtrip: int,
+    flag_counts: dict[str, int],
+    spec_backend: str,
+    google_counters: dict[str, int],
+) -> None:
+    """Print final summary statistics."""
+    print(f"\n{'=' * 60}")
+    print("SUMMARY")
+    print(f"{'=' * 60}")
+    print(f"Total unique glosses:           {total_unique}")
+    print(f"Already cached:                 {already_cached}")
+    print(f"Remaining after cache:          {remaining_after_cache}")
+    print(f"Selected for this run:          {to_translate_count}")
+    print(f"Newly translated:               {total_written}")
+    print(f"  - Kept (good quality):        {total_kept}")
+    print(f"  - Kept (suspicious, flagged): {total_suspicious}")
+    print(f"  - Unusable (qa_keep=False):   {total_blank}")
+    print(f"  - With round-trip:            {total_roundtrip}")
+
+    if flag_counts:
+        print("  QA flag breakdown:")
+        for flag, count in sorted(flag_counts.items()):
+            print(f"    - {flag}: {count}")
+
+    if spec_backend == "google":
+        print(f"  - Google raw None responses:  {google_counters.get('none', 0)}")
+        print(f"  - Google raw empty responses: {google_counters.get('empty', 0)}")
+        print(f"  - Google raw OK responses:    {google_counters.get('ok', 0)}")
+
+
+def main() -> None:
+    model_keys = list_model_keys()
+
     parser = argparse.ArgumentParser(description="Translate Russian glosses to English")
     parser.add_argument("--data-dir", type=str, default=str(_DEFAULT_DATA_DIR),
                         help=f"path to data/vepkar/ (default: {_DEFAULT_DATA_DIR})")
     parser.add_argument("--out-dir", type=str, default=str(_DEFAULT_OUT_DIR),
                         help=f"output directory for translated CSV (default: {_DEFAULT_OUT_DIR})")
+    parser.add_argument("--model-key", type=str, choices=model_keys, default=None,
+                        help=f"translation model key (default: resolved from --backend)")
     parser.add_argument("--backend", type=str, choices=["marian", "google", "nllb"], default="marian",
-                        help='translation backend: "marian", "google", or "nllb" (default: marian)')
+                        help='legacy: translation backend (default: marian). Prefer --model-key.')
     parser.add_argument(
-        "--nllb-model",
-        type=str,
-        default="facebook/nllb-200-distilled-1.3B",
-        help="NLLB model name from HuggingFace (default: facebook/nllb-200-distilled-1.3B)",
+        "--nllb-model", type=str, default="facebook/nllb-200-distilled-1.3B",
+        help="legacy: NLLB model name (used with --backend nllb). Prefer --model-key.",
     )
     parser.add_argument("--batch-size", type=int, default=64,
                         help="batch size for translation (default: 64)")
@@ -291,90 +213,75 @@ def main():
         "--out-file", type=str, default=None,
         help=(
             "Full path to output CSV file. If provided, overrides --out-dir "
-            "and the auto-generated filename. "
-            "Example: data/sem_cat/glosses_translated_marian_2026.csv"
+            "and the auto-generated filename."
         ),
     )
     parser.add_argument(
         "--round-trip", action="store_true", default=False,
-        help="also back-translate gloss_en→ru for quality checking",
+        help="also back-translate gloss_en -> ru for quality checking",
     )
-    parser.add_argument(
-        "--offset", type=int, default=0,
-        help="Skip the first N glosses after cache filtering (default: 0)"
-    )
-    parser.add_argument(
-        "--limit", type=int, default=None,
-        help="Process at most N glosses after offset (default: None = all)"
-    )
-    parser.add_argument(
-        "--shuffle", action="store_true", default=False,
-        help="Shuffle glosses_to_translate before applying offset/limit"
-    )
-    parser.add_argument(
-        "--seed", type=int, default=42,
-        help="Random seed used with --shuffle (default: 42)"
-    )
-    parser.add_argument(
-        "--gloss-filter", type=str, default=None,
-        help="Optional substring filter applied to gloss_ru before translation"
-    )
+    parser.add_argument("--offset", type=int, default=0,
+                        help="Skip the first N glosses after cache filtering (default: 0)")
+    parser.add_argument("--limit", type=int, default=None,
+                        help="Process at most N glosses after offset (default: None = all)")
+    parser.add_argument("--shuffle", action="store_true", default=False,
+                        help="Shuffle glosses_to_translate before applying offset/limit")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="Random seed used with --shuffle (default: 42)")
+    parser.add_argument("--gloss-filter", type=str, default=None,
+                        help="Optional substring filter applied to gloss_ru before translation")
     parser.add_argument(
         "--translation-input-mode", type=str, choices=["raw", "pos", "pos_meaning"],
         default="raw",
-        help="How to prepare input for translator (default: raw)"
+        help="How to prepare input for translator (default: raw)",
     )
-    parser.add_argument(
-        "--debug-sample", type=int, default=0,
-        help="Print raw translation output for first N items (default: 0 = off)"
-    )
-    parser.add_argument(
-        "--google-retries", type=int, default=2,
-        help="Number of retry attempts for empty/None Google responses (default: 2)"
-    )
-    parser.add_argument(
-        "--google-retry-delay", type=float, default=1.0,
-        help="Additional sleep in seconds before each retry (default: 1.0)"
-    )
-    parser.add_argument(
-        "--backend-info", action="store_true",
-        help="Print backend configuration, run a single test translation, then exit"
-    )
+    parser.add_argument("--debug-sample", type=int, default=0,
+                        help="Print raw translation output for first N items (default: 0 = off)")
+    parser.add_argument("--google-retries", type=int, default=2,
+                        help="Number of retry attempts for empty/None Google responses (default: 2)")
+    parser.add_argument("--google-retry-delay", type=float, default=1.0,
+                        help="Additional sleep in seconds before each retry (default: 1.0)")
+    parser.add_argument("--backend-info", action="store_true",
+                        help="Print model configuration, run a single test translation, then exit")
 
     args = parser.parse_args()
-    
-    # Compute output path
+
+    # 1. Resolve model spec
+    resolved_model_key = args.model_key or resolve_legacy_args_to_model_key(
+        backend=args.backend,
+        nllb_model=args.nllb_model,
+    )
+    spec = get_model_spec(resolved_model_key)
+
+    # 2. Compute output path
     if args.out_file:
         out_path = pathlib.Path(args.out_file)
         out_path.parent.mkdir(parents=True, exist_ok=True)
     else:
         out_dir = pathlib.Path(args.out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
-        out_path = out_dir / f"02_glosses_translated_{args.backend}.csv"
-    
+        out_path = out_dir / f"02_glosses_translated_{resolved_model_key}.csv"
+
+    print(f"Model key: {resolved_model_key}")
+    print(f"Model name: {spec.model_name}")
+    print(f"Backend family: {spec.backend_family}")
     print(f"Output file: {out_path}")
 
-    # Handle --backend-info: quick sanity check
+    # 3. Handle --backend-info
     if args.backend_info:
-        print(f"\nBackend: {args.backend}")
-        print("Running test translation: 'дом' → expected 'house'")
-        if args.backend == "marian":
-            from src.sem_cat.translators.marian_translator import MarianTranslator
-            test_translator = MarianTranslator(device=args.device)
-        elif args.backend == "nllb":
-            try:
-                from src.sem_cat.translators.nllb_translator import NLLBTranslator
-                test_translator = NLLBTranslator(model_name=args.nllb_model, device=args.device)
-            except ImportError as e:
-                print("NLLB backend is unavailable in the current environment.")
-                print("Install required packages in the active virtualenv:")
-                print("  pip install torch transformers sentencepiece sacremoses")
-                sys.exit(1)
-        else:
-            from src.sem_cat.translators.google_translator import GoogleTranslator
-            test_translator = GoogleTranslator()
+        print(f"\nRunning test translation: 'dom' -> expected 'house'")
         try:
-            test_result = test_translator.translate("дом")
+            test_translator = build_translator(
+                spec,
+                device=args.device,
+                retry=args.google_retries,
+                delay=args.google_retry_delay,
+            )
+        except (ImportError, ValueError) as e:
+            print(f"Model unavailable: {e}")
+            sys.exit(1)
+        try:
+            test_result = test_translator.translate("dom")
             if test_result and test_result.strip():
                 status = "OK"
             else:
@@ -382,98 +289,64 @@ def main():
         except Exception as e:
             test_result = f"ERROR: {type(e).__name__}: {e}"
             status = "ERROR"
-        print(f"Test input:  дом")
+        print(f"Test input:  dom")
         print(f"Test output: {test_result!r}")
         print(f"Status: {status}")
         return
 
-    # Validate data directory exists
+    # 4. Validate data directory
     data_dir = pathlib.Path(args.data_dir)
     if not data_dir.exists():
         print(f"ERROR: data directory not found: {data_dir}")
-        print(f"  Expected structure: {data_dir}/meanings_vep.csv  etc.")
-        print(f"  Run from the project root or pass --data-dir explicitly.")
         sys.exit(1)
 
-    # Show warning for Marian model download
-    if args.backend == "marian":
-        print("MarianMT backend selected. Model 'Helsinki-NLP/opus-mt-ru-en' "
-              "will be downloaded on first run (~300 MB). "
-              "Subsequent runs use the local HuggingFace cache.")
-
-    # Load meanings
+    # 5. Load meanings
     print("Loading meanings...")
     df_meanings = load_meanings(str(data_dir))
 
-    # Build gloss metadata if using pos or pos_meaning mode
-    gloss_metadata_df = None
-    gloss_metadata = {}
-    if args.translation_input_mode in ['pos', 'pos_meaning']:
+    # 6. Build gloss metadata map if needed
+    needs_metadata = args.translation_input_mode in ("pos", "pos_meaning")
+    metadata_map: dict[str, GlossMetadata] = {}
+    if needs_metadata:
         print("Building gloss metadata for context-aware translation...")
-        gloss_metadata_df = build_gloss_metadata(df_meanings)
-        gloss_metadata = gloss_metadata_df.set_index('gloss_ru').to_dict('index')
-        print(f"Built metadata for {len(gloss_metadata)} unique glosses")
+        metadata_map = build_gloss_metadata_map(df_meanings)
+        print(f"Built metadata for {len(metadata_map)} unique glosses")
 
-    # Extract unique primary glosses
+    # 7. Extract unique primary glosses
     print("Extracting unique primary glosses...")
-    unique_glosses_arr = (
-        df_meanings["meaning_ru"]
-        .dropna()
-        .apply(primary_gloss)
-        .pipe(lambda s: s[s.str.len() > 0])
-        .unique()
-    )
-    unique_glosses = unique_glosses_arr.tolist()
+    unique_glosses = extract_unique_primary_glosses(df_meanings)
     total_unique = len(unique_glosses)
     print(f"Found {total_unique} unique glosses")
 
-    # Load existing cache if it exists
-    cached_glosses = set()
-    cache_df = pd.DataFrame(columns=["gloss_ru", "gloss_en"])
-    if out_path.exists():
-        print("Loading existing cache...")
-        try:
-            cache_df = pd.read_csv(out_path, encoding="utf-8")
-            if "gloss_ru" not in cache_df.columns:
-                print("WARNING: cache file exists but has no 'gloss_ru' column — ignoring cache.")
-                cache_df = pd.DataFrame(columns=["gloss_ru", "gloss_en"])
-        except Exception as e:
-            print(f"WARNING: could not read cache file ({e}) — starting fresh.")
-            cache_df = pd.DataFrame(columns=["gloss_ru", "gloss_en"])
-        cached_glosses = set(cache_df["gloss_ru"].dropna().tolist())
-        already_cached = len(cached_glosses)
+    # 8. Load cache and filter already translated
+    cache_df = load_translation_cache(out_path, expected_model_key=resolved_model_key)
+    cached_glosses = build_cached_gloss_set(cache_df)
+    already_cached = count_cached_rows(cache_df)
+    if already_cached > 0:
         print(f"Found {already_cached} cached translations")
-    else:
-        already_cached = 0
 
-    # Determine which glosses need translation
     glosses_to_translate = [g for g in unique_glosses if g not in cached_glosses]
     remaining_after_cache = len(glosses_to_translate)
     print(f"Remaining after cache: {remaining_after_cache}")
 
-    # Apply gloss filter if provided
+    # 9. Apply gloss filter / shuffle / offset / limit
     if args.gloss_filter:
         glosses_to_translate = [g for g in glosses_to_translate if args.gloss_filter in g]
         print(f"After gloss filter '{args.gloss_filter}': {len(glosses_to_translate)}")
 
-    # Shuffle if requested
     if args.shuffle:
         random.seed(args.seed)
         random.shuffle(glosses_to_translate)
         print(f"Shuffled glosses with seed {args.seed}")
 
-    # Apply offset/limit
-    offset = args.offset
-    limit = args.limit
-    
-    if offset > 0:
-        glosses_to_translate = glosses_to_translate[offset:]
-        print(f"After offset {offset}: {len(glosses_to_translate)}")
-    
-    if limit is not None:
-        glosses_to_translate = glosses_to_translate[:limit]
-        print(f"After limit {limit}: {len(glosses_to_translate)}")
-    
+    if args.offset > 0:
+        glosses_to_translate = glosses_to_translate[args.offset:]
+        print(f"After offset {args.offset}: {len(glosses_to_translate)}")
+
+    if args.limit is not None:
+        glosses_to_translate = glosses_to_translate[:args.limit]
+        print(f"After limit {args.limit}: {len(glosses_to_translate)}")
+
     to_translate_count = len(glosses_to_translate)
     print(f"Selected for this run: {to_translate_count}")
 
@@ -481,264 +354,147 @@ def main():
         print("No new glosses to translate. Exiting.")
         return
 
-    # Initialize translator
-    back_translator = None
-    if args.backend == "marian":
-        from src.sem_cat.translators.marian_translator import MarianTranslator
-        translator = MarianTranslator(device=args.device)
-        # If round-trip is enabled, initialize back-translator
-        if args.round_trip:
-            back_translator = MarianTranslator(
-                device=args.device,
-                model_name="Helsinki-NLP/opus-mt-en-ru",
-            )
-    elif args.backend == "nllb":
-        try:
-            from src.sem_cat.translators.nllb_translator import NLLBTranslator
-            translator = NLLBTranslator(
-                model_name=args.nllb_model,
-                device=args.device,
-            )
-            if args.round_trip:
-                back_translator = NLLBTranslator(
-                    model_name=args.nllb_model,
-                    src_lang="eng_Latn",
-                    tgt_lang="rus_Cyrl",
-                    device=args.device,
-                )
-        except ImportError as e:
-            print("NLLB backend is unavailable in the current environment.")
-            print("Install required packages in the active virtualenv:")
-            print("  pip install torch transformers sentencepiece sacremoses")
-            sys.exit(1)
-    else:  # google
-        from src.sem_cat.translators.google_translator import GoogleTranslator
-        translator = GoogleTranslator()
-        # Round-trip: initialize back-translator
-        back_translator = None
-        if args.round_trip:
-            back_translator = GoogleTranslator(source="en", target="ru")
-            print("Round-trip enabled: back-translating EN→RU with GoogleTranslator.")
+    # 10. Build translators
+    try:
+        translator = build_translator(
+            spec,
+            device=args.device,
+            retry=args.google_retries,
+            delay=args.google_retry_delay,
+        )
+    except (ImportError, ValueError) as e:
+        print(f"Failed to build translator: {e}")
+        sys.exit(1)
 
-    # Translate the remaining glosses
-    print(f"Translating with {args.backend} backend (mode: {args.translation_input_mode})...")
+    back_translator: Translator | None = None
+    if args.round_trip and spec.supports_roundtrip:
+        back_translator = build_reverse_translator(
+            spec,
+            device=args.device,
+            retry=args.google_retries,
+            delay=args.google_retry_delay,
+        )
+        if back_translator is not None:
+            print(f"Round-trip enabled: back-translator built ({back_translator.model_key})")
+        else:
+            print("Round-trip requested but reverse model unavailable for this spec.")
+
+    # 11. Build input texts
+    input_texts: list[str] = []
+    for gloss in glosses_to_translate:
+        meta = metadata_map.get(gloss) if needs_metadata else None
+        input_text = prepare_translation_input(gloss, args.translation_input_mode, meta)
+        input_texts.append(input_text)
+
+    # 12. Translate in batches
+    print(f"Translating with {resolved_model_key} (mode: {args.translation_input_mode})...")
+
+    is_google = spec.backend_family == "google"
+    effective_batch_size = 1 if is_google else args.batch_size
+    n = len(glosses_to_translate)
+    n_batches = ceil(n / effective_batch_size) if n > 0 else 0
+
+    header_written = already_cached > 0
+    qa_config = TranslationQAConfig()
+
     total_written = 0
     total_kept = 0
-    total_blank = 0
     total_suspicious = 0
+    total_blank = 0
+    total_roundtrip = 0
+    google_counters: dict[str, int] = {"none": 0, "empty": 0, "ok": 0}
+    flag_counts: dict[str, int] = {}
 
-    # Build input texts with context if needed
-    input_texts = []
-    for gloss in glosses_to_translate:
-        if args.translation_input_mode == 'raw':
-            input_texts.append(gloss)
+    for batch_idx in range(n_batches):
+        batch_glosses = glosses_to_translate[
+            batch_idx * effective_batch_size: (batch_idx + 1) * effective_batch_size
+        ]
+        batch_inputs = input_texts[
+            batch_idx * effective_batch_size: (batch_idx + 1) * effective_batch_size
+        ]
+        global_offset = batch_idx * effective_batch_size
+
+        # Forward translation
+        if is_google:
+            translated_texts, batch_counters = _run_google_batch(
+                translator, batch_glosses, batch_inputs,
+                args.google_retries, args.google_retry_delay,
+                args.debug_sample, global_offset,
+            )
+            for key in google_counters:
+                google_counters[key] += batch_counters.get(key, 0)
         else:
-            metadata = gloss_metadata.get(gloss, {})
-            pos_hint = metadata.get('dominant_pos')
-            meaning_hint = metadata.get('meaning_hint')
-            input_text = prepare_translation_input(gloss, args.translation_input_mode, pos_hint, meaning_hint)
-            input_texts.append(input_text)
+            raw_batch = translator.translate_batch(batch_inputs, batch_size=len(batch_inputs))
+            translated_texts = [t or "" for t in raw_batch]
 
-    if args.backend in ("marian", "nllb"):
-        # Use translate_batch for efficiency with incremental saves
-        n = len(glosses_to_translate)
-        n_batches = ceil(n / args.batch_size) if n > 0 else 0
-        
-        # Track if header has been written
-        header_written = already_cached > 0
+        # Back-translation
+        back_translated = _run_back_translate(
+            back_translator, translated_texts, is_google,
+            args.google_retries, args.google_retry_delay,
+        )
 
-        for batch_idx in range(n_batches):
-            batch_glosses = glosses_to_translate[
-                batch_idx * args.batch_size : (batch_idx + 1) * args.batch_size
-            ]
-            batch_inputs = input_texts[
-                batch_idx * args.batch_size : (batch_idx + 1) * args.batch_size
-            ]
-            
-            translated_texts = [
-                t or "" for t in translator.translate_batch(
-                    batch_inputs, batch_size=len(batch_inputs)
-                )
-            ]
-            
-            # If round-trip is enabled, back-translate the results
-            if args.round_trip and back_translator is not None:
-                _raw_back = back_translator.translate_batch(
-                    translated_texts, batch_size=len(translated_texts)
-                )
-                back_translated_texts = [t or "" for t in _raw_back]
-            else:
-                back_translated_texts = [None] * len(translated_texts)
-            
-            batch_rows = []
-            for i, (gloss_ru, input_text, trans) in enumerate(
-                zip(batch_glosses, batch_inputs, translated_texts)
-            ):
-                roundtrip_text = back_translated_texts[i] if args.round_trip else None
-                keep, qa_flags, qa_score = analyze_translation(
-                    gloss_ru, trans, roundtrip_text
-                )
-                row_data = {
-                    "gloss_ru": gloss_ru,
-                    "gloss_en": trans,
-                    "qa_keep": keep,
-                    "qa_score": round(qa_score, 2),
-                    "qa_flags": ";".join(qa_flags) if qa_flags else "",
-                }
-                if args.round_trip:
-                    row_data["gloss_ru_back"] = roundtrip_text or ""
-                    if roundtrip_text:
-                        row_data["roundtrip_distance"] = round(
-                            _normalized_edit_distance(gloss_ru, roundtrip_text), 3
-                        )
-                    else:
-                        row_data["roundtrip_distance"] = ""
-                if args.translation_input_mode in ("pos", "pos_meaning"):
-                    meta = gloss_metadata.get(gloss_ru, {})
-                    row_data["pos_hint"] = meta.get("dominant_pos", "")
-                    row_data["meaning_hint"] = meta.get("meaning_hint", "")
-                    row_data["source_count"] = meta.get("source_count", 0)
-
-                batch_rows.append(row_data)
-                if not keep:
-                    total_blank += 1
-                elif qa_flags:
-                    total_suspicious += 1
-                else:
-                    total_kept += 1
-
-            batch_df = pd.DataFrame(batch_rows)
-            batch_df.to_csv(
-                out_path, mode="a", header=not header_written,
-                index=False, encoding="utf-8"
-            )
-            if not header_written:
-                header_written = True
-            total_written += len(batch_rows)
-            print(
-                f"  Batch {batch_idx + 1}/{n_batches} saved "
-                f"({total_written} total written)"
-            )
-    elif args.backend == "google":
-        # Initialize back-translator if round-trip is enabled
-        # GoogleTranslator(source="en", target="ru") — confirmed supported (src/sem_cat/translators/google_translator.py:12)
-        back_translator = None
-        if args.round_trip:
-            back_translator = GoogleTranslator(source="en", target="ru")
-            print("Round-trip enabled: back-translating EN→RU with GoogleTranslator.")
-        
-        # Process with batch_size=1 and delay, with incremental saves every 100 items
+        # Build rows and write
         batch_rows = []
-        header_written = already_cached > 0
-        
-        # Counters for raw response diagnostics
-        google_none_count = 0
-        google_empty_count = 0
-        google_ok_count = 0
-        
-        for idx, (gloss, input_text) in enumerate(tqdm(zip(glosses_to_translate, input_texts), total=len(glosses_to_translate), desc="Translating")):
-            # Translate with retry logic
-            try:
-                raw_translation = _translate_with_retry(translator, input_text, args.google_retries, args.google_retry_delay)
-            except Exception as e:
-                print(f"\n[GOOGLE ERROR] idx={idx} gloss='{gloss}': {type(e).__name__}: {e}")
-                raw_translation = None
-            
-            # Track raw response diagnostics
-            if raw_translation is None:
-                google_none_count += 1
-            elif not raw_translation.strip():
-                google_empty_count += 1
-            else:
-                google_ok_count += 1
-            
-            translated_text = raw_translation or ""
-            
-            # Print debug sample if requested
-            if args.debug_sample > 0 and idx < args.debug_sample:
-                print(f"[DEBUG #{idx}] gloss_ru='{gloss}' → raw='{translated_text!r}'")
-            
-            # Back-translate if round-trip is enabled and forward translation is non-blank
-            roundtrip_text = None
-            if args.round_trip and back_translator is not None and translated_text.strip():
-                try:
-                    roundtrip_text = _translate_with_retry(back_translator, translated_text, args.google_retries, args.google_retry_delay)
-                except Exception as e:
-                    print(f"\n[BACK-TRANSLATE ERROR] idx={idx} gloss_en='{translated_text}': {type(e).__name__}: {e}")
-                    roundtrip_text = None
-                time.sleep(0.3)  # back-translation call (0.3s) + forward call below (0.3s) = ~0.6s/row
-            
-            keep, qa_flags, qa_score = analyze_translation(gloss, translated_text, roundtrip_text)
-            
-            row_data = {
-                'gloss_ru': gloss,
-                'gloss_en': translated_text,
-                'qa_keep': keep,
-                'qa_score': round(qa_score, 2),
-                'qa_flags': ';'.join(qa_flags) if qa_flags else '',
-            }
-            # Add round-trip data if enabled
-            if args.round_trip:
-                if roundtrip_text:
-                    row_data["gloss_ru_back"] = roundtrip_text
-                    distance = _normalized_edit_distance(gloss, roundtrip_text)
-                    row_data["roundtrip_distance"] = round(distance, 3)
-                else:
-                    row_data["gloss_ru_back"] = ""
-                    row_data["roundtrip_distance"] = ""
-            
-            # Add metadata columns if using context mode
-            if args.translation_input_mode in ['pos', 'pos_meaning']:
-                metadata = gloss_metadata.get(gloss, {})
-                row_data["pos_hint"] = metadata.get('dominant_pos', '')
-                row_data["meaning_hint"] = metadata.get('meaning_hint', '')
-                row_data["source_count"] = metadata.get('source_count', 0)
-            
-            batch_rows.append(row_data)
-            
-            if not keep:
+        for idx, (gloss_ru, input_text, trans) in enumerate(
+            zip(batch_glosses, batch_inputs, translated_texts)
+        ):
+            roundtrip_text = back_translated[idx] if args.round_trip else None
+
+            qa_result = analyze_translation(gloss_ru, trans, roundtrip_text, config=qa_config)
+
+            meta = metadata_map.get(gloss_ru) if needs_metadata else None
+
+            row = build_translation_row(
+                gloss_ru=gloss_ru,
+                gloss_en=trans,
+                qa_result=qa_result,
+                model_key=resolved_model_key,
+                model_name=spec.model_name,
+                backend_family=spec.backend_family,
+                translation_input_mode=args.translation_input_mode,
+                input_text_used=input_text,
+                pos_hint=meta.dominant_pos if meta else None,
+                meaning_hint=meta.meaning_hint if meta else None,
+                source_count=meta.source_count if meta else None,
+                gloss_ru_back=roundtrip_text,
+            )
+            batch_rows.append(row)
+
+            if not qa_result.qa_keep:
                 total_blank += 1
-            elif qa_flags:
+            elif qa_result.qa_flags:
                 total_suspicious += 1
             else:
                 total_kept += 1
-                
-            time.sleep(0.3)  # Sleep 0.3s between calls
 
-            # Save every 100 items or at the end
-            if len(batch_rows) >= 100 or idx == len(glosses_to_translate) - 1:
-                batch_df = pd.DataFrame(batch_rows)
-                # append to CSV; write header only on the very first write of this run
-                batch_df.to_csv(
-                    out_path, mode="a",
-                    header=not header_written,
-                    index=False,
-                    encoding="utf-8"
-                )
-                if not header_written:
-                    header_written = True
-                total_written += len(batch_rows)
-                print(f"  Saved batch of {len(batch_rows)} items ({total_written} total written)")
-                batch_rows = []  # Reset for next batch
+            if roundtrip_text:
+                total_roundtrip += 1
 
-    # Print summary
-    print(f"\n{'='*60}")
-    print("SUMMARY")
-    print(f"{'='*60}")
-    print(f"Total unique glosses: {total_unique}")
-    print(f"Already cached: {already_cached}")
-    print(f"Remaining after cache: {remaining_after_cache}")
-    print(f"Selected for this run (after filter/subset): {to_translate_count}")
-    print(f"Newly translated: {total_written}")
-    print(f"  - Kept (good quality): {total_kept}")
-    print(f"  - Kept (suspicious, flagged): {total_suspicious}")
-    print(f"  - Blank/broken (qa_keep=False): {total_blank}")
-    if args.backend == "google":
-        print(f"  - Google raw None responses: {google_none_count}")
-        print(f"  - Google raw empty responses: {google_empty_count}")
-        print(f"  - Google raw OK responses: {google_ok_count}")
-    elif args.backend == "nllb":
-        print(f"  - NLLB model: {args.nllb_model}")
+            for flag in qa_result.qa_flags:
+                flag_counts[flag] = flag_counts.get(flag, 0) + 1
+
+        batch_df = pd.DataFrame(batch_rows, columns=CANONICAL_COLUMNS)
+        batch_df.to_csv(out_path, mode="a", header=not header_written, index=False, encoding="utf-8")
+        if not header_written:
+            header_written = True
+        total_written += len(batch_rows)
+        print(f"  Batch {batch_idx + 1}/{n_batches} saved ({total_written} total written)")
+
+    # 13. Print summary
+    _print_summary(
+        total_unique=total_unique,
+        already_cached=already_cached,
+        remaining_after_cache=remaining_after_cache,
+        to_translate_count=to_translate_count,
+        total_written=total_written,
+        total_kept=total_kept,
+        total_suspicious=total_suspicious,
+        total_blank=total_blank,
+        total_roundtrip=total_roundtrip,
+        flag_counts=flag_counts,
+        spec_backend=spec.backend_family,
+        google_counters=google_counters,
+    )
 
 
 if __name__ == "__main__":
