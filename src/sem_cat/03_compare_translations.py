@@ -43,6 +43,9 @@ EXAMPLE COMMANDS:
   python3 -m src.sem_cat.03_compare_translations \\
       --marian-file data/sem_cat/02_glosses_translated_marian.csv \\
       --google-file data/sem_cat/02_glosses_translated_google.csv
+
+All models are treated as first-class citizens. Google is just another
+model key in the registry, not a special-case backend.
 """
 
 from __future__ import annotations

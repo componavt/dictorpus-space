@@ -1,11 +1,15 @@
 """NLLB (No Language Left Behind) translation backend.
+
 Uses facebook/nllb-200 models via HuggingFace transformers.
 NLLB supports 200+ languages with high quality.
 
-# NLLB uses BCP-47 + script codes, not ISO 639-1:
-# Russian:  rus_Cyrl    English: eng_Latn
-# Finnish:  fin_Latn    Estonian: est_Latn
-# For a full list: https://github.com/facebookresearch/flores/blob/main/flores200/README.md
+NLLB uses BCP-47 + script codes, not ISO 639-1:
+  Russian:  rus_Cyrl    English: eng_Latn
+  Finnish:  fin_Latn    Estonian: est_Latn
+For a full list: https://github.com/facebookresearch/flores/blob/main/flores200/README.md
+
+torch and transformers are lazily imported so that the module is
+import-safe even when those heavy dependencies are absent.
 """
 
 from __future__ import annotations
@@ -13,14 +17,16 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-
-from .base import Translator
+from .base import BackendUnavailableError, Translator
 from .generation_presets import get_generation_preset
 
 
 class NLLBTranslator(Translator):
-    """NLLB translator using direct model/tokenizer API."""
+    """NLLB translator using direct model/tokenizer API.
+
+    All heavy dependencies (torch, transformers) are loaded at
+    instantiation time, not at module import time.
+    """
 
     DEFAULT_MODEL = "facebook/nllb-200-distilled-1.3B"
 
@@ -47,14 +53,23 @@ class NLLBTranslator(Translator):
             default_batch_size: Default batch size for translate_batch()
             generation_kwargs: Override generation parameters
         """
+        # Lazy import heavy dependencies
         try:
             import torch as _torch
         except ImportError as e:
-            raise ImportError(
-                "NLLBTranslator requires PyTorch. Install it in the active virtualenv with:\n"
-                "  pip install torch"
+            raise BackendUnavailableError(
+                "NLLBTranslator requires PyTorch. "
+                "Install it with: pip install torch"
             ) from e
         self.torch = _torch
+
+        try:
+            from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+        except ImportError as e:
+            raise BackendUnavailableError(
+                "NLLBTranslator requires the 'transformers' package. "
+                "Install it with: pip install transformers"
+            ) from e
 
         self.model_key = model_key
         self.model_name = model_name
@@ -79,13 +94,32 @@ class NLLBTranslator(Translator):
 
         self.forced_bos_token_id = self.tokenizer.convert_tokens_to_ids(tgt_lang)
 
-        # Fix: Clear max_length from generation config to avoid conflict with max_new_tokens.
-        # The warning "Both max_new_tokens and max_length have been set..." occurs when
-        # the model's generation_config has max_length set and we pass max_new_tokens.
-        # We resolve this by resetting max_length on the generation config, since we
-        # control output length via max_new_tokens exclusively.
+        # Clear max_length from generation config to avoid conflict with max_new_tokens.
         if hasattr(self.model.generation_config, "max_length"):
             self.model.generation_config.max_length = 20
+
+    def _tokenize_and_generate(
+        self,
+        texts: list[str],
+    ) -> list[str]:
+        """Shared tokenization + generation + decoding logic."""
+        inputs = self.tokenizer(
+            texts,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=self.tokenizer_max_length,
+        )
+        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+
+        with self.torch.no_grad():
+            outputs = self.model.generate(
+                **inputs,
+                forced_bos_token_id=self.forced_bos_token_id,
+                **self.generation_kwargs,
+            )
+
+        return self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
     def translate(self, text: str) -> str | None:
         """Translate a single string.
@@ -97,23 +131,8 @@ class NLLBTranslator(Translator):
             if not text or not text.strip():
                 return None
 
-            inputs = self.tokenizer(
-                text,
-                return_tensors="pt",
-                padding=True,
-                truncation=True,
-                max_length=self.tokenizer_max_length,
-            )
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
-
-            with self.torch.no_grad():
-                outputs = self.model.generate(
-                    **inputs,
-                    forced_bos_token_id=self.forced_bos_token_id,
-                    **self.generation_kwargs,
-                )
-
-            translated = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            decoded = self._tokenize_and_generate([text])
+            translated = decoded[0]
             return translated.strip() if translated.strip() else None
         except Exception as e:
             print(f"NLLB translate error: {e}")
@@ -139,25 +158,8 @@ class NLLBTranslator(Translator):
             batch_slice = list(texts[i:i + effective_batch_size])
 
             try:
-                inputs = self.tokenizer(
-                    batch_slice,
-                    return_tensors="pt",
-                    padding=True,
-                    truncation=True,
-                    max_length=self.tokenizer_max_length,
-                )
-                inputs = {k: v.to(self.device) for k, v in inputs.items()}
-
-                with self.torch.no_grad():
-                    outputs = self.model.generate(
-                        **inputs,
-                        forced_bos_token_id=self.forced_bos_token_id,
-                        **self.generation_kwargs,
-                    )
-
-                decoded = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
+                decoded = self._tokenize_and_generate(batch_slice)
                 results.extend([t.strip() if t.strip() else None for t in decoded])
-
             except Exception as e:
                 print(f"NLLB translate_batch error: {e}")
                 results.extend([None] * len(batch_slice))

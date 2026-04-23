@@ -54,100 +54,6 @@ from src.sem_cat.io.translation_rows import (
 )
 
 
-def _translate_with_retry(
-    translator: Translator,
-    text: str,
-    retries: int,
-    retry_delay: float,
-) -> str | None:
-    """Translate with retry logic for empty/None responses."""
-    for attempt in range(retries + 1):
-        try:
-            result = translator.translate(text)
-            if result and result.strip():
-                return result
-            if attempt < retries:
-                time.sleep(retry_delay)
-        except Exception:
-            if attempt < retries:
-                time.sleep(retry_delay)
-            else:
-                raise
-    return None
-
-
-def _run_google_batch(
-    translator: Translator,
-    batch_glosses: list[str],
-    batch_inputs: list[str],
-    retries: int,
-    retry_delay: float,
-    debug_sample: int,
-    global_offset: int,
-) -> tuple[list[str], dict[str, int]]:
-    """Run translation for Google backend (one-at-a-time with retry).
-
-    Returns (translated_texts, diagnostic_counters).
-    """
-    translated: list[str] = []
-    counters = {"none": 0, "empty": 0, "ok": 0}
-
-    for i, (gloss, input_text) in enumerate(zip(batch_glosses, batch_inputs)):
-        try:
-            raw = _translate_with_retry(translator, input_text, retries, retry_delay)
-        except Exception as e:
-            global_idx = global_offset + i
-            print(f"\n[GOOGLE ERROR] idx={global_idx} gloss='{gloss}': {type(e).__name__}: {e}")
-            raw = None
-
-        if raw is None:
-            counters["none"] += 1
-        elif not raw.strip():
-            counters["empty"] += 1
-        else:
-            counters["ok"] += 1
-
-        translated.append(raw or "")
-
-        if debug_sample > 0 and (global_offset + i) < debug_sample:
-            print(f"[DEBUG] gloss_ru='{gloss}' -> raw='{raw!r}'")
-
-        time.sleep(0.3)
-
-    return translated, counters
-
-
-def _run_back_translate(
-    back_translator: Translator | None,
-    translated_texts: list[str],
-    is_google: bool,
-    retries: int,
-    retry_delay: float,
-) -> list[str | None]:
-    """Back-translate a batch of English texts to Russian."""
-    if back_translator is None:
-        return [None] * len(translated_texts)
-
-    if is_google:
-        results: list[str | None] = []
-        for trans in translated_texts:
-            if trans.strip():
-                try:
-                    rt = _translate_with_retry(back_translator, trans, retries, retry_delay)
-                    results.append(rt or "")
-                except Exception as e:
-                    print(f"\n[BACK-TRANSLATE ERROR] gloss_en='{trans}': {type(e).__name__}: {e}")
-                    results.append("")
-                time.sleep(0.3)
-            else:
-                results.append("")
-        return results
-
-    # HF models: use translate_batch
-    raw_back = back_translator.translate_batch(translated_texts, batch_size=len(translated_texts))
-    return [t or "" for t in raw_back]
-
-
 def _print_summary(
     total_unique: int,
     already_cached: int,
@@ -159,8 +65,6 @@ def _print_summary(
     total_blank: int,
     total_roundtrip: int,
     flag_counts: dict[str, int],
-    spec_backend: str,
-    google_counters: dict[str, int],
 ) -> None:
     """Print final summary statistics."""
     print(f"\n{'=' * 60}")
@@ -180,11 +84,6 @@ def _print_summary(
         print("  QA flag breakdown:")
         for flag, count in sorted(flag_counts.items()):
             print(f"    - {flag}: {count}")
-
-    if spec_backend == "google":
-        print(f"  - Google raw None responses:  {google_counters.get('none', 0)}")
-        print(f"  - Google raw empty responses: {google_counters.get('empty', 0)}")
-        print(f"  - Google raw OK responses:    {google_counters.get('ok', 0)}")
 
 
 def main() -> None:
@@ -237,14 +136,24 @@ def main() -> None:
     )
     parser.add_argument("--debug-sample", type=int, default=0,
                         help="Print raw translation output for first N items (default: 0 = off)")
+    # Generic retry flags with backward-compatible aliases
+    parser.add_argument("--retry", type=int, default=None,
+                        help="Number of retry attempts for failed responses (default: backend-specific)")
+    parser.add_argument("--retry-delay", type=float, default=None,
+                        help="Additional sleep in seconds before each retry (default: backend-specific)")
+    # Backward-compatible aliases
     parser.add_argument("--google-retries", type=int, default=2,
-                        help="Number of retry attempts for empty/None Google responses (default: 2)")
+                        help="legacy alias for --retry (default: 2)")
     parser.add_argument("--google-retry-delay", type=float, default=1.0,
-                        help="Additional sleep in seconds before each retry (default: 1.0)")
+                        help="legacy alias for --retry-delay (default: 1.0)")
     parser.add_argument("--backend-info", action="store_true",
                         help="Print model configuration, run a single test translation, then exit")
 
     args = parser.parse_args()
+
+    # Resolve retry/delay: generic flags take precedence over legacy aliases
+    retry = args.retry if args.retry is not None else args.google_retries
+    delay = args.retry_delay if args.retry_delay is not None else args.google_retry_delay
 
     # 1. Resolve model spec
     resolved_model_key = args.model_key or resolve_legacy_args_to_model_key(
@@ -274,8 +183,8 @@ def main() -> None:
             test_translator = build_translator(
                 spec,
                 device=args.device,
-                retry=args.google_retries,
-                delay=args.google_retry_delay,
+                retry=retry,
+                delay=delay,
             )
         except (ImportError, ValueError) as e:
             print(f"Model unavailable: {e}")
@@ -359,8 +268,8 @@ def main() -> None:
         translator = build_translator(
             spec,
             device=args.device,
-            retry=args.google_retries,
-            delay=args.google_retry_delay,
+            retry=retry,
+            delay=delay,
         )
     except (ImportError, ValueError) as e:
         print(f"Failed to build translator: {e}")
@@ -371,8 +280,8 @@ def main() -> None:
         back_translator = build_reverse_translator(
             spec,
             device=args.device,
-            retry=args.google_retries,
-            delay=args.google_retry_delay,
+            retry=retry,
+            delay=delay,
         )
         if back_translator is not None:
             print(f"Round-trip enabled: back-translator built ({back_translator.model_key})")
@@ -389,8 +298,7 @@ def main() -> None:
     # 12. Translate in batches
     print(f"Translating with {resolved_model_key} (mode: {args.translation_input_mode})...")
 
-    is_google = spec.backend_family == "google"
-    effective_batch_size = 1 if is_google else args.batch_size
+    effective_batch_size = spec.default_batch_size if spec.default_batch_size else args.batch_size
     n = len(glosses_to_translate)
     n_batches = ceil(n / effective_batch_size) if n > 0 else 0
 
@@ -402,7 +310,6 @@ def main() -> None:
     total_suspicious = 0
     total_blank = 0
     total_roundtrip = 0
-    google_counters: dict[str, int] = {"none": 0, "empty": 0, "ok": 0}
     flag_counts: dict[str, int] = {}
 
     for batch_idx in range(n_batches):
@@ -412,26 +319,19 @@ def main() -> None:
         batch_inputs = input_texts[
             batch_idx * effective_batch_size: (batch_idx + 1) * effective_batch_size
         ]
-        global_offset = batch_idx * effective_batch_size
 
-        # Forward translation
-        if is_google:
-            translated_texts, batch_counters = _run_google_batch(
-                translator, batch_glosses, batch_inputs,
-                args.google_retries, args.google_retry_delay,
-                args.debug_sample, global_offset,
+        # Forward translation - use the common interface
+        raw_batch = translator.translate_batch(batch_inputs, batch_size=len(batch_inputs))
+        translated_texts = [t or "" for t in raw_batch]
+
+        # Back-translation - use the common interface
+        if back_translator is not None and args.round_trip:
+            raw_back = back_translator.translate_batch(
+                translated_texts, batch_size=len(translated_texts)
             )
-            for key in google_counters:
-                google_counters[key] += batch_counters.get(key, 0)
+            back_translated = [t or "" for t in raw_back]
         else:
-            raw_batch = translator.translate_batch(batch_inputs, batch_size=len(batch_inputs))
-            translated_texts = [t or "" for t in raw_batch]
-
-        # Back-translation
-        back_translated = _run_back_translate(
-            back_translator, translated_texts, is_google,
-            args.google_retries, args.google_retry_delay,
-        )
+            back_translated = [None] * len(translated_texts)
 
         # Build rows and write
         batch_rows = []
@@ -492,8 +392,6 @@ def main() -> None:
         total_blank=total_blank,
         total_roundtrip=total_roundtrip,
         flag_counts=flag_counts,
-        spec_backend=spec.backend_family,
-        google_counters=google_counters,
     )
 
 

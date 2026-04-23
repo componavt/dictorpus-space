@@ -4,6 +4,9 @@ Handles encoder-decoder models such as:
 - Helsinki-NLP/opus-mt-ru-en
 - Helsinki-NLP/opus-mt-en-ru
 - facebook/wmt19-ru-en
+
+torch and transformers are lazily imported so that the module is
+import-safe even when those heavy dependencies are absent.
 """
 
 from __future__ import annotations
@@ -11,14 +14,15 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-import torch
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-
-from .base import Translator
+from .base import BackendUnavailableError, Translator
 
 
 class HFSeq2SeqTranslator(Translator):
-    """Generic HuggingFace seq2seq translator."""
+    """Generic HuggingFace seq2seq translator.
+
+    All heavy dependencies (torch, transformers) are loaded at
+    instantiation time, not at module import time.
+    """
 
     def __init__(
         self,
@@ -37,6 +41,24 @@ class HFSeq2SeqTranslator(Translator):
         self.generation_kwargs = generation_kwargs or {}
         self.supports_roundtrip = True
 
+        # Lazy import heavy dependencies
+        try:
+            import torch as _torch
+        except ImportError as e:
+            raise BackendUnavailableError(
+                "HFSeq2SeqTranslator requires PyTorch. "
+                "Install it with: pip install torch"
+            ) from e
+        self.torch = _torch
+
+        try:
+            from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+        except ImportError as e:
+            raise BackendUnavailableError(
+                "HFSeq2SeqTranslator requires the 'transformers' package. "
+                "Install it with: pip install transformers"
+            ) from e
+
         print(f"HFSeq2SeqTranslator: {model_name} | device={device}")
         print("First run will download model from HuggingFace. Subsequent runs use local cache.")
 
@@ -44,28 +66,36 @@ class HFSeq2SeqTranslator(Translator):
         self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
         self.model = self.model.to(self.device)
 
+    def _tokenize_and_generate(
+        self,
+        texts: list[str],
+    ) -> list[str]:
+        """Shared tokenization + generation + decoding logic."""
+        inputs = self.tokenizer(
+            texts,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=self.tokenizer_max_length,
+        )
+        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+
+        with self.torch.no_grad():
+            outputs = self.model.generate(
+                **inputs,
+                **self.generation_kwargs,
+            )
+
+        return self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
+
     def translate(self, text: str) -> str | None:
         """Translate a single string."""
         try:
             if not text or not text.strip():
                 return None
 
-            inputs = self.tokenizer(
-                text,
-                return_tensors="pt",
-                padding=True,
-                truncation=True,
-                max_length=self.tokenizer_max_length,
-            )
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
-
-            with torch.no_grad():
-                outputs = self.model.generate(
-                    **inputs,
-                    **self.generation_kwargs,
-                )
-
-            translated = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            decoded = self._tokenize_and_generate([text])
+            translated = decoded[0]
             return translated.strip() if translated.strip() else None
         except Exception as e:
             print(f"HFSeq2SeqTranslator translate error: {e}")
@@ -87,24 +117,8 @@ class HFSeq2SeqTranslator(Translator):
             batch_slice = list(texts[i:i + effective_batch_size])
 
             try:
-                inputs = self.tokenizer(
-                    batch_slice,
-                    return_tensors="pt",
-                    padding=True,
-                    truncation=True,
-                    max_length=self.tokenizer_max_length,
-                )
-                inputs = {k: v.to(self.device) for k, v in inputs.items()}
-
-                with torch.no_grad():
-                    outputs = self.model.generate(
-                        **inputs,
-                        **self.generation_kwargs,
-                    )
-
-                decoded = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
+                decoded = self._tokenize_and_generate(batch_slice)
                 results.extend([t.strip() if t.strip() else None for t in decoded])
-
             except Exception as e:
                 print(f"HFSeq2SeqTranslator translate_batch error: {e}")
                 results.extend([None] * len(batch_slice))

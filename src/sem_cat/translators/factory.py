@@ -1,6 +1,8 @@
 """Translator factory.
 
 Builds translator instances from ModelSpec definitions.
+All backend-specific instantiation logic lives inside the translator classes;
+the factory simply dispatches to the correct constructor.
 """
 
 from __future__ import annotations
@@ -29,7 +31,7 @@ def build_translator(
 
     Raises:
         ValueError: If backend_family is unknown.
-        ImportError: If required dependencies are missing.
+        BackendUnavailableError: If required dependencies are missing.
     """
     gen_kwargs = get_generation_preset(spec.generation_preset)
 
@@ -99,6 +101,8 @@ def build_reverse_translator(
     if spec.reverse_model_name is None:
         return None
 
+    gen_kwargs = get_generation_preset(spec.generation_preset)
+
     if spec.backend_family == "google":
         from .google_translator import GoogleTranslator
 
@@ -114,8 +118,6 @@ def build_reverse_translator(
     if spec.backend_family == "hf_seq2seq":
         from .hf_seq2seq_translator import HFSeq2SeqTranslator
 
-        gen_kwargs = get_generation_preset(spec.generation_preset)
-
         return HFSeq2SeqTranslator(
             model_key=f"{spec.model_key}_reverse",
             model_name=spec.reverse_model_name,
@@ -127,8 +129,6 @@ def build_reverse_translator(
 
     if spec.backend_family == "nllb":
         from .nllb_translator import NLLBTranslator
-
-        gen_kwargs = get_generation_preset(spec.generation_preset)
 
         return NLLBTranslator(
             model_key=f"{spec.model_key}_reverse",

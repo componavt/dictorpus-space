@@ -1,6 +1,11 @@
+# Core dependencies (always required)
 pandas
 nltk
 tqdm
+
+# Translation backends (optional at import time, required for normal dev use)
+# Install all for a full development environment:
+#   pip install -r requirements.txt
 deep_translator
 transformers
 torch

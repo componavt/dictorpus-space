@@ -1,5 +1,8 @@
 """Google Translate backend using deep_translator.
+
 Suitable for small batches and spot-checking. Includes retry with backoff.
+deep_translator is lazily imported so that the module is import-safe
+even when the dependency is absent.
 """
 
 from __future__ import annotations
@@ -7,13 +10,16 @@ from __future__ import annotations
 import time
 from collections.abc import Sequence
 
-from deep_translator import GoogleTranslator as DeepGoogleTranslator
-
-from .base import Translator
+from .base import BackendUnavailableError, Translator
 
 
 class GoogleTranslator(Translator):
-    """Google Translate adapter using deep_translator."""
+    """Google Translate adapter using deep_translator.
+
+    Google is treated as a first-class translator with the same interface
+    as all other backends. Internally it processes items one at a time
+    due to API limitations.
+    """
 
     def __init__(
         self,
@@ -32,6 +38,15 @@ class GoogleTranslator(Translator):
         self.delay = delay
         self.default_batch_size = 1
         self.supports_roundtrip = True
+
+        try:
+            from deep_translator import GoogleTranslator as DeepGoogleTranslator
+        except ImportError as e:
+            raise BackendUnavailableError(
+                "GoogleTranslator requires the 'deep_translator' package. "
+                "Install it with: pip install deep_translator"
+            ) from e
+
         self._client = DeepGoogleTranslator(source=source, target=target)
 
     def translate(self, text: str) -> str | None:
@@ -53,13 +68,15 @@ class GoogleTranslator(Translator):
                     time.sleep(self.delay)
                     # Recreate client on failure to recover from stale state
                     try:
+                        from deep_translator import (
+                            GoogleTranslator as DeepGoogleTranslator,
+                        )
                         self._client = DeepGoogleTranslator(
                             source=self.source, target=self.target
                         )
                     except Exception:
                         pass
                 else:
-                    print(f"GoogleTranslator translate error after {self.retry} retries: {e}")
                     return None
         return None
 
