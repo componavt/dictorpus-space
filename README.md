@@ -150,6 +150,58 @@ python3 -m src.sem_cat.02_translate_glosses --backend google
 python3 -m src.sem_cat.02_translate_glosses --backend nllb --nllb-model facebook/nllb-200-distilled-1.3B
 ```
 
+#### Batch size
+
+`--batch-size` overrides the model's default batch size when provided:
+
+```bash
+# Use batch size 7 instead of the model default (e.g. 64 for Marian)
+python3 -m src.sem_cat.02_translate_glosses \
+    --model-key helsinki_opus_mt_ru_en --batch-size 7 --device cpu
+```
+
+Precedence: user `--batch-size` > model spec default > fallback 1.
+
+#### Proxy troubleshooting
+
+HuggingFace model loading can fail if proxy environment variables contain
+invalid URL schemes (e.g. `socks://` instead of `socks5://`).
+
+**Shell-level workaround** (Linux/macOS):
+
+```bash
+env -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY \
+    -u http_proxy -u https_proxy -u all_proxy \
+    python3 -m src.sem_cat.02_translate_glosses \
+    --model-key helsinki_opus_mt_ru_en --device cpu --limit 33
+```
+
+**Built-in flag** (ignores proxy vars during model loading only):
+
+```bash
+python3 -m src.sem_cat.02_translate_glosses \
+    --model-key helsinki_opus_mt_ru_en \
+    --ignore-proxy-env \
+    --device cpu \
+    --limit 33
+```
+
+The `--ignore-proxy-env` flag is explicit opt-in and only affects
+HuggingFace/NLLB model loading. It does not change global behavior
+or permanently modify your environment.
+
+#### Offline / local cache
+
+```bash
+# Only use locally cached models (no network download)
+python3 -m src.sem_cat.02_translate_glosses \
+    --model-key nllb_distilled_1_3b --local-files-only --device cuda
+
+# Custom cache directory
+python3 -m src.sem_cat.02_translate_glosses \
+    --model-key nllb_distilled_1_3b --hf-cache-dir /path/to/cache --device cuda
+```
+
 ### Step 03 — Multi-model comparison
 
 ```bash

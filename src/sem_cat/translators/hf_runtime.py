@@ -1,14 +1,16 @@
 """HuggingFace runtime helpers.
 
 Provides proxy environment detection, actionable error messages for
-model initialization failures, and shared loading logic for HF-based
-translators.
+model initialization failures, shared loading logic for HF-based
+translators, and a context manager for temporarily unsetting proxy vars.
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import re
+from contextlib import contextmanager
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -26,6 +28,38 @@ PROXY_ENV_VARS = (
 def collect_proxy_env() -> dict[str, str]:
     """Return a dict of proxy-related environment variables that are set."""
     return {k: v for k in PROXY_ENV_VARS if (v := os.environ.get(k)) is not None}
+
+
+def identify_bad_proxy_vars(proxy_env: dict[str, str]) -> list[tuple[str, str]]:
+    """Identify which proxy variables are likely malformed.
+
+    Returns a list of (name, value) pairs for variables that use
+    unsupported schemes like bare 'socks://' instead of 'socks5://'.
+    """
+    bad = []
+    for name, value in proxy_env.items():
+        if value.startswith("socks://") and not value.startswith("socks5://"):
+            bad.append((name, value))
+    return bad
+
+
+@contextmanager
+def temporarily_unset_env(var_names: tuple[str, ...]):
+    """Context manager that temporarily removes specified env vars.
+
+    Restores them to their original values on exit.
+    """
+    saved = {name: os.environ.get(name) for name in var_names if name in os.environ}
+    try:
+        for name in var_names:
+            os.environ.pop(name, None)
+        yield
+    finally:
+        for name in var_names:
+            if name in saved:
+                os.environ[name] = saved[name]
+            else:
+                os.environ.pop(name, None)
 
 
 def explain_hf_init_error(
@@ -48,15 +82,33 @@ def explain_hf_init_error(
     """
     text = str(exc)
     proxy_env = collect_proxy_env()
+    bad_proxies = identify_bad_proxy_vars(proxy_env)
 
     # Proxy-related errors
     if "Unknown scheme for proxy URL" in text or "proxy" in text.lower():
-        proxy_vars = ", ".join(f"{k}={v!r}" for k, v in proxy_env.items()) if proxy_env else "none"
+        if bad_proxies:
+            bad_desc = ", ".join(f"{n}={v!r}" for n, v in bad_proxies)
+            proxy_hint = (
+                f"The following variables use an unsupported proxy scheme: {bad_desc}. "
+                "Use 'socks5://' instead of 'socks://', or unset them."
+            )
+        else:
+            all_proxy = ", ".join(f"{k}={v!r}" for k, v in proxy_env.items())
+            proxy_hint = (
+                f"Detected proxy variables: {all_proxy}. "
+                "One of them may have an invalid URL scheme."
+            )
+
+        shell_workaround = (
+            "Shell workaround for Linux/macOS:\n"
+            "  env -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY "
+            "-u http_proxy -u https_proxy -u all_proxy \\\n"
+            f"  python3 -m src.sem_cat.02_translate_glosses --model-key <key>"
+        )
+
         return (
             f"Failed to initialize HuggingFace model '{model_name}' because proxy "
-            f"configuration is invalid. Detected proxy variables: {proxy_vars}. "
-            "If you use a SOCKS proxy, prefer 'socks5://' instead of 'socks://', "
-            "or unset the proxy variables before running the script."
+            f"configuration is invalid.\n{proxy_hint}\n{shell_workaround}"
         )
 
     # Local files only mode
@@ -90,6 +142,7 @@ def load_hf_model(
     local_files_only: bool = False,
     cache_dir: str | None = None,
     device: str = "cpu",
+    ignore_proxy_env: bool = False,
     torch: Any,
     AutoTokenizer: Any,
     AutoModelForSeq2SeqLM: Any,
@@ -102,6 +155,7 @@ def load_hf_model(
         local_files_only: If True, only use locally cached files.
         cache_dir: Optional custom cache directory.
         device: Target device ("cpu" or "cuda").
+        ignore_proxy_env: If True, temporarily unset proxy env vars during loading.
         torch: The torch module (already imported).
         AutoTokenizer: Tokenizer class from transformers.
         AutoModelForSeq2SeqLM: Model class from transformers.
@@ -123,21 +177,27 @@ def load_hf_model(
 
     tok_kwargs = {**(tokenizer_kwargs or {}), **common_kwargs}
 
-    try:
-        tokenizer = AutoTokenizer.from_pretrained(model_name, **tok_kwargs)
-    except Exception as e:
-        msg = explain_hf_init_error(
-            e, model_name, local_files_only=local_files_only, cache_dir=cache_dir
-        )
-        raise TranslatorInitializationError(msg) from e
+    def _load() -> tuple[Any, Any]:
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(model_name, **tok_kwargs)
+        except Exception as e:
+            msg = explain_hf_init_error(
+                e, model_name, local_files_only=local_files_only, cache_dir=cache_dir
+            )
+            raise TranslatorInitializationError(msg) from e
 
-    try:
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_name, **common_kwargs)
-    except Exception as e:
-        msg = explain_hf_init_error(
-            e, model_name, local_files_only=local_files_only, cache_dir=cache_dir
-        )
-        raise TranslatorInitializationError(msg) from e
+        try:
+            model = AutoModelForSeq2SeqLM.from_pretrained(model_name, **common_kwargs)
+        except Exception as e:
+            msg = explain_hf_init_error(
+                e, model_name, local_files_only=local_files_only, cache_dir=cache_dir
+            )
+            raise TranslatorInitializationError(msg) from e
 
-    model = model.to(device)
-    return tokenizer, model
+        model = model.to(device)
+        return tokenizer, model
+
+    if ignore_proxy_env:
+        with temporarily_unset_env(PROXY_ENV_VARS):
+            return _load()
+    return _load()

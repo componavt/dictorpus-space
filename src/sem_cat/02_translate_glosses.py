@@ -9,12 +9,11 @@ import sys
 import pathlib
 import argparse
 import random
+from dataclasses import dataclass
 from math import ceil
+from typing import Literal
 
 import pandas as pd
-
-# Add project root to sys.path to allow absolute imports
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent))
 
 # Anchor all default paths to the project root (2 levels up from this file).
 _THIS_FILE = pathlib.Path(__file__).resolve()
@@ -61,6 +60,62 @@ from src.sem_cat.io.translation_rows import (
 )
 
 
+@dataclass(frozen=True)
+class ReverseSetupResult:
+    """Status of reverse translator initialization."""
+    translator: Translator | None
+    status: Literal["ready", "unsupported", "init_failed"]
+    message: str | None = None
+
+
+def _setup_reverse_translator(
+    spec,
+    device: str,
+    retry: int,
+    delay: float,
+    local_files_only: bool,
+    cache_dir: str | None,
+    ignore_proxy_env: bool,
+) -> ReverseSetupResult:
+    """Attempt to build a reverse translator and return explicit status."""
+    if not spec.supports_roundtrip or spec.reverse_model_name is None:
+        return ReverseSetupResult(
+            translator=None,
+            status="unsupported",
+            message="The model spec does not support round-trip translation.",
+        )
+
+    try:
+        translator = build_reverse_translator(
+            spec,
+            device=device,
+            retry=retry,
+            delay=delay,
+            local_files_only=local_files_only,
+            cache_dir=cache_dir,
+            ignore_proxy_env=ignore_proxy_env,
+        )
+    except (BackendUnavailableError, TranslatorInitializationError) as e:
+        return ReverseSetupResult(
+            translator=None,
+            status="init_failed",
+            message=f"Failed to initialize reverse translator: {e}",
+        )
+
+    if translator is None:
+        return ReverseSetupResult(
+            translator=None,
+            status="unsupported",
+            message="The model spec does not support round-trip translation.",
+        )
+
+    return ReverseSetupResult(
+        translator=translator,
+        status="ready",
+        message=f"Round-trip enabled: back-translator built ({translator.model_key})",
+    )
+
+
 def _print_summary(
     total_unique: int,
     already_cached: int,
@@ -93,8 +148,15 @@ def _print_summary(
             print(f"    - {flag}: {count}")
 
 
-def _run_backend_info(spec, device: str, retry: int, delay: float,
-                      local_files_only: bool, cache_dir: str | None) -> None:
+def _run_backend_info(
+    spec,
+    device: str,
+    retry: int,
+    delay: float,
+    local_files_only: bool,
+    cache_dir: str | None,
+    ignore_proxy_env: bool,
+) -> None:
     """Run backend diagnostics and print a readable summary."""
     print(f"\nRunning backend diagnostics for '{spec.model_name}'...")
 
@@ -106,6 +168,7 @@ def _run_backend_info(spec, device: str, retry: int, delay: float,
             delay=delay,
             local_files_only=local_files_only,
             cache_dir=cache_dir,
+            ignore_proxy_env=ignore_proxy_env,
         )
     except (BackendUnavailableError, TranslatorInitializationError) as e:
         print(f"FAIL: {e}")
@@ -141,8 +204,10 @@ def main() -> None:
         "--nllb-model", type=str, default="facebook/nllb-200-distilled-1.3B",
         help="legacy: NLLB model name (used with --backend nllb). Prefer --model-key.",
     )
-    parser.add_argument("--batch-size", type=int, default=64,
-                        help="batch size for translation (default: 64)")
+    parser.add_argument(
+        "--batch-size", type=int, default=None,
+        help="Batch size for translation. Overrides model default if provided.",
+    )
     parser.add_argument(
         "--device", type=str, default="cpu",
         help='Device for local HuggingFace models: "cpu" or "cuda" (default: cpu)',
@@ -190,10 +255,16 @@ def main() -> None:
                         help="Only use locally cached HF models (no network download)")
     parser.add_argument("--hf-cache-dir", type=str, default=None,
                         help="Custom cache directory for HuggingFace models")
+    parser.add_argument("--ignore-proxy-env", action="store_true", default=False,
+                        help="Temporarily unset proxy env vars during HF/NLLB model loading")
     parser.add_argument("--backend-info", action="store_true",
                         help="Run backend diagnostics with probe translations, then exit")
 
     args = parser.parse_args()
+
+    # Validate batch size
+    if args.batch_size is not None and args.batch_size <= 0:
+        parser.error("--batch-size must be a positive integer")
 
     # Resolve retry/delay: generic flags take precedence over legacy aliases
     retry = args.retry if args.retry is not None else args.google_retries
@@ -225,6 +296,7 @@ def main() -> None:
         _run_backend_info(
             spec, args.device, retry, delay,
             args.local_files_only, args.hf_cache_dir,
+            args.ignore_proxy_env,
         )
         return
 
@@ -297,30 +369,35 @@ def main() -> None:
             delay=delay,
             local_files_only=args.local_files_only,
             cache_dir=args.hf_cache_dir,
+            ignore_proxy_env=args.ignore_proxy_env,
         )
     except (BackendUnavailableError, TranslatorInitializationError) as e:
         print(f"ERROR: {e}")
         sys.exit(1)
 
-    back_translator: Translator | None = None
-    if args.round_trip and spec.supports_roundtrip:
-        try:
-            back_translator = build_reverse_translator(
-                spec,
-                device=args.device,
-                retry=retry,
-                delay=delay,
-                local_files_only=args.local_files_only,
-                cache_dir=args.hf_cache_dir,
-            )
-        except (BackendUnavailableError, TranslatorInitializationError) as e:
-            print(f"WARNING: Failed to build reverse translator: {e}")
-            print("Continuing without round-trip QA.")
+    # Set up reverse translator with explicit status
+    reverse_result = ReverseSetupResult(translator=None, status="unsupported")
+    if args.round_trip:
+        reverse_result = _setup_reverse_translator(
+            spec,
+            device=args.device,
+            retry=retry,
+            delay=delay,
+            local_files_only=args.local_files_only,
+            cache_dir=args.hf_cache_dir,
+            ignore_proxy_env=args.ignore_proxy_env,
+        )
 
-        if back_translator is not None:
-            print(f"Round-trip enabled: back-translator built ({back_translator.model_key})")
-        else:
-            print("Round-trip requested but reverse model unavailable for this spec.")
+    if reverse_result.status == "ready":
+        print(reverse_result.message)
+    elif reverse_result.status == "unsupported":
+        if args.round_trip:
+            print(f"WARNING: {reverse_result.message}")
+    elif reverse_result.status == "init_failed":
+        print(f"WARNING: {reverse_result.message}")
+        print("Continuing without round-trip QA.")
+
+    back_translator = reverse_result.translator
 
     # 11. Build input texts
     input_texts: list[str] = []
@@ -332,7 +409,8 @@ def main() -> None:
     # 12. Translate in batches
     print(f"Translating with {resolved_model_key} (mode: {args.translation_input_mode})...")
 
-    effective_batch_size = spec.default_batch_size if spec.default_batch_size else args.batch_size
+    # Batch size precedence: user CLI > spec default > fallback 1
+    effective_batch_size = args.batch_size or spec.default_batch_size or 1
     n = len(glosses_to_translate)
     n_batches = ceil(n / effective_batch_size) if n > 0 else 0
 
@@ -354,25 +432,25 @@ def main() -> None:
             batch_idx * effective_batch_size: (batch_idx + 1) * effective_batch_size
         ]
 
-        # Forward translation - use the common interface
+        # Forward translation - keep None alive
         raw_batch = translator.translate_batch(batch_inputs, batch_size=len(batch_inputs))
-        translated_texts = [t or "" for t in raw_batch]
 
-        # Back-translation - use the common interface
-        if back_translator is not None and args.round_trip:
+        # Back-translation - keep None alive
+        if back_translator is not None:
             raw_back = back_translator.translate_batch(
-                translated_texts, batch_size=len(translated_texts)
+                [t if t else "" for t in raw_batch],
+                batch_size=len(raw_batch),
             )
-            back_translated = [t or "" for t in raw_back]
+            back_translated = list(raw_back)
         else:
-            back_translated = [None] * len(translated_texts)
+            back_translated = [None] * len(raw_batch)
 
         # Build rows and write
         batch_rows = []
         for idx, (gloss_ru, input_text, trans) in enumerate(
-            zip(batch_glosses, batch_inputs, translated_texts)
+            zip(batch_glosses, batch_inputs, raw_batch)
         ):
-            roundtrip_text = back_translated[idx] if args.round_trip else None
+            roundtrip_text = back_translated[idx] if back_translator is not None else None
 
             qa_result = analyze_translation(gloss_ru, trans, roundtrip_text, config=qa_config)
 
@@ -380,7 +458,7 @@ def main() -> None:
 
             row = build_translation_row(
                 gloss_ru=gloss_ru,
-                gloss_en=trans,
+                gloss_en=trans if trans else "",
                 qa_result=qa_result,
                 model_key=resolved_model_key,
                 model_name=spec.model_name,
@@ -390,7 +468,7 @@ def main() -> None:
                 pos_hint=meta.dominant_pos if meta else None,
                 meaning_hint=meta.meaning_hint if meta else None,
                 source_count=meta.source_count if meta else None,
-                gloss_ru_back=roundtrip_text,
+                gloss_ru_back=roundtrip_text if roundtrip_text else "",
             )
             batch_rows.append(row)
 

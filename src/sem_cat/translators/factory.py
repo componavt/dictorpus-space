@@ -19,6 +19,7 @@ def build_translator(
     delay: float = 1.0,
     local_files_only: bool = False,
     cache_dir: str | None = None,
+    ignore_proxy_env: bool = False,
 ) -> Translator:
     """Build a translator from a ModelSpec.
 
@@ -29,6 +30,7 @@ def build_translator(
         delay: Delay between retries for Google backend.
         local_files_only: If True, HF/NLLB models only use local cache.
         cache_dir: Optional custom cache directory for HF/NLLB models.
+        ignore_proxy_env: If True, temporarily unset proxy env vars during HF/NLLB loading.
 
     Returns:
         Translator instance.
@@ -64,6 +66,7 @@ def build_translator(
             generation_kwargs=gen_kwargs,
             local_files_only=local_files_only,
             cache_dir=cache_dir,
+            ignore_proxy_env=ignore_proxy_env,
         )
 
     if spec.backend_family == "nllb":
@@ -80,6 +83,7 @@ def build_translator(
             generation_kwargs=gen_kwargs,
             local_files_only=local_files_only,
             cache_dir=cache_dir,
+            ignore_proxy_env=ignore_proxy_env,
         )
 
     raise ValueError(f"Unknown backend family: {spec.backend_family!r}")
@@ -92,6 +96,7 @@ def build_reverse_translator(
     delay: float = 1.0,
     local_files_only: bool = False,
     cache_dir: str | None = None,
+    ignore_proxy_env: bool = False,
 ) -> Translator | None:
     """Build a reverse translator for back-translation.
 
@@ -140,6 +145,7 @@ def build_reverse_translator(
             generation_kwargs=gen_kwargs,
             local_files_only=local_files_only,
             cache_dir=cache_dir,
+            ignore_proxy_env=ignore_proxy_env,
         )
 
     if spec.backend_family == "nllb":
@@ -156,6 +162,7 @@ def build_reverse_translator(
             generation_kwargs=gen_kwargs,
             local_files_only=local_files_only,
             cache_dir=cache_dir,
+            ignore_proxy_env=ignore_proxy_env,
         )
 
     return None

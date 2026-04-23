@@ -46,6 +46,7 @@ class NLLBTranslator(Translator):
         generation_kwargs: dict[str, Any] | None = None,
         local_files_only: bool = False,
         cache_dir: str | None = None,
+        ignore_proxy_env: bool = False,
     ) -> None:
         """Initialize NLLB model and tokenizer.
 
@@ -60,6 +61,7 @@ class NLLBTranslator(Translator):
             generation_kwargs: Override generation parameters
             local_files_only: If True, only use locally cached files.
             cache_dir: Optional custom cache directory.
+            ignore_proxy_env: If True, temporarily unset proxy env vars during loading.
         """
         # Lazy import heavy dependencies
         try:
@@ -89,6 +91,7 @@ class NLLBTranslator(Translator):
         self.supports_roundtrip = True
         self.local_files_only = local_files_only
         self.cache_dir = cache_dir
+        self.ignore_proxy_env = ignore_proxy_env
 
         if generation_kwargs is not None:
             self.generation_kwargs = generation_kwargs
@@ -103,6 +106,7 @@ class NLLBTranslator(Translator):
             local_files_only=local_files_only,
             cache_dir=cache_dir,
             device=device,
+            ignore_proxy_env=ignore_proxy_env,
             torch=self.torch,
             AutoTokenizer=AutoTokenizer,
             AutoModelForSeq2SeqLM=AutoModelForSeq2SeqLM,

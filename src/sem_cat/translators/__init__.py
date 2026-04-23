@@ -8,7 +8,12 @@ from .base import (
 )
 from .model_registry import ModelSpec, get_model_spec, list_model_keys
 from .factory import build_translator, build_reverse_translator
-from .hf_runtime import collect_proxy_env, explain_hf_init_error
+from .hf_runtime import (
+    collect_proxy_env,
+    explain_hf_init_error,
+    temporarily_unset_env,
+    PROXY_ENV_VARS,
+)
 
 __all__ = [
     "Translator",
@@ -22,4 +27,6 @@ __all__ = [
     "build_reverse_translator",
     "collect_proxy_env",
     "explain_hf_init_error",
+    "temporarily_unset_env",
+    "PROXY_ENV_VARS",
 ]

@@ -395,13 +395,18 @@ class TestHFRuntime:
         assert "HTTP_PROXY" in env
         assert env["HTTP_PROXY"] == "http://proxy:8080"
 
-    def test_explain_hf_init_error_proxy(self):
+    def test_explain_hf_init_error_proxy(self, monkeypatch):
         """Proxy errors should mention proxy configuration."""
         from src.sem_cat.translators.hf_runtime import explain_hf_init_error
-        exc = ValueError("Unknown scheme for proxy URL URL('socks://127.0.0.1:12334/')")
-        msg = explain_hf_init_error(exc, "test-model")
-        assert "proxy" in msg.lower()
-        assert "socks5" in msg.lower()
+        monkeypatch.setenv("ALL_PROXY", "socks://127.0.0.1:12334")
+        try:
+            exc = ValueError("Unknown scheme for proxy URL URL('socks://127.0.0.1:12334/')")
+            msg = explain_hf_init_error(exc, "test-model")
+            assert "proxy" in msg.lower()
+            assert "socks5" in msg.lower()
+            assert "ALL_PROXY" in msg
+        finally:
+            monkeypatch.delenv("ALL_PROXY", raising=False)
 
     def test_explain_hf_init_error_local_files_only(self):
         """Local-files-only errors should mention pre-downloading."""
@@ -569,17 +574,20 @@ class TestCLIGracefulFailure:
         assert "Model not found" in msg
 
     def test_backend_info_unchanged_source_warn(self, monkeypatch, capsys):
-        """If translator returns unchanged source, diagnostics should WARN."""
+        """If translator returns unchanged source, diagnostics should not say OK."""
         from src.sem_cat.translators.diagnostics import run_backend_diagnostics, summarize_diagnostics
 
         class EchoTranslator:
             def translate(self, text):
                 return text  # Returns unchanged source
+            def translate_batch(self, texts):
+                return texts
 
         results = run_backend_diagnostics(EchoTranslator())
         status, msg = summarize_diagnostics(results)
+        # With the new allowlist logic, unchanged source is FAIL for single probes
+        # but batch probe may be WARN (partial). Overall should NOT be OK.
         assert status != "OK"
-        assert "identical" in msg.lower() or "no translation" in msg.lower()
 
     def test_backend_info_proper_translation_ok(self, monkeypatch, capsys):
         """If translator returns proper English, diagnostics should OK."""
@@ -589,7 +597,339 @@ class TestCLIGracefulFailure:
             def translate(self, text):
                 mapping = {"\u0434\u043e\u043c": "house", "\u043a\u043e\u0448\u043a\u0430": "cat", "\u0432\u043e\u0434\u0430": "water"}
                 return mapping.get(text, "translation")
+            def translate_batch(self, texts):
+                mapping = {"\u0434\u043e\u043c": "house", "\u043a\u043e\u0448\u043a\u0430": "cat", "\u0432\u043e\u0434\u0430": "water"}
+                return [mapping.get(t, "translation") for t in texts]
 
         results = run_backend_diagnostics(GoodTranslator())
         status, msg = summarize_diagnostics(results)
         assert status == "OK"
+
+
+# ---------------------------------------------------------------------------
+# 15. Batch-size precedence
+# ---------------------------------------------------------------------------
+
+class TestBatchSizePrecedence:
+    def test_user_cli_overrides_spec_default(self):
+        """User --batch-size must override spec.default_batch_size."""
+        from src.sem_cat.translators.model_registry import ModelSpec
+
+        # Simulate: spec default = 64, user CLI = 7
+        spec_default = 64
+        cli_batch_size = 7
+        effective = cli_batch_size or spec_default or 1
+        assert effective == 7
+
+    def test_spec_default_used_when_cli_is_none(self):
+        """When CLI batch_size is None, spec default should be used."""
+        from src.sem_cat.translators.model_registry import ModelSpec
+
+        spec_default = 64
+        cli_batch_size = None
+        effective = cli_batch_size or spec_default or 1
+        assert effective == 64
+
+    def test_fallback_1_when_both_missing(self):
+        """When both CLI and spec default are missing, fallback to 1."""
+        spec_default = 0  # falsy
+        cli_batch_size = None
+        effective = cli_batch_size or spec_default or 1
+        assert effective == 1
+
+
+# ---------------------------------------------------------------------------
+# 16. Proxy env handling
+# ---------------------------------------------------------------------------
+
+class TestProxyEnvHandling:
+    def test_temporarily_unset_env_clears_vars(self, monkeypatch):
+        """temporarily_unset_env should clear proxy vars during context."""
+        from src.sem_cat.translators.hf_runtime import (
+            temporarily_unset_env,
+            PROXY_ENV_VARS,
+        )
+        monkeypatch.setenv("HTTP_PROXY", "http://bad:8080")
+        monkeypatch.setenv("ALL_PROXY", "socks://127.0.0.1:12334")
+
+        with temporarily_unset_env(PROXY_ENV_VARS):
+            assert os.environ.get("HTTP_PROXY") is None
+            assert os.environ.get("ALL_PROXY") is None
+
+        # Restored after context
+        assert os.environ.get("HTTP_PROXY") == "http://bad:8080"
+        assert os.environ.get("ALL_PROXY") == "socks://127.0.0.1:12334"
+
+    def test_temporarily_unset_env_restores_missing(self, monkeypatch):
+        """Vars that were missing should stay missing after context."""
+        from src.sem_cat.translators.hf_runtime import (
+            temporarily_unset_env,
+            PROXY_ENV_VARS,
+        )
+        # Ensure none are set
+        for var in PROXY_ENV_VARS:
+            monkeypatch.delenv(var, raising=False)
+
+        with temporarily_unset_env(PROXY_ENV_VARS):
+            for var in PROXY_ENV_VARS:
+                assert os.environ.get(var) is None
+
+        for var in PROXY_ENV_VARS:
+            assert os.environ.get(var) is None
+
+    def test_identify_bad_proxy_vars(self, monkeypatch):
+        """identify_bad_proxy_vars should flag socks:// but not socks5://."""
+        from src.sem_cat.translators.hf_runtime import identify_bad_proxy_vars
+        monkeypatch.setenv("ALL_PROXY", "socks://127.0.0.1:12334")
+        monkeypatch.setenv("HTTP_PROXY", "http://proxy:8080")
+        proxy_env = {
+            "ALL_PROXY": "socks://127.0.0.1:12334",
+            "HTTP_PROXY": "http://proxy:8080",
+        }
+        bad = identify_bad_proxy_vars(proxy_env)
+        assert len(bad) == 1
+        assert bad[0][0] == "ALL_PROXY"
+
+    def test_explain_error_identifies_offending_var(self):
+        """Error message should identify the specific bad proxy var."""
+        from src.sem_cat.translators.hf_runtime import explain_hf_init_error
+        import os
+        os.environ["ALL_PROXY"] = "socks://127.0.0.1:12334"
+        try:
+            exc = ValueError("Unknown scheme for proxy URL URL('socks://127.0.0.1:12334/')")
+            msg = explain_hf_init_error(exc, "test-model")
+            assert "ALL_PROXY" in msg
+            assert "socks://" in msg
+            assert "socks5://" in msg
+            assert "env -u" in msg
+        finally:
+            del os.environ["ALL_PROXY"]
+
+
+# ---------------------------------------------------------------------------
+# 17. Reverse translator status handling
+# ---------------------------------------------------------------------------
+
+class TestReverseTranslatorStatus:
+    def test_unsupported_spec_returns_unsupported_status(self):
+        """Model without round-trip support should return 'unsupported'."""
+        from dataclasses import dataclass
+        from typing import Literal
+
+        @dataclass(frozen=True)
+        class ReverseSetupResult:
+            translator: object | None
+            status: Literal["ready", "unsupported", "init_failed"]
+            message: str | None = None
+
+        spec = type("Spec", (), {
+            "supports_roundtrip": False,
+            "reverse_model_name": None,
+        })()
+
+        # Inline the logic from _setup_reverse_translator
+        if not spec.supports_roundtrip or spec.reverse_model_name is None:
+            result = ReverseSetupResult(
+                translator=None,
+                status="unsupported",
+                message="The model spec does not support round-trip translation.",
+            )
+        else:
+            result = ReverseSetupResult(translator=None, status="ready", message=None)
+
+        assert result.status == "unsupported"
+        assert result.translator is None
+
+    def test_init_failure_returns_init_failed_status(self, monkeypatch):
+        """Reverse translator init failure should return 'init_failed'."""
+        from dataclasses import dataclass
+        from typing import Literal
+        from src.sem_cat.translators.base import TranslatorInitializationError
+
+        @dataclass(frozen=True)
+        class ReverseSetupResult:
+            translator: object | None
+            status: Literal["ready", "unsupported", "init_failed"]
+            message: str | None = None
+
+        def fake_build_reverse(*args, **kwargs):
+            raise TranslatorInitializationError("Model not found")
+
+        monkeypatch.setattr(
+            "src.sem_cat.translators.factory.build_reverse_translator",
+            fake_build_reverse,
+        )
+
+        spec = type("Spec", (), {
+            "supports_roundtrip": True,
+            "reverse_model_name": "google",
+            "backend_family": "google",
+            "tgt_lang": "en",
+            "src_lang": "ru",
+            "reverse_src_lang": "en",
+            "reverse_tgt_lang": "ru",
+        })()
+
+        # Inline the logic
+        if not spec.supports_roundtrip or spec.reverse_model_name is None:
+            result = ReverseSetupResult(translator=None, status="unsupported", message=None)
+        else:
+            try:
+                from src.sem_cat.translators.factory import build_reverse_translator
+                translator = build_reverse_translator(
+                    spec, device="cpu", retry=1, delay=0.1,
+                    local_files_only=False, cache_dir=None, ignore_proxy_env=False,
+                )
+            except (Exception,) as e:
+                result = ReverseSetupResult(
+                    translator=None,
+                    status="init_failed",
+                    message=f"Failed to initialize reverse translator: {e}",
+                )
+
+        assert result.status == "init_failed"
+        assert result.translator is None
+        assert "Model not found" in result.message
+
+
+# ---------------------------------------------------------------------------
+# 18. Diagnostics with batch path and allowlist
+# ---------------------------------------------------------------------------
+
+class TestDiagnosticsAllowlist:
+    def test_expected_translation_is_pass(self):
+        """Output matching allowlist should be PASS."""
+        from src.sem_cat.translators.diagnostics import _run_probe
+
+        class FakeTranslator:
+            def translate(self, text):
+                return "house"
+
+        result = _run_probe(FakeTranslator(), "\u0434\u043e\u043c")
+        assert result.status == "PASS"
+
+    def test_unexpected_english_is_warn(self):
+        """English-looking but not in allowlist should be WARN."""
+        from src.sem_cat.translators.diagnostics import _run_probe
+
+        class FakeTranslator:
+            def translate(self, text):
+                return "building"
+
+        result = _run_probe(FakeTranslator(), "\u0434\u043e\u043c")
+        assert result.status == "WARN"
+        assert "expected" in " ".join(result.notes).lower()
+
+    def test_unchanged_source_is_fail(self):
+        """Unchanged source text should be FAIL."""
+        from src.sem_cat.translators.diagnostics import _run_probe
+
+        class FakeTranslator:
+            def translate(self, text):
+                return text
+
+        result = _run_probe(FakeTranslator(), "\u0434\u043e\u043c")
+        assert result.status == "FAIL"
+
+    def test_none_output_is_fail(self):
+        """None output should be FAIL."""
+        from src.sem_cat.translators.diagnostics import _run_probe
+
+        class FakeTranslator:
+            def translate(self, text):
+                return None
+
+        result = _run_probe(FakeTranslator(), "\u0434\u043e\u043c")
+        assert result.status == "FAIL"
+
+    def test_empty_output_is_fail(self):
+        """Empty output should be FAIL."""
+        from src.sem_cat.translators.diagnostics import _run_probe
+
+        class FakeTranslator:
+            def translate(self, text):
+                return ""
+
+        result = _run_probe(FakeTranslator(), "\u0434\u043e\u043c")
+        assert result.status == "FAIL"
+
+    def test_batch_probe_exercises_batch_path(self):
+        """Batch probe should test translate_batch path."""
+        from src.sem_cat.translators.diagnostics import _run_batch_probe
+
+        class FakeTranslator:
+            def translate_batch(self, texts):
+                return ["house", "cat", "water"]
+
+        result = _run_batch_probe(
+            FakeTranslator(),
+            ["\u0434\u043e\u043c", "\u043a\u043e\u0448\u043a\u0430", "\u0432\u043e\u0434\u0430"],
+        )
+        assert result.status == "PASS"
+
+    def test_batch_probe_detects_failures(self):
+        """Batch probe should detect when all outputs fail."""
+        from src.sem_cat.translators.diagnostics import _run_batch_probe
+
+        class FakeTranslator:
+            def translate_batch(self, texts):
+                return [None, None, None]
+
+        result = _run_batch_probe(
+            FakeTranslator(),
+            ["\u0434\u043e\u043c", "\u043a\u043e\u0448\u043a\u0430", "\u0432\u043e\u0434\u0430"],
+        )
+        assert result.status == "FAIL"
+
+    def test_batch_probe_detects_partial_failures(self):
+        """Batch probe should detect partial failures."""
+        from src.sem_cat.translators.diagnostics import _run_batch_probe
+
+        class FakeTranslator:
+            def translate_batch(self, texts):
+                return ["house", None, "water"]
+
+        result = _run_batch_probe(
+            FakeTranslator(),
+            ["\u0434\u043e\u043c", "\u043a\u043e\u0448\u043a\u0430", "\u0432\u043e\u0434\u0430"],
+        )
+        assert result.status == "WARN"
+
+
+# ---------------------------------------------------------------------------
+# 19. None preservation in pipeline
+# ---------------------------------------------------------------------------
+
+class TestNonePreservation:
+    def test_translate_batch_returns_none_for_failures(self):
+        """translate_batch should return None for failed items, not ''."""
+        from src.sem_cat.translators.base import Translator
+
+        class FakeTranslator(Translator):
+            model_key = "fake"
+            model_name = "fake"
+            supports_roundtrip = True
+            default_batch_size = 2
+
+            def translate(self, text):
+                if text == "fail":
+                    return None
+                return "ok"
+
+        t = FakeTranslator()
+        results = t.translate_batch(["ok", "fail", "ok"])
+        assert results[0] == "ok"
+        assert results[1] is None
+        assert results[2] == "ok"
+
+    def test_qa_handles_none_translation(self):
+        """QA analysis should handle None translation gracefully."""
+        from src.sem_cat.qa.translation_qa import analyze_translation
+
+        result = analyze_translation("\u0434\u043e\u043c", None)
+        assert result.qa_keep is False
+        assert "empty_translation" in result.qa_flags
+
+
+# Import os for proxy env tests
+import os

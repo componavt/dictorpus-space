@@ -38,6 +38,7 @@ class HFSeq2SeqTranslator(Translator):
         generation_kwargs: dict[str, Any] | None = None,
         local_files_only: bool = False,
         cache_dir: str | None = None,
+        ignore_proxy_env: bool = False,
     ) -> None:
         self.model_key = model_key
         self.model_name = model_name
@@ -48,6 +49,7 @@ class HFSeq2SeqTranslator(Translator):
         self.supports_roundtrip = True
         self.local_files_only = local_files_only
         self.cache_dir = cache_dir
+        self.ignore_proxy_env = ignore_proxy_env
 
         # Lazy import heavy dependencies
         try:
@@ -74,6 +76,7 @@ class HFSeq2SeqTranslator(Translator):
             local_files_only=local_files_only,
             cache_dir=cache_dir,
             device=device,
+            ignore_proxy_env=ignore_proxy_env,
             torch=self.torch,
             AutoTokenizer=AutoTokenizer,
             AutoModelForSeq2SeqLM=AutoModelForSeq2SeqLM,
