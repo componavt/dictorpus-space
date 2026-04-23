@@ -179,11 +179,9 @@ class TestErrorHierarchy:
             TranslatorError,
             BackendUnavailableError,
             TranslatorInitializationError,
-            TranslationFailedError,
         )
         assert issubclass(BackendUnavailableError, TranslatorError)
         assert issubclass(TranslatorInitializationError, TranslatorError)
-        assert issubclass(TranslationFailedError, TranslatorError)
 
     def test_nllb_raises_backend_unavailable_without_torch(self):
         """NLLBTranslator should raise BackendUnavailableError when
@@ -373,3 +371,225 @@ class TestBaseTranslator:
         assert len(results) == 3
         assert results[0] is None
         assert results[2] is None
+
+
+# ---------------------------------------------------------------------------
+# 11. HF runtime helpers
+# ---------------------------------------------------------------------------
+
+class TestHFRuntime:
+    def test_collect_proxy_env_empty(self, monkeypatch):
+        """When no proxy env vars are set, collect_proxy_env returns empty dict."""
+        from src.sem_cat.translators.hf_runtime import collect_proxy_env
+        for var in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",
+                     "http_proxy", "https_proxy", "all_proxy"):
+            monkeypatch.delenv(var, raising=False)
+        assert collect_proxy_env() == {}
+
+    def test_collect_proxy_env_detects(self, monkeypatch):
+        """When proxy env vars are set, collect_proxy_env returns them."""
+        from src.sem_cat.translators.hf_runtime import collect_proxy_env
+        monkeypatch.setenv("HTTP_PROXY", "http://proxy:8080")
+        monkeypatch.setenv("HTTPS_PROXY", "http://proxy:8080")
+        env = collect_proxy_env()
+        assert "HTTP_PROXY" in env
+        assert env["HTTP_PROXY"] == "http://proxy:8080"
+
+    def test_explain_hf_init_error_proxy(self):
+        """Proxy errors should mention proxy configuration."""
+        from src.sem_cat.translators.hf_runtime import explain_hf_init_error
+        exc = ValueError("Unknown scheme for proxy URL URL('socks://127.0.0.1:12334/')")
+        msg = explain_hf_init_error(exc, "test-model")
+        assert "proxy" in msg.lower()
+        assert "socks5" in msg.lower()
+
+    def test_explain_hf_init_error_local_files_only(self):
+        """Local-files-only errors should mention pre-downloading."""
+        from src.sem_cat.translators.hf_runtime import explain_hf_init_error
+        exc = OSError("Cannot find model")
+        msg = explain_hf_init_error(exc, "test-model", local_files_only=True)
+        assert "local-files-only" in msg.lower()
+        assert "pre-download" in msg.lower()
+
+    def test_explain_hf_init_error_generic(self):
+        """Generic errors should include original message."""
+        from src.sem_cat.translators.hf_runtime import explain_hf_init_error
+        exc = OSError("Some random HF error")
+        msg = explain_hf_init_error(exc, "my-model")
+        assert "my-model" in msg
+        assert "Some random HF error" in msg
+
+
+# ---------------------------------------------------------------------------
+# 12. HF init error wrapping
+# ---------------------------------------------------------------------------
+
+class TestHFInitErrorWrapping:
+    def test_proxy_error_wrapped_as_initialization_error(self, monkeypatch):
+        """Invalid proxy env should raise TranslatorInitializationError."""
+        from src.sem_cat.translators.base import TranslatorInitializationError
+        from src.sem_cat.translators.hf_seq2seq_translator import HFSeq2SeqTranslator
+
+        # Mock torch to be available
+        import types
+        fake_torch = types.ModuleType("torch")
+        fake_torch.no_grad = lambda: type("ctx", (), {"__enter__": lambda s: None, "__exit__": lambda s, *a: None})()
+        monkeypatch.setitem(sys.modules, "torch", fake_torch)
+
+        # Mock transformers to raise proxy error
+        class FakeAutoTokenizer:
+            @classmethod
+            def from_pretrained(cls, *args, **kwargs):
+                raise ValueError("Unknown scheme for proxy URL URL('socks://127.0.0.1:12334/')")
+
+        class FakeAutoModel:
+            @classmethod
+            def from_pretrained(cls, *args, **kwargs):
+                raise ValueError("Unknown scheme for proxy URL URL('socks://127.0.0.1:12334/')")
+
+        fake_transformers = types.ModuleType("transformers")
+        fake_transformers.AutoTokenizer = FakeAutoTokenizer
+        fake_transformers.AutoModelForSeq2SeqLM = FakeAutoModel
+        monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+        with pytest.raises(TranslatorInitializationError, match="proxy"):
+            HFSeq2SeqTranslator(
+                model_key="test",
+                model_name="test-model",
+            )
+
+    def test_local_files_only_error_wrapped(self, monkeypatch):
+        """Local-files-only failure should raise TranslatorInitializationError."""
+        from src.sem_cat.translators.base import TranslatorInitializationError
+        from src.sem_cat.translators.hf_seq2seq_translator import HFSeq2SeqTranslator
+
+        import types
+        fake_torch = types.ModuleType("torch")
+        fake_torch.no_grad = lambda: type("ctx", (), {"__enter__": lambda s: None, "__exit__": lambda s, *a: None})()
+        monkeypatch.setitem(sys.modules, "torch", fake_torch)
+
+        class FakeAutoTokenizer:
+            @classmethod
+            def from_pretrained(cls, *args, **kwargs):
+                raise OSError("Cannot find model in local cache")
+
+        class FakeAutoModel:
+            @classmethod
+            def from_pretrained(cls, *args, **kwargs):
+                raise OSError("Cannot find model in local cache")
+
+        fake_transformers = types.ModuleType("transformers")
+        fake_transformers.AutoTokenizer = FakeAutoTokenizer
+        fake_transformers.AutoModelForSeq2SeqLM = FakeAutoModel
+        monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+        with pytest.raises(TranslatorInitializationError, match="local-files-only"):
+            HFSeq2SeqTranslator(
+                model_key="test",
+                model_name="test-model",
+                local_files_only=True,
+            )
+
+
+# ---------------------------------------------------------------------------
+# 13. Backend diagnostics
+# ---------------------------------------------------------------------------
+
+class TestBackendDiagnostics:
+    def test_summarize_all_pass(self):
+        from src.sem_cat.translators.diagnostics import ProbeResult, summarize_diagnostics
+        results = [
+            ProbeResult("\u0434\u043e\u043c", "house", "PASS", []),
+            ProbeResult("\u043a\u043e\u0448\u043a\u0430", "cat", "PASS", []),
+        ]
+        status, msg = summarize_diagnostics(results)
+        assert status == "OK"
+
+    def test_summarize_all_fail(self):
+        from src.sem_cat.translators.diagnostics import ProbeResult, summarize_diagnostics
+        results = [
+            ProbeResult("\u0434\u043e\u043c", None, "FAIL", ["Output is None"]),
+            ProbeResult("\u043a\u043e\u0448\u043a\u0430", None, "FAIL", ["Output is None"]),
+        ]
+        status, msg = summarize_diagnostics(results)
+        assert status == "FAIL"
+
+    def test_summarize_mixed(self):
+        from src.sem_cat.translators.diagnostics import ProbeResult, summarize_diagnostics
+        results = [
+            ProbeResult("\u0434\u043e\u043c", "house", "PASS", []),
+            ProbeResult("\u043a\u043e\u0448\u043a\u0430", "\u043a\u043e\u0448\u043a\u0430", "WARN", ["identical"]),
+        ]
+        status, msg = summarize_diagnostics(results)
+        assert status == "WARN"
+
+    def test_unchanged_source_is_warn_not_ok(self):
+        """If translator returns unchanged source text, diagnostics should not say OK."""
+        from src.sem_cat.translators.diagnostics import ProbeResult, summarize_diagnostics
+        results = [
+            ProbeResult("\u0434\u043e\u043c", "\u0434\u043e\u043c", "WARN", ["identical"]),
+            ProbeResult("\u043a\u043e\u0448\u043a\u0430", "\u043a\u043e\u0448\u043a\u0430", "WARN", ["identical"]),
+            ProbeResult("\u0432\u043e\u0434\u0430", "\u0432\u043e\u0434\u0430", "WARN", ["identical"]),
+        ]
+        status, msg = summarize_diagnostics(results)
+        assert status != "OK"
+        assert status in ("WARN", "FAIL")
+
+    def test_proper_english_output_is_pass(self):
+        """Proper ASCII English output should be PASS."""
+        from src.sem_cat.translators.diagnostics import _run_probe
+
+        class FakeTranslator:
+            def translate(self, text):
+                return "house"
+
+        result = _run_probe(FakeTranslator(), "\u0434\u043e\u043c")
+        assert result.status == "PASS"
+        assert result.output == "house"
+
+
+# ---------------------------------------------------------------------------
+# 14. CLI graceful failure tests
+# ---------------------------------------------------------------------------
+
+class TestCLIGracefulFailure:
+    def test_backend_info_catches_initialization_error(self, monkeypatch, capsys):
+        """--backend-info should exit cleanly on TranslatorInitializationError."""
+        from src.sem_cat.translators.base import TranslatorInitializationError
+        from src.sem_cat.translators.diagnostics import run_backend_diagnostics, summarize_diagnostics
+
+        # Test the diagnostic function directly with a failing translator
+        class FailingTranslator:
+            def translate(self, text):
+                raise TranslatorInitializationError("Model not found")
+
+        results = run_backend_diagnostics(FailingTranslator())
+        status, msg = summarize_diagnostics(results)
+        assert status == "FAIL"
+        assert "Model not found" in msg
+
+    def test_backend_info_unchanged_source_warn(self, monkeypatch, capsys):
+        """If translator returns unchanged source, diagnostics should WARN."""
+        from src.sem_cat.translators.diagnostics import run_backend_diagnostics, summarize_diagnostics
+
+        class EchoTranslator:
+            def translate(self, text):
+                return text  # Returns unchanged source
+
+        results = run_backend_diagnostics(EchoTranslator())
+        status, msg = summarize_diagnostics(results)
+        assert status != "OK"
+        assert "identical" in msg.lower() or "no translation" in msg.lower()
+
+    def test_backend_info_proper_translation_ok(self, monkeypatch, capsys):
+        """If translator returns proper English, diagnostics should OK."""
+        from src.sem_cat.translators.diagnostics import run_backend_diagnostics, summarize_diagnostics
+
+        class GoodTranslator:
+            def translate(self, text):
+                mapping = {"\u0434\u043e\u043c": "house", "\u043a\u043e\u0448\u043a\u0430": "cat", "\u0432\u043e\u0434\u0430": "water"}
+                return mapping.get(text, "translation")
+
+        results = run_backend_diagnostics(GoodTranslator())
+        status, msg = summarize_diagnostics(results)
+        assert status == "OK"

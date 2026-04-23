@@ -11,10 +11,14 @@ import-safe even when those heavy dependencies are absent.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from typing import Any
 
-from .base import BackendUnavailableError, Translator
+from .base import BackendUnavailableError, Translator, TranslatorInitializationError
+from .hf_runtime import load_hf_model
+
+logger = logging.getLogger(__name__)
 
 
 class HFSeq2SeqTranslator(Translator):
@@ -32,6 +36,8 @@ class HFSeq2SeqTranslator(Translator):
         tokenizer_max_length: int = 64,
         default_batch_size: int = 32,
         generation_kwargs: dict[str, Any] | None = None,
+        local_files_only: bool = False,
+        cache_dir: str | None = None,
     ) -> None:
         self.model_key = model_key
         self.model_name = model_name
@@ -40,6 +46,8 @@ class HFSeq2SeqTranslator(Translator):
         self.default_batch_size = default_batch_size
         self.generation_kwargs = generation_kwargs or {}
         self.supports_roundtrip = True
+        self.local_files_only = local_files_only
+        self.cache_dir = cache_dir
 
         # Lazy import heavy dependencies
         try:
@@ -59,12 +67,17 @@ class HFSeq2SeqTranslator(Translator):
                 "Install it with: pip install transformers"
             ) from e
 
-        print(f"HFSeq2SeqTranslator: {model_name} | device={device}")
-        print("First run will download model from HuggingFace. Subsequent runs use local cache.")
+        logger.info("Loading HFSeq2SeqTranslator: %s | device=%s", model_name, device)
 
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-        self.model = self.model.to(self.device)
+        self.tokenizer, self.model = load_hf_model(
+            model_name,
+            local_files_only=local_files_only,
+            cache_dir=cache_dir,
+            device=device,
+            torch=self.torch,
+            AutoTokenizer=AutoTokenizer,
+            AutoModelForSeq2SeqLM=AutoModelForSeq2SeqLM,
+        )
 
     def _tokenize_and_generate(
         self,
@@ -98,7 +111,7 @@ class HFSeq2SeqTranslator(Translator):
             translated = decoded[0]
             return translated.strip() if translated.strip() else None
         except Exception as e:
-            print(f"HFSeq2SeqTranslator translate error: {e}")
+            logger.warning("HFSeq2SeqTranslator translate error: %s", e)
             return None
 
     def translate_batch(
@@ -120,7 +133,7 @@ class HFSeq2SeqTranslator(Translator):
                 decoded = self._tokenize_and_generate(batch_slice)
                 results.extend([t.strip() if t.strip() else None for t in decoded])
             except Exception as e:
-                print(f"HFSeq2SeqTranslator translate_batch error: {e}")
+                logger.warning("HFSeq2SeqTranslator translate_batch error: %s", e)
                 results.extend([None] * len(batch_slice))
 
         return results

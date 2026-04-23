@@ -7,10 +7,13 @@ even when the dependency is absent.
 
 from __future__ import annotations
 
+import logging
 import time
 from collections.abc import Sequence
 
 from .base import BackendUnavailableError, Translator
+
+logger = logging.getLogger(__name__)
 
 
 class GoogleTranslator(Translator):
@@ -77,6 +80,7 @@ class GoogleTranslator(Translator):
                     except Exception:
                         pass
                 else:
+                    logger.warning("GoogleTranslator translate error after %d retries: %s", self.retry, e)
                     return None
         return None
 

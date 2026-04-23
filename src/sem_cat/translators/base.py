@@ -18,10 +18,6 @@ class TranslatorInitializationError(TranslatorError):
     """Raised when a translator fails to initialize (e.g. bad config, missing model)."""
 
 
-class TranslationFailedError(TranslatorError):
-    """Raised when a translation attempt fails irrecoverably."""
-
-
 class Translator(ABC):
     """Base translator with a consistent metadata and behavior contract.
 

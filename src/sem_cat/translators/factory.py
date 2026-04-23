@@ -17,6 +17,8 @@ def build_translator(
     device: str = "cpu",
     retry: int = 3,
     delay: float = 1.0,
+    local_files_only: bool = False,
+    cache_dir: str | None = None,
 ) -> Translator:
     """Build a translator from a ModelSpec.
 
@@ -25,6 +27,8 @@ def build_translator(
         device: "cpu" or "cuda" for local models.
         retry: Number of retries for Google backend.
         delay: Delay between retries for Google backend.
+        local_files_only: If True, HF/NLLB models only use local cache.
+        cache_dir: Optional custom cache directory for HF/NLLB models.
 
     Returns:
         Translator instance.
@@ -32,6 +36,7 @@ def build_translator(
     Raises:
         ValueError: If backend_family is unknown.
         BackendUnavailableError: If required dependencies are missing.
+        TranslatorInitializationError: If model/client loading fails.
     """
     gen_kwargs = get_generation_preset(spec.generation_preset)
 
@@ -57,6 +62,8 @@ def build_translator(
             tokenizer_max_length=spec.tokenizer_max_length,
             default_batch_size=spec.default_batch_size,
             generation_kwargs=gen_kwargs,
+            local_files_only=local_files_only,
+            cache_dir=cache_dir,
         )
 
     if spec.backend_family == "nllb":
@@ -71,6 +78,8 @@ def build_translator(
             tokenizer_max_length=spec.tokenizer_max_length,
             default_batch_size=spec.default_batch_size,
             generation_kwargs=gen_kwargs,
+            local_files_only=local_files_only,
+            cache_dir=cache_dir,
         )
 
     raise ValueError(f"Unknown backend family: {spec.backend_family!r}")
@@ -81,6 +90,8 @@ def build_reverse_translator(
     device: str = "cpu",
     retry: int = 3,
     delay: float = 1.0,
+    local_files_only: bool = False,
+    cache_dir: str | None = None,
 ) -> Translator | None:
     """Build a reverse translator for back-translation.
 
@@ -91,6 +102,8 @@ def build_reverse_translator(
         device: "cpu" or "cuda" for local models.
         retry: Number of retries for Google backend.
         delay: Delay between retries for Google backend.
+        local_files_only: If True, HF/NLLB models only use local cache.
+        cache_dir: Optional custom cache directory for HF/NLLB models.
 
     Returns:
         Reverse translator instance, or None if unsupported.
@@ -125,6 +138,8 @@ def build_reverse_translator(
             tokenizer_max_length=spec.tokenizer_max_length,
             default_batch_size=spec.default_batch_size,
             generation_kwargs=gen_kwargs,
+            local_files_only=local_files_only,
+            cache_dir=cache_dir,
         )
 
     if spec.backend_family == "nllb":
@@ -139,6 +154,8 @@ def build_reverse_translator(
             tokenizer_max_length=spec.tokenizer_max_length,
             default_batch_size=spec.default_batch_size,
             generation_kwargs=gen_kwargs,
+            local_files_only=local_files_only,
+            cache_dir=cache_dir,
         )
 
     return None

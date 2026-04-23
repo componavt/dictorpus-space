@@ -14,11 +14,15 @@ import-safe even when those heavy dependencies are absent.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from typing import Any
 
-from .base import BackendUnavailableError, Translator
+from .base import BackendUnavailableError, Translator, TranslatorInitializationError
 from .generation_presets import get_generation_preset
+from .hf_runtime import load_hf_model
+
+logger = logging.getLogger(__name__)
 
 
 class NLLBTranslator(Translator):
@@ -40,6 +44,8 @@ class NLLBTranslator(Translator):
         tokenizer_max_length: int = 128,
         default_batch_size: int = 32,
         generation_kwargs: dict[str, Any] | None = None,
+        local_files_only: bool = False,
+        cache_dir: str | None = None,
     ) -> None:
         """Initialize NLLB model and tokenizer.
 
@@ -52,6 +58,8 @@ class NLLBTranslator(Translator):
             tokenizer_max_length: Maximum sequence length for tokenization
             default_batch_size: Default batch size for translate_batch()
             generation_kwargs: Override generation parameters
+            local_files_only: If True, only use locally cached files.
+            cache_dir: Optional custom cache directory.
         """
         # Lazy import heavy dependencies
         try:
@@ -79,18 +87,27 @@ class NLLBTranslator(Translator):
         self.default_batch_size = default_batch_size
         self.device = device
         self.supports_roundtrip = True
+        self.local_files_only = local_files_only
+        self.cache_dir = cache_dir
 
         if generation_kwargs is not None:
             self.generation_kwargs = generation_kwargs
         else:
             self.generation_kwargs = get_generation_preset("gloss_strict")
 
-        print(f"NLLBTranslator: {model_name} | {src_lang}->{tgt_lang} | device={device}")
-        print("First run will download model from HuggingFace. Subsequent runs use local cache.")
+        logger.info("Loading NLLBTranslator: %s | %s->%s | device=%s",
+                     model_name, src_lang, tgt_lang, device)
 
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name, src_lang=src_lang)
-        self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-        self.model = self.model.to(self.device)
+        self.tokenizer, self.model = load_hf_model(
+            model_name,
+            local_files_only=local_files_only,
+            cache_dir=cache_dir,
+            device=device,
+            torch=self.torch,
+            AutoTokenizer=AutoTokenizer,
+            AutoModelForSeq2SeqLM=AutoModelForSeq2SeqLM,
+            tokenizer_kwargs={"src_lang": src_lang},
+        )
 
         self.forced_bos_token_id = self.tokenizer.convert_tokens_to_ids(tgt_lang)
 
@@ -135,7 +152,7 @@ class NLLBTranslator(Translator):
             translated = decoded[0]
             return translated.strip() if translated.strip() else None
         except Exception as e:
-            print(f"NLLB translate error: {e}")
+            logger.warning("NLLB translate error: %s", e)
             return None
 
     def translate_batch(
@@ -161,7 +178,7 @@ class NLLBTranslator(Translator):
                 decoded = self._tokenize_and_generate(batch_slice)
                 results.extend([t.strip() if t.strip() else None for t in decoded])
             except Exception as e:
-                print(f"NLLB translate_batch error: {e}")
+                logger.warning("NLLB translate_batch error: %s", e)
                 results.extend([None] * len(batch_slice))
 
         return results

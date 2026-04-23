@@ -8,7 +8,6 @@ Already-cached translations are never re-computed (incremental mode).
 import sys
 import pathlib
 import argparse
-import time
 import random
 from math import ceil
 
@@ -30,7 +29,15 @@ from src.sem_cat.translators.model_registry import (
     resolve_legacy_args_to_model_key,
 )
 from src.sem_cat.translators.factory import build_translator, build_reverse_translator
-from src.sem_cat.translators.base import Translator
+from src.sem_cat.translators.base import (
+    BackendUnavailableError,
+    Translator,
+    TranslatorInitializationError,
+)
+from src.sem_cat.translators.diagnostics import (
+    run_backend_diagnostics,
+    summarize_diagnostics,
+)
 from src.sem_cat.pipeline.translation_input import (
     extract_unique_primary_glosses,
     build_gloss_metadata_map,
@@ -84,6 +91,38 @@ def _print_summary(
         print("  QA flag breakdown:")
         for flag, count in sorted(flag_counts.items()):
             print(f"    - {flag}: {count}")
+
+
+def _run_backend_info(spec, device: str, retry: int, delay: float,
+                      local_files_only: bool, cache_dir: str | None) -> None:
+    """Run backend diagnostics and print a readable summary."""
+    print(f"\nRunning backend diagnostics for '{spec.model_name}'...")
+
+    try:
+        translator = build_translator(
+            spec,
+            device=device,
+            retry=retry,
+            delay=delay,
+            local_files_only=local_files_only,
+            cache_dir=cache_dir,
+        )
+    except (BackendUnavailableError, TranslatorInitializationError) as e:
+        print(f"FAIL: {e}")
+        sys.exit(1)
+
+    results = run_backend_diagnostics(translator)
+    overall_status, message = summarize_diagnostics(results)
+
+    print(f"\nDiagnostics: {overall_status}")
+    print(message)
+
+    if overall_status == "FAIL":
+        sys.exit(1)
+    elif overall_status == "WARN":
+        print("\nTranslator is usable but produced suspicious output on some probes.")
+    else:
+        print("\nTranslator is working correctly.")
 
 
 def main() -> None:
@@ -146,8 +185,13 @@ def main() -> None:
                         help="legacy alias for --retry (default: 2)")
     parser.add_argument("--google-retry-delay", type=float, default=1.0,
                         help="legacy alias for --retry-delay (default: 1.0)")
+    # HuggingFace model loading options
+    parser.add_argument("--local-files-only", action="store_true", default=False,
+                        help="Only use locally cached HF models (no network download)")
+    parser.add_argument("--hf-cache-dir", type=str, default=None,
+                        help="Custom cache directory for HuggingFace models")
     parser.add_argument("--backend-info", action="store_true",
-                        help="Print model configuration, run a single test translation, then exit")
+                        help="Run backend diagnostics with probe translations, then exit")
 
     args = parser.parse_args()
 
@@ -178,29 +222,10 @@ def main() -> None:
 
     # 3. Handle --backend-info
     if args.backend_info:
-        print(f"\nRunning test translation: 'dom' -> expected 'house'")
-        try:
-            test_translator = build_translator(
-                spec,
-                device=args.device,
-                retry=retry,
-                delay=delay,
-            )
-        except (ImportError, ValueError) as e:
-            print(f"Model unavailable: {e}")
-            sys.exit(1)
-        try:
-            test_result = test_translator.translate("dom")
-            if test_result and test_result.strip():
-                status = "OK"
-            else:
-                status = "EMPTY"
-        except Exception as e:
-            test_result = f"ERROR: {type(e).__name__}: {e}"
-            status = "ERROR"
-        print(f"Test input:  dom")
-        print(f"Test output: {test_result!r}")
-        print(f"Status: {status}")
+        _run_backend_info(
+            spec, args.device, retry, delay,
+            args.local_files_only, args.hf_cache_dir,
+        )
         return
 
     # 4. Validate data directory
@@ -270,19 +295,28 @@ def main() -> None:
             device=args.device,
             retry=retry,
             delay=delay,
+            local_files_only=args.local_files_only,
+            cache_dir=args.hf_cache_dir,
         )
-    except (ImportError, ValueError) as e:
-        print(f"Failed to build translator: {e}")
+    except (BackendUnavailableError, TranslatorInitializationError) as e:
+        print(f"ERROR: {e}")
         sys.exit(1)
 
     back_translator: Translator | None = None
     if args.round_trip and spec.supports_roundtrip:
-        back_translator = build_reverse_translator(
-            spec,
-            device=args.device,
-            retry=retry,
-            delay=delay,
-        )
+        try:
+            back_translator = build_reverse_translator(
+                spec,
+                device=args.device,
+                retry=retry,
+                delay=delay,
+                local_files_only=args.local_files_only,
+                cache_dir=args.hf_cache_dir,
+            )
+        except (BackendUnavailableError, TranslatorInitializationError) as e:
+            print(f"WARNING: Failed to build reverse translator: {e}")
+            print("Continuing without round-trip QA.")
+
         if back_translator is not None:
             print(f"Round-trip enabled: back-translator built ({back_translator.model_key})")
         else:
