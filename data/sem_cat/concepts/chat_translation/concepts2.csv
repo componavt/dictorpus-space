@@ -1,0 +1,201 @@
+category_id	pos	concept_id	concept_ru	concept_en	definition_ru	definition_en
+B17	ADJ	589	трусливый	cowardly	склонный к трусости, лишённый смелости	lacking courage; easily frightened
+B181	NOUN	590	пища	food; nourishment	то, что едят; питательные вещества, употребляемые в пищу	substance consumed as nourishment; food
+B181	VERB	592	пить	to drink	употреблять жидкость	to take liquid into the mouth and swallow it
+B181	VERB	593	хлебать	to slurp; to lap	пить или есть жидкое, производя хлюпающие звуки	to eat or drink liquid noisily by lapping or scooping with a spoon
+B181	VERB	594	сосать	to suck	всасывать жидкость или извлекать содержимое, сжимая и расслабляя губы или рот	to draw liquid into the mouth by suction
+B181	NOUN	595	прием пищи	meal; mealtime	приём пищи; время, отведённое для еды	an occasion when food is eaten; a regular time for eating
+B181	NOUN	596	завтрак	breakfast	утренний приём пищи	the first meal of the day, eaten in the morning
+B181	NOUN	597	обед	lunch; dinner (midday meal)	основной приём пищи в середине дня	the main meal of the day, eaten at midday
+B181	NOUN	598	ужин	supper; dinner (evening meal)	вечерний приём пищи	the evening meal
+B181	VERB	600	парить	to steam (in cooking)	готовить пищу с помощью горячего пара	to cook food using hot steam
+B181	ADJ	601	сладкий	sweet	имеющий вкус сахара или мёда	having the pleasant taste of sugar or honey
+B181	ADJ	602	пресный (о тесте, хлебе, лепешках)	unleavened; unsalted (of dough, bread, flatbreads)	не содержащий дрожжей, закваски или соли (о тесте, хлебе, лепёшках)	containing no yeast, sourdough or salt (of dough, bread, flatbreads)
+B181	ADJ	603	холодный	cold	имеющий низкую температуру	having a low temperature
+B181	VERB	606	кипеть	to boil	нагреваться до температуры кипения, бурлить пузырями	to be heated to boiling point, with bubbles rising to the surface
+B181	NOUN	607	чай	tea	напиток, приготовленный завариванием листьев чайного куста	a beverage prepared by infusing the dried leaves of the tea plant in hot water
+B181	NOUN	609	сканец	skanetс; rye flatbread	традиционная карельско-вепсская тонкая лепёшка из ржаного теста, раскатанная очень тонко	a traditional Karelian-Veps thin flatbread made from very thinly rolled rye dough
+B181	NOUN	610	пирог	pie; pasty	изделие из теста с начинкой, запечённое в духовке	a baked pastry case with a filling
+B181	NOUN	611	рыбник (пирог)	fish pie; kalakukko	пирог с рыбной начинкой, традиционное блюдо карельской и вепсской кухни	a pie with a fish filling; a traditional dish of Karelian and Veps cuisine
+B181	NOUN	612	каша из муки, загуста	thick flour porridge; zagusta	густая каша или клёцки, сваренные из ржаной или другой муки	a thick porridge or dumpling-like dish cooked from rye or other flour
+B181	NOUN	615	крошево	kroshevo; chopped cabbage dish	нарубленные листья капусты (в том числе зелёных наружных листьев), используемые для приготовления щей	chopped (including green outer) cabbage leaves used for making soup, especially shchi
+B181	VERB	618	кусать	to bite	захватывать зубами и отрезать или прокусывать	to cut or grip with the teeth
+B181	VERB	620	размельчать	to grind; to crush	измельчать на мелкие части	to reduce to small pieces by crushing or grinding
+B181	VERB	621	отжимать, выжимать, пропуская через сито	to press; to strain (through a sieve)	выжимать жидкость из чего-либо, пропуская через сито или ткань	to squeeze liquid out of something by passing it through a sieve or cloth
+B181	NOUN	623	потроха рыбы	fish offal; fish innards	внутренности рыбы, удаляемые при чистке	the internal organs of a fish, removed during cleaning
+B181	NOUN	624	очистки	peelings; scraps	очистки, кожура и другие отходы при чистке овощей или рыбы	peel and other waste removed when cleaning vegetables or fish
+B181	NOUN	625	отжимки	pressings; squeezings	остатки после отжима или процеживания	the residue left after pressing or straining
+B181	NOUN	626	раствор для киселя или блинов	starter; batter (for kissel or pancakes)	жидкое тесто или раствор из муки и воды, используемый как основа для киселя или блинов	a liquid mixture of flour and water used as the base for kissel or pancake batter
+B181	NOUN	627	пена	foam; froth	масса пузырьков на поверхности жидкости	a mass of small bubbles formed on or in a liquid
+B181	NOUN	628	пивная гуща, барда	beer sediment; draff; lees	осадок, остающийся после брожения и фильтрации пива	the sediment remaining after fermentation and straining of beer
+B181	ADJ	630	кислый	sour; tart	имеющий кислый вкус	having an acidic or sharp taste
+B181	NOUN	631	плесень	mould; mildew	нитчатые грибки, образующие налёт на пищевых продуктах или влажных поверхностях	filamentous fungi forming a growth on food or damp surfaces
+B181	NOUN	632	соль	salt	минеральное вещество (хлорид натрия), применяемое для приправы и консервирования	a mineral substance (sodium chloride) used for seasoning and preserving food
+B181	NOUN	633	сахар	sugar	сладкое кристаллическое вещество, получаемое из сахарного тростника или свёклы	a sweet crystalline substance obtained from sugar cane or sugar beet
+B181	NOUN	634	толокно	oat flour; tolokno	мука из поджаренного овса, традиционный продукт питания народов Русского Севера	flour made from roasted oats; a traditional food product of the peoples of the Russian North
+B181	NOUN	635	солод	malt	зерно, проращённое и высушенное для использования в пивоварении и хлебопечении	grain that has been germinated and dried, used in brewing and baking
+B181	NOUN	636	рассол	brine; pickle liquor	раствор соли в воде, используемый для засолки продуктов	a solution of salt in water used for pickling or preserving food
+B181	NOUN	637	крупа	groats; grain	очищенные и дроблёные зёрна злаков, используемые для варки каш	hulled and crushed cereal grains used for cooking porridge
+B181	ADJ	638	крупный (о муке грубого помола)	coarse-ground (of flour)	крупного помола, с большими частицами (о муке)	ground into large particles; coarsely milled (of flour)
+B181	NOUN	640	кисель	kissel	традиционный кисловатый напиток или десерт из ягодного сока или крахмала	a traditional Russian sweet or sour beverage-dessert made from starch and fruit juice or berries
+B181	NOUN	641	квас	kvas	традиционный ферментированный слабоалкогольный напиток из хлеба или муки	a traditional fermented mildly alcoholic beverage made from bread or flour
+B181	NOUN	642	пиво	beer	слабоалкогольный напиток, сброженный из солода и хмеля	a mildly alcoholic beverage fermented from malt and hops
+B181	ADJ	644	сытый	full; satiated	утоливший голод, больше не желающий есть	having eaten one's fill; no longer hungry
+B181	VERB	646	хотеть пить, испытывать жажду	to be thirsty; to want to drink	испытывать потребность в питье	to feel the need to drink; to be thirsty
+B181	VERB	647	курить	to smoke (tobacco)	вдыхать и выдыхать дым табака	to inhale and exhale the smoke of tobacco
+B181	NOUN	648	табак	tobacco	растение Nicotiana tabacum или высушенные листья этого растения, используемые для курения	the plant Nicotiana tabacum, or its dried leaves used for smoking
+B181	NOUN	649	трубка	pipe (for smoking)	трубка для курения табака	a device for smoking tobacco, consisting of a small bowl with a long stem
+B181	VERB	1429	проколоть, проткнуть	to pierce; to stab	проделывать отверстие чем-либо острым; протыкать насквозь	to make a hole in something with a sharp instrument; to stab or puncture
+B182	NOUN	650	одежда	clothing; clothes	предметы, надеваемые на тело для защиты и украшения	items worn on the body for protection and covering
+B182	NOUN	651	рубашка (мужская)	shirt (men's)	предмет мужской одежды с рукавами и воротником, надеваемый на верхнюю часть тела	a men's garment with sleeves and a collar, worn on the upper body
+B182	NOUN	652	рубашка (женская)	blouse; shirt (women's)	предмет женской одежды с рукавами, надеваемый на верхнюю часть тела	a women's garment with sleeves worn on the upper body
+B182	NOUN	653	штаны	trousers; pants	одежда, покрывающая каждую ногу отдельно от талии до щиколотки	a garment covering each leg separately from the waist to the ankle
+B182	NOUN	654	кальсоны	long underwear; longjohns	нижнее бельё, покрывающее ноги от талии до щиколотки	underpants with long legs, worn as underwear
+B182	NOUN	655	юбка	skirt	предмет женской одежды, свободно свисающий от талии вниз	a women's garment that hangs freely from the waist downwards
+B182	NOUN	656	сарафан	sarafan	традиционный русский женский сарафан — длинное безрукавное платье, надеваемое поверх рубашки	a traditional Russian women's long sleeveless dress worn over a shirt
+B182	NOUN	657	чулок	stocking; sock	трикотажное изделие, покрывающее ногу от ступни до колена или выше	a knitted garment covering the foot and leg to the knee or above
+B182	NOUN	658	портянки	foot wraps; footcloths (portyanki)	полосы ткани, наматываемые на ноги вместо носков, традиционная обувная принадлежность	strips of cloth wound around the feet instead of socks; a traditional form of foot covering
+B182	NOUN	659	платок	headscarf; shawl	платок, повязываемый на голову или накидываемый на плечи	a square of cloth worn over the head or shoulders
+B182	NOUN	660	кафтан	kaftan	традиционная длиннополая верхняя одежда с запахом	a traditional long outer garment with an overlap fastening
+B182	NOUN	661	платье	dress; gown	женская или детская одежда, покрывающая тело от плеч до ног	a woman's or child's garment covering the body from the shoulders to the legs
+B182	NOUN	662	шуба	fur coat; shuba	тёплое пальто из меха или с меховой подкладкой	a warm coat made of or lined with fur
+B182	NOUN	663	пазуха	bosom; chest fold (of garment)	пространство между телом и одеждой на груди, используемое для хранения мелких предметов	the space between the body and the front of a garment, used for carrying small items; the chest fold
+B182	NOUN	664	шапка	hat; cap	головной убор, надеваемый на голову для тепла или украшения	a head covering worn for warmth or decoration
+B182	NOUN	665	рукавица	mitten; gauntlet	рукавица, закрывающая руку без разделения пальцев	a hand covering without separate fingers
+B182	VERB	666	раздеть, снять	to undress; to take off (clothing)	снимать одежду с кого-либо или с себя	to remove clothing from someone or from oneself
+B182	NOUN	667	пояс	belt; girdle	полоска ткани или кожи, носимая вокруг талии	a strip of material worn around the waist
+B182	NOUN	668	ремень	strap; belt (leather)	длинная узкая полоска кожи или ткани, используемая для крепления или застёгивания	a long narrow strip of leather or material used for fastening or carrying
+B182	NOUN	669	пряжка	buckle; clasp	металлическое приспособление для застёгивания ремня или пояса	a metal fastening device for a belt or strap
+B182	NOUN	670	подол	hem; skirt-bottom	нижний край одежды, особенно юбки или платья	the lower edge of a garment, especially a skirt or dress
+B182	NOUN	671	пуговица	button	небольшой округлый предмет, пришиваемый к одежде для застёгивания	a small rounded fastener sewn onto clothing
+B182	NOUN	672	рукав	sleeve	часть одежды, покрывающая руку	the part of a garment covering the arm
+B182	NOUN	673	карман	pocket	небольшой карман, вшитый в одежду для хранения мелких предметов	a small bag sewn into clothing for carrying small items
+B182	VERB	674	кроить	to cut out (fabric); to cut a pattern	вырезать части одежды из ткани по выкройке	to cut pieces of fabric according to a pattern
+B182	VERB	675	шить	to sew	соединять ткань нитью с помощью иглы	to join fabric using a needle and thread
+B182	VERB	676	пороть	to unpick; to rip (a seam)	распарывать швы, разбирать сшитое	to undo stitches; to rip open a seam
+B182	VERB	677	подрубать	to hem; to overcast (an edge)	подгибать и прошивать край ткани или одежды	to fold and stitch the edge of fabric or a garment
+B182	VERB	678	чинить белье	to mend linen; to repair clothing	чинить бельё или одежду	to repair clothing or bed linen
+B182	ADJ	680	старый, изношенный (об одежде)	old; worn out (of clothing)	потерявший вид от длительного использования (об одежде)	having deteriorated through long use (of clothing)
+B182	ADJ	681	новый	new	только что сделанный или приобретённый, не бывший в употреблении	recently made or acquired; not previously used
+B182	ADJ	682	тесный	tight; close-fitting	слишком узкий, сдавливающий тело	too narrow or close-fitting; constricting
+B182	NOUN	684	кольцо, перстень	ring; finger ring	украшение в виде кольца, надеваемого на палец	a circular ornament worn on the finger
+B182	NOUN	685	серьги	earrings	украшения, носимые в ушах или на мочках ушей	ornaments worn in or on the ears
+B182	NOUN	686	наперсток	thimble	защитный наконечник, надеваемый на палец при шитье	a protective cap worn on a finger when sewing
+B182	VERB	687	мыть	to wash	очищать водой с мылом или другим средством	to clean with water and soap or another cleansing agent
+B182	NOUN	688	мыло	soap	моющее средство из жиров и щёлочи, используемое для мытья	a cleansing substance made from fats and alkali, used for washing
+B182	NOUN	689	пар (в бане)	steam (in the bathhouse)	горячий влажный пар в бане	the hot moist vapour inside a bathhouse (banya)
+B182	VERB	690	париться (в бане)	to steam oneself (in the bathhouse)	хлестать себя веником и принимать горячий пар в бане	to heat oneself with steam and be beaten with a birch whisk in the bathhouse
+B182	ADJ	691	чистый	clean	лишённый грязи, незагрязнённый	free from dirt; unsoiled
+B182	NOUN	693	полотенце	towel	кусок ткани для вытирания тела после мытья	a piece of cloth used for drying the body after washing
+B182	NOUN	694	простыня	sheet	большое прямоугольное полотно ткани, используемое в постели	a large rectangular piece of cloth used on a bed
+B182	NOUN	695	скатерть	tablecloth	покрытие, постилаемое на стол	a cloth spread over a table
+B182	NOUN	696	щелок	lye; potash lye (shchelok)	щелочной раствор, получаемый из золы, использовавшийся для стирки	an alkaline solution made from wood ash, formerly used for washing clothes
+B182	NOUN	697	одеяло	blanket; quilt	тёплое покрывало, используемое в постели	a warm cover used on a bed
+B182	NOUN	698	подушка	pillow	мягкая подушка для головы во время сна	a soft cushion for the head during sleep
+B182	NOUN	699	постель	bed	место для сна; постельные принадлежности	the place for sleeping; bedding
+B182	NOUN	701	зеркало	mirror	гладкая отражающая поверхность или устройство, показывающее изображение	a smooth reflective surface or device showing an image
+B21	NOUN	709	ум	mind; intellect	способность мыслить, рассуждать и понимать	the capacity to think, reason, and understand
+B21	ADJ	710	умный	clever; intelligent	обладающий острым умом, способностью быстро мыслить	having a sharp or quick mind; intellectually capable
+B21	NOUN	712	мозг	brain	орган центральной нервной системы, расположенный в черепе	the organ of the central nervous system located in the skull
+B21	NOUN	713	слово	word	единица языка, выражающая понятие	a unit of language expressing a concept or meaning
+B21	ADJ	714	скупой	stingy; miserly	скупой, не желающий тратить деньги или делиться	unwilling to spend money or share; miserly
+B22	ADJ	717	милый	dear; darling; kind	вызывающий привязанность, симпатию; ласковый	inspiring affection; lovable; kind and gentle
+B22	VERB	718	обрадоваться	to rejoice; to be glad	испытывать радость, удовольствие от чего-либо	to feel joy or happiness about something
+B22	VERB	719	нравиться	to like; to please	вызывать симпатию или приятное ощущение	to cause someone to feel pleasure or fondness
+B22	VERB	720	смеяться	to laugh	издавать звуки, выражающие веселье или радость	to make sounds expressing amusement or joy
+B22	VERB	721	сердиться	to be angry; to get angry	испытывать раздражение или гнев	to feel or show anger or irritation
+B22	NOUN	722	обида	offence; grievance	чувство обиды, возникающее от несправедливого отношения	a feeling of hurt or resentment caused by unfair treatment
+B22	NOUN	724	печаль, тоска	sadness; longing; grief	состояние душевной тяжести, тоски или скорби	a state of sorrow, melancholy, or yearning
+B22	VERB	725	мучить	to torment; to cause suffering	причинять страдание или мучение кому-либо	to cause pain or suffering to someone
+B22	VERB	727	любить	to love	испытывать глубокую привязанность к кому-либо	to feel deep affection for someone
+B22	VERB	728	обнимать	to hug; to embrace	обвивать руками в знак ласки или привязанности	to hold someone in one's arms as a sign of affection
+B22	VERB	729	целовать	to kiss	прикасаться губами в знак привязанности или приветствия	to touch someone with the lips as a sign of affection or greeting
+B23	VERB	731	лгать, обманывать	to lie; to deceive	говорить неправду; вводить в заблуждение	to say something untrue; to mislead or deceive
+B23	VERB	735	хаять	to disparage; to badmouth	отзываться плохо о ком-либо или о чём-либо, порочить	to speak disparagingly of someone or something; to find fault
+B23	VERB	741	завидовать	to envy	испытывать зависть к чужим успехам или имуществу	to feel envy towards another's success or possessions
+B23	NOUN	742	стыд	shame	болезненное чувство, вызванное сознанием своего недостойного поведения	a painful feeling caused by awareness of wrongdoing or disgrace
+B23	NOUN	744	честь	honour; dignity	внутренняя нравственная ценность; репутация, достоинство	inner moral worth; good reputation; dignity
+B23	NOUN	745	милость	mercy; grace; favour	доброжелательное, снисходительное отношение; великодушие	kind, compassionate treatment; benevolence; favour
+B31	VERB	746	работать	to work; to labour	выполнять работу, прилагать усилия для достижения результата	to perform work; to exert effort to achieve a result
+B31	NOUN	747	работа	work; labour	деятельность, требующая усилий; труд	activity requiring effort; labour; toil
+B31	VERB	748	нанимать	to hire; to employ	принимать кого-либо на работу за вознаграждение	to engage someone to work for payment
+B31	NOUN	751	подряд	contract; job contract	соглашение о выполнении определённых работ за вознаграждение	an agreement to perform specified work for payment
+B31	NOUN	752	ноша	load; burden (carried)	тяжёлый предмет или ноша, которую несут	a heavy object or burden that is carried
+B31	VERB	754	прибирать (в квартире)	to tidy up; to clean (a room)	наводить порядок, убирать в помещении	to put in order; to clean a room or dwelling
+B31	VERB	756	сучить (пряжу)	to twist (yarn); to spin	скручивать волокно в нить; сучить пряжу	to twist fibres into thread; to spin yarn
+B31	VERB	757	облить	to pour over; to spill over	обливать чем-либо жидким; проливать на что-либо	to pour a liquid over something; to spill onto something
+B31	VERB	758	связывать	to tie; to bind	соединять, скрепляя верёвкой или нитью	to fasten or join by tying with rope or thread
+B31	VERB	759	отломить, отколоть	to break off; to chip off	отламывать или откалывать часть	to detach a piece by breaking or chipping
+B31	NOUN	760	узел	knot	место перекрещивания и завязывания верёвки или нити	the point where a rope or thread is fastened by tying
+B321	NOUN	761	подсека	slash-and-burn plot; podséka	участок леса, срубленный и выжженный для подготовки под пашню	a forest plot that has been felled and burned to prepare it for cultivation
+B321	VERB	762	палить подсеку	to burn the slash-and-burn plot	поджигать поваленные деревья на подсеке для расчистки	to set fire to the felled trees on a slash-and-burn plot
+B321	VERB	763	расчищать, раскорчевывать (под пашню, луг)	to clear; to grub up (for a field or meadow)	расчищать землю от деревьев и пней для пашни или луга	to clear land of trees and stumps for a field or meadow
+B321	NOUN	764	пожог, выженное место	burnt clearing; burn site	участок, оставшийся после выжигания подсеки	a cleared area remaining after burning a slash-and-burn plot
+B321	NOUN	766	поле	field	открытый участок земли, используемый для земледелия	an open area of land used for agriculture
+B321	ADJ	768	твердый	hard; firm	сопротивляющийся давлению или деформации; прочный	resistant to pressure or deformation; firm
+B321	VERB	769	набухать	to swell; to expand	увеличиваться в объёме от влаги или тепла	to increase in volume by absorbing moisture or heat
+B321	VERB	770	обрабатывать (землю)	to till; to cultivate (land)	обрабатывать землю, готовя её к посеву	to prepare and work land for growing crops
+B321	NOUN	771	полоса (земли)	strip (of land)	узкий длинный участок земли	a long narrow area of land
+B321	NOUN	772	пар (в севообороте)	fallow (in crop rotation)	поле, оставленное незасеянным для восстановления плодородия	a field left unsown for a season to restore its fertility
+B321	NOUN	773	подсека заросшая	overgrown slash-and-burn plot	бывшая подсека, поросшая молодым лесом или кустарником	a former slash-and-burn plot that has become overgrown with young trees or scrub
+B321	NOUN	774	навоз	manure; dung	навоз животных, используемый как удобрение	animal dung used as fertiliser
+B321	NOUN	775	навозная куча	manure heap; dunghill	куча навоза	a heap of manure
+B321	VERB	776	копать	to dig	рыть землю лопатой или другим инструментом	to break up and move soil using a spade or other tool
+B321	NOUN	777	мотыга	hoe; mattock	сельскохозяйственное орудие с широким лезвием для рыхления почвы и прополки	an agricultural tool with a broad blade for loosening soil and weeding
+B321	NOUN	778	соха	sokha (wooden plough)	традиционное деревянное пахотное орудие с раздвоенным рабочим концом	a traditional wooden plough with a forked working end
+B321	NOUN	780	изгородь	fence; enclosure	ограждение из жердей, досок или прутьев	a barrier made of poles, boards or wattles
+B321	NOUN	781	кол	stake; pole	заострённый кол, вбиваемый в землю	a pointed stick or pole driven into the ground
+B321	VERB	782	сеять	to sow	рассыпать семена по почве для выращивания	to scatter seeds on or in the soil for growing
+B321	NOUN	784	росток	sprout; seedling	молодой побег, только что проросший из семени	a young shoot that has just germinated from a seed
+B321	NOUN	785	отросток, побег	shoot; offshoot	новый вырост или боковой побег растения	a new growth or lateral shoot of a plant
+B321	VERB	786	полоть	to weed	удалять сорные растения с поля или огорода	to remove unwanted plants from a field or garden
+B321	ADJ	787	спелый, зрелый	ripe; mature	достигший полной зрелости (о злаках, плодах)	having reached full maturity (of grain crops or fruit)
+B321	NOUN	788	полеглость	lodging; crop lodging	полегание злаков под действием ветра, дождя или собственного веса	the flattening of cereal crops by wind, rain, or their own weight
+B321	NOUN	789	лемех	ploughshare; lemech	металлическое лезвие плуга, разрезающее почву	the metal blade of a plough that cuts through the soil
+B321	VERB	790	пахать	to plough	рыхлить и переворачивать почву плугом	to break up and turn over soil using a plough
+B322	NOUN	793	серп	sickle	ручное сельскохозяйственное орудие с изогнутым лезвием для жатвы	a hand tool with a curved blade used for reaping grain
+B322	NOUN	794	сноп	sheaf	связка срезанных злаков, перевязанная вместе	a bundle of cut cereal stalks bound together
+B322	NOUN	795	перевясло	straw band; sheaf binder	перевясло — жгут из соломы или ржаной соломки для перевязки снопа	a band of twisted straw used to bind a sheaf
+B322	NOUN	796	суслон, бабка	stook; shook (of sheaves)	суслон — несколько снопов, поставленных вертикально вместе для просушки	a group of sheaves set up in the field to dry
+B322	NOUN	797	зарод	hay stack; zarod (oblong stack)	продолговатый стог сена или соломы	an elongated stack of hay or straw
+B322	NOUN	798	стерня	stubble	остатки стеблей злаков на поле после жатвы	the short stalks of cereal crops remaining in a field after harvesting
+B322	NOUN	799	яровые злаки	spring cereals	зерновые культуры, высеваемые весной и убираемые осенью того же года	cereal crops sown in spring and harvested in autumn of the same year
+B323	NOUN	800	рига	riga (threshing barn)	строение для сушки и обмолота зерна, традиционное для Карелии и всего Севера	a building for drying and threshing grain, traditional in Karelia and the Russian North
+B323	VERB	801	насаживать снопы (в ригу)	to stack sheaves (in the riga)	устанавливать снопы в риге для сушки	to set up sheaves in the riga for drying
+B323	VERB	802	молотить	to thresh	отделять зерно от колосьев ударами цепа или молотильной машины	to separate grain from the ears by beating with a flail or threshing machine
+B323	NOUN	803	зерно	grain; kernel	зерно злакового растения	the seed of a cereal plant
+B323	NOUN	805	солома	straw	высохшие стебли злаков, остающиеся после обмолота	the dried stalks of cereal plants remaining after threshing
+B323	NOUN	806	пучок, связка (соломы)	bundle; bunch (of straw)	связанная или перевязанная охапка соломы	a tied or bound bunch of straw
+B323	NOUN	807	полова, мякина	chaff; winnowings	мякина — лёгкие шелушинки и оболочки зерна, отделяемые при молотьбе	the light husks and outer coverings of grain separated during threshing
+B324	NOUN	808	коса	scythe	сельскохозяйственное орудие с длинным изогнутым лезвием для кошения травы или злаков	an agricultural tool with a long curved blade for cutting grass or grain
+B324	NOUN	810	сено	hay	срезанная и высушенная трава, используемая как корм для скота	cut and dried grass used as animal fodder
+B324	NOUN	811	луг, лужайка	meadow; lawn	открытый участок с травяным покровом	an open area covered with grass
+B324	VERB	812	точить на точильном камне	to sharpen on a whetstone	затачивать лезвие на точильном камне	to sharpen a blade on a whetstone
+B324	VERB	813	точить бруском	to sharpen with a honing stick	выправлять заточку лезвия бруском	to hone a blade using a honing stick
+B324	NOUN	815	зуб (граблей)	tooth (of a rake)	один из зубьев деревянных граблей	one of the prongs of a rake
+B324	NOUN	817	куча	pile; heap	скопление чего-либо в одном месте	a collection of things gathered into one place
+B324	NOUN	818	копна (сена)	small haycock; hay cock	небольшая копна сена в форме конуса на лугу	a small conical heap of hay in a field
+B324	VERB	819	разбрасывать, расстилать (копны сена)	to spread out; to scatter (haycocks)	раскидывать сено для подсушивания	to spread hay out for drying
+B324	NOUN	820	носилки для подноски сена	hay-litter; hay-carrying frame	носилки или рама для переноски сена	a litter or frame for carrying hay
+B324	NOUN	821	прясло	hay-drying rack; praslo	прясло — перекладина или забор из жердей для сушки сена	a rack or pole fence for drying hay
+B324	NOUN	822	стог	haystack	большая куча сена, сложенная для хранения	a large pile of hay stored in the open
+B324	NOUN	823	стожар	haystack pole; stojar	центральный кол в стогу, вокруг которого укладывается сено	the central pole of a haystack, around which hay is stacked
+B331	NOUN	825	хлев	cowshed; byre	хозяйственное строение для содержания скота	a farm building for housing livestock
+B331	VERB	826	привязать	to tie up; to tether	привязывать животное верёвкой	to fasten an animal with a rope
+B331	NOUN	827	скот	livestock; cattle	домашние животные, содержащиеся на ферме	domestic animals kept on a farm
+B331	VERB	828	кормить	to feed (animals)	давать корм животным	to give food to animals
+B331	NOUN	829	ясли	manger; feeding trough	кормушка — корыто или ящик для корма животных	a trough or box from which animals eat
+B331	NOUN	830	лошадь	horse	домашнее непарнокопытное животное (Equus caballus), используемое для верховой езды и работы	a domesticated odd-toed ungulate (Equus caballus) used for riding and work
+B331	NOUN	834	мерин	gelding	кастрированный самец лошади	a castrated male horse
+B331	NOUN	835	кобыла	mare	самка лошади	a female horse
+B331	NOUN	837	сбруя, упряжь	harness; tackle	совокупность приспособлений для запряжки лошади	the set of equipment used to harness a horse
+B331	NOUN	838	узда	bridle	головная сбруя для управления лошадью	a headgear used to control a horse
+B331	NOUN	839	седло	saddle	сиденье для всадника, закрепляемое на спине лошади	a seat for a rider, fixed on the back of a horse
+B331	NOUN	840	удила	bit (of a bridle)	металлический стержень, вкладываемый в рот лошади для управления	a metal bar placed in a horse's mouth for control
+B331	NOUN	841	хомут	collar (horse collar)	хомут — часть упряжи, надеваемая на шею и плечи лошади	a padded ring placed around a horse's neck and shoulders as part of the harness
+B331	NOUN	845	супонь - ремень для стягивания хомута (обычно под шеей лошади)	supon (collar strap)	ремень для стягивания двух частей хомута на шее лошади	a strap for tightening the two halves of a horse collar
+B331	VERB	846	ржать	to neigh; to whinny	издавать характерные звуки (о лошади)	to make the characteristic vocalization of a horse
+B331	NOUN	847	корова	cow	домашнее парнокопытное животное (Bos taurus), которое разводят ради молока и мяса	a domesticated even-toed ungulate (Bos taurus) raised for milk and meat
+B331	NOUN	848	рог	horn (of cattle)	твёрдый выступ на голове у жвачных животных	a hard projection on the head of a ruminant animal
+B331	ADJ	850	яловый	barren; yeld (of a cow)	не давшая телёнка в данном году; яловая (о корове)	not having calved in the current year; barren (of a cow)
+B331	VERB	852	кастрировать	to castrate; to geld	хирургически удалять семенники у самца животного	to surgically remove the testicles of a male animal
