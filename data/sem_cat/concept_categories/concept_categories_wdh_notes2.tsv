@@ -1,0 +1,10 @@
+topic	value
+format_choice	variant_1: one row per VepKar category, field wdh contains comma-separated WDH labels
+ambiguous_B15	factotum, transport
+ambiguous_B181	food, gastronomy, body_care
+ambiguous_B22	psychology, physiology, psychological_features
+ambiguous_B43	folklore, music, dance, free_time
+ambiguous_B44	literature, publishing, radio+tv
+ambiguous_B45	sport, play
+ambiguous_B51	politics, sociology, administration
+ambiguous_C2	factotum, geometry, topography

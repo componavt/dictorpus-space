@@ -1,0 +1,13 @@
+ID категории	proposed_wdh	reason
+B15	factotum	verbs of motion and action are cross-domain and not a stable WDH topical domain
+B17	factotum	human life is too broad for a single narrower WDH domain
+B181	food	contains drink and tobacco too; food chosen as closest dominant domain
+B21	psychology	thought and memory could partly align with philosophy; psychology chosen as closer lexical field
+B22	psychology	feelings and senses mix emotion and perception; psychology chosen provisionally
+B31	person	people at work could map to enterprise or sociology; person chosen as broad human-role domain
+B34	artisanship	other peasant occupations may split across fishing, hunting, craftsmanship; artisanship chosen as default
+B43	folklore	festivities and culture overlap with music, religion, dance; folklore chosen as umbrella folk-culture label
+B44	publishing	literature and mass media could split into literature and radio+tv/cinema; publishing chosen as umbrella
+B45	sport	games overlap with play; sport chosen as dominant for classification
+B51	politics	public organizations and civic activity also overlap sociology/administration; politics chosen provisionally
+C2	factotum	space/spatial relations are abstract relational concepts, not a concrete WDH topical science domain

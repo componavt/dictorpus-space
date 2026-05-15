@@ -1,0 +1,66 @@
+category_id	name_ru	name_en	wdh
+A11	Небо; небесные тела	Sky; celestial bodies	astronomy
+A12	Погода; ветер; состояние атмосферы	Weather; wind; atmosphere	meteorology
+A21	Воды; моря, реки	Waters; seas, rivers	geography, oceanography
+A22	Рельеф местности; полезные ископаемые; вещества	Landforms; mineral resources; substances	geology, earth
+A31	Растительный мир	Flora	plants, biology
+A321	Древесные растения	Woody plants	plants, biology
+A322	Лес, деревья	Forest; trees	plants, biology
+A323	Фруктовые деревья; кусты со съедобными ягодам и плодами; ягоды	Fruit trees; shrubs with edible berries and fruits; berries	plants, food, biology
+A33	Растения, употребляемые в пищу; злаки	Edible plants; cereals	agriculture, plants, food
+A34	Огородные растения	Kitchen garden plants	agriculture, plants, food
+A35	Растения и кустарники	Plants and shrubs	plants, biology
+A36	Названия цвета	Colour names	color
+A411	Домашние животные	Domestic animals	animal_husbandry, animals
+A412	Лесные, полевые животные	Forest and field animals	animals, biology
+A42	Птицы	Birds	animals, biology
+A43	Рыбы	Fish	animals, biology
+A44	Насекомые, пресмыкающиеся, земноводные	Insects, reptiles, amphibians	animals, biology, entomology
+B11	Человек: общие сведения	Human being: general	person
+B12	Части тела, органы, их характеристики и функции	Body parts and organs: characteristics and functions	anatomy, physiology
+B15	Глаголы движения, действия	Verbs of motion and action	factotum, transport
+B16	Здоровье; болезни	Health; diseases	medicine, health
+B17	Жизнь человека	Human life	person, factotum
+B181	Потребности человека: пища, питье, табак	Human needs: food, drink, tobacco	food, gastronomy, body_care
+B182	Одежда, туалет	Clothing; personal care	fashion, body_care
+B21	Мысль; память	Thought; memory	psychology, psychological_features
+B22	Чувства	Feelings; senses	psychology, physiology, psychological_features
+B23	Мораль	Morality	philosophy, sociology
+B31	Человек за работой	People at work	person, enterprise, artisanship
+B321	Сельское хозяйство: земля и работы, с ней связанные	Agriculture: land and related activities	agriculture
+B322	Жатва	Reaping; grain harvest	agriculture
+B323	Молотьба	Threshing	agriculture
+B324	Сенокос	Haymaking	agriculture
+B331	Скотный двор, скот	Farmyard; livestock	animal_husbandry, agriculture
+B332	Птичий двор, домашние птицы	Poultry yard; poultry	animal_husbandry, agriculture
+B333	Молочные продукты	Dairy products	food, agriculture
+B334	Пастбище	Pasture	animal_husbandry, agriculture
+B34	Другие занятия крестьянина	Other peasant occupations	artisanship, agriculture
+B351	Ремесла, профессии; орудия труда	Crafts and trades; tools	artisanship, person
+B352	Хлеб	Bread	food, gastronomy
+B353	Охота, рыбная ловля; продукты	Hunting and fishing; produce	hunting, fishing, food
+B354	Деятельность, связанная с обработкой дерева	Woodworking	artisanship, buildings
+B355	Кузница	Forge; blacksmithing	artisanship, industry
+B356	Ткани; обувь	Textiles; footwear	fashion, artisanship
+B36	Торговля; финансы; собственность	Trade; finance; property	commerce, finance, economy, money
+B371	Жилище	Dwelling	home, buildings
+B372	Строительство; надворные постройки	Construction; outbuildings	architecture, buildings
+B373	Посуда, домашняя утварь	Dishes, housewares	home, furniture
+B374	Отопление и освещение	Heating and lighting	home, electricity
+B375	Общие работы по хозяйству	General household work	home
+B376	Техника (бытовая, электроника)	Appliances (household, electronics)	electronics, electrotechnology, home
+B38	Дорога и транспорт; путешествия	Roads and transport; travel	transport, tourism, vehicles, nautical
+B411	Общественная жизнь; брак	Social life; marriage	sociology, person
+B412	Семья, родство	Family; kinship	sociology, person
+B413	Мир детства	World of childhood	person
+B42	Язык, общение	Language; communication	linguistics, grammar
+B43	Праздники; культура	Festivities; culture	folklore, music, dance, free_time
+B44	Литература и СМИ	Literature and mass media	literature, publishing, radio+tv
+B45	Игры и спорт	Games and sports	sport, play
+B51	Общественные организации, коммуны; общественная деятельность; политика	Public organizations; communities; civic activities; politics	politics, sociology, administration
+B511	Обучение	Education; training	school, pedagogy, university
+B52	Религия, отсутствие религии	Religion and irreligion	religion, mythology, theology
+B53	Государство и право	State and law	law, politics, administration
+C1	Априорность: число, количество	A priori concepts: number, quantity	number, mathematics, metrology
+C2	Пространство; пространственные отношения	Space; spatial relations	factotum, geometry, topography
+C3	Время; временные отношения	Time; temporal relations	time_period
