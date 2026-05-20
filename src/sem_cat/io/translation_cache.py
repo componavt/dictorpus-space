@@ -69,11 +69,17 @@ def load_translation_cache(
         if col not in df.columns:
             df[col] = ""
 
-    # Handle duplicate gloss_ru: keep last row per gloss
+    # Handle duplicate gloss_ru: keep row with highest qa_score
     if df["gloss_ru"].duplicated().any():
-        dup_count = df["gloss_ru"].duplicated().sum()
-        print(f"WARNING: cache has {dup_count} duplicate gloss_ru rows. Keeping last occurrence.")
-        df = df.drop_duplicates(subset="gloss_ru", keep="last")
+        dup_count = int(df["gloss_ru"].duplicated().sum())
+        dup_examples = df[df["gloss_ru"].duplicated(keep=False)]["gloss_ru"].unique()[:10].tolist()
+        print(f"WARNING: cache has {dup_count} duplicate glossru rows.")
+        print(f"  Examples: {dup_examples}")
+        print(f"  Keeping row with highest qa_score per glossru.")
+        df["_qa_score_num"] = pd.to_numeric(df.get("qa_score", 0), errors="coerce").fillna(0.0)
+        df = df.sort_values("_qa_score_num", ascending=False)
+        df = df.drop_duplicates(subset="gloss_ru", keep="first")
+        df = df.drop(columns=["_qa_score_num"])
 
     return df
 

@@ -12,6 +12,7 @@ import-safe even when those heavy dependencies are absent.
 from __future__ import annotations
 
 import logging
+import traceback
 from collections.abc import Sequence
 from typing import Any
 
@@ -19,6 +20,32 @@ from .base import BackendUnavailableError, Translator, TranslatorInitializationE
 from .hf_runtime import load_hf_model
 
 logger = logging.getLogger(__name__)
+
+_TRANSIENT_ERROR_PATTERNS = (
+    "out of memory",
+    "oom",
+    "timeout",
+    "connection",
+    "network",
+)
+
+
+def _log_translate_error(backend: str, method: str, exc: Exception) -> None:
+    """Log a translation error with appropriate severity."""
+    err_msg = str(exc)
+    is_transient = any(
+        pattern in err_msg.lower() for pattern in _TRANSIENT_ERROR_PATTERNS
+    )
+    if is_transient:
+        logger.warning("%s %s transient error: %s", backend, method, exc)
+    else:
+        tb_summary = traceback.format_exc()
+        tb_lines = tb_summary.strip().split("\n")
+        short_tb = "\n".join(tb_lines[-4:]) if len(tb_lines) > 4 else tb_summary
+        logger.error(
+            "%s %s unexpected error: %s\n%s",
+            backend, method, exc, short_tb,
+        )
 
 
 class HFSeq2SeqTranslator(Translator):
@@ -114,7 +141,7 @@ class HFSeq2SeqTranslator(Translator):
             translated = decoded[0]
             return translated.strip() if translated.strip() else None
         except Exception as e:
-            logger.warning("HFSeq2SeqTranslator translate error: %s", e)
+            _log_translate_error("HFSeq2SeqTranslator", "translate", e)
             return None
 
     def translate_batch(
@@ -136,7 +163,7 @@ class HFSeq2SeqTranslator(Translator):
                 decoded = self._tokenize_and_generate(batch_slice)
                 results.extend([t.strip() if t.strip() else None for t in decoded])
             except Exception as e:
-                logger.warning("HFSeq2SeqTranslator translate_batch error: %s", e)
+                _log_translate_error("HFSeq2SeqTranslator", "translate_batch", e)
                 results.extend([None] * len(batch_slice))
 
         return results

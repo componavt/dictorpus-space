@@ -27,20 +27,6 @@ def load_concepts_wdh(filepath: str) -> pd.DataFrame:
     return df
 
 
-def _normalize_wdh_set(value: str) -> set:
-    """Parse a comma-separated WDH string into a normalized set."""
-    if pd.isna(value) or not value.strip():
-        return set()
-    return {p.strip().lower() for p in value.split(",") if p.strip()}
-
-
-def _wdh_sets_conflict(set_a: set, set_b: set) -> bool:
-    """Two WDH sets conflict if they are both non-empty and disjoint."""
-    if not set_a or not set_b:
-        return False
-    return set_a.isdisjoint(set_b)
-
-
 def propagate_wdh_to_meanings(
     meanings_df: pd.DataFrame,
     concepts_wdh_df: pd.DataFrame,
@@ -81,45 +67,60 @@ def propagate_wdh_to_meanings(
     # If gloss-based WDH is available, join and compare
     if gloss_wdh_df is not None:
         gloss_map = {}
+        gloss_status_map = {}
+        has_lookup_status = "lookup_status" in gloss_wdh_df.columns
         for _, row in gloss_wdh_df.iterrows():
             gr = str(row.get("gloss_ru", "")).strip()
             wd = str(row.get("wn_domain", "")).strip()
             if gr and wd:
                 gloss_map[gr] = wd
+            if has_lookup_status:
+                st = str(row.get("lookup_status", "")).strip()
+                if gr and st:
+                    gloss_status_map[gr] = st
 
         if "gloss_primary" not in df.columns:
-            # Try to derive from meaning_ru using primary_gloss
             from src.sem_cat.utils.gloss_normalizer import primary_gloss
             df["gloss_primary"] = df["meaning_ru"].fillna("").apply(primary_gloss)
 
         df["gloss_wdh"] = df["gloss_primary"].map(gloss_map).fillna("")
+        if has_lookup_status:
+            df["gloss_lookup_status"] = df["gloss_primary"].map(gloss_status_map).fillna("")
+        else:
+            df["gloss_lookup_status"] = ""
     else:
         df["gloss_wdh"] = ""
+        df["gloss_lookup_status"] = ""
 
-    # Determine final WDH: gloss wins on conflict, concept otherwise
+    # Determine final WDH: tiered resolution
     def _resolve_wdh(row: pd.Series) -> tuple[str, str, str, str]:
         concept_wdh = str(row.get("concept_wdh", "")).strip()
         gloss_wdh = str(row.get("gloss_wdh", "")).strip()
+        lookup_status = str(row.get("gloss_lookup_status", "")).strip()
 
-        concept_set = _normalize_wdh_set(concept_wdh)
-        gloss_set = _normalize_wdh_set(gloss_wdh)
+        gloss_is_meaningful = (
+            gloss_wdh
+            and gloss_wdh.lower() != "factotum"
+            and lookup_status == "found"
+        )
 
-        if gloss_set and concept_set and _wdh_sets_conflict(concept_set, gloss_set):
-            # Conflict: gloss wins
-            conflict_note = (
-                f"concept_wdh={concept_wdh} vs gloss_wdh={gloss_wdh}; "
-                f"gloss-based evidence takes priority"
-            )
-            return (
-                gloss_wdh,
-                "gloss_override",
-                "yes",
-                conflict_note,
-            )
-        elif gloss_set:
-            return (gloss_wdh, "gloss_based", "no", "")
-        elif concept_set:
-            return (concept_wdh, "concept_inherited", "no", "")
+        if gloss_is_meaningful:
+            # Gloss-based WDH is a real signal
+            is_conflict = bool(concept_wdh and concept_wdh != gloss_wdh)
+            if is_conflict:
+                note = (
+                    f"concept_wdh={concept_wdh} vs gloss_wdh={gloss_wdh}; "
+                    f"gloss-based evidence (lookup_status=found) takes priority"
+                )
+                return (gloss_wdh, "gloss_override", "yes", note)
+            else:
+                return (gloss_wdh, "gloss_based", "no", "")
+        elif concept_wdh:
+            # Concept WDH wins: gloss was factotum, not found, or empty
+            return (concept_wdh, "concept_based", "no", "")
+        elif gloss_wdh:
+            # Only gloss is available but status is not "found"
+            return (gloss_wdh, "gloss_based_fallback", "no", "")
         else:
             return ("", "none", "no", "")
 

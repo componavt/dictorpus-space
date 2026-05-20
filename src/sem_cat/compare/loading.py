@@ -101,7 +101,7 @@ def merge_all_models(
 
     merged = dfs[0]
     for df in dfs[1:]:
-        merged = pd.merge(merged, df, on="gloss_ru", how="outer")
+        merged = pd.merge(merged, df, on="gloss_ru", how="outer").reset_index(drop=True)
 
     if verbose:
         print(f"Merged {len(model_dfs)} models, {len(merged)} unique gloss_ru rows")

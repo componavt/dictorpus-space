@@ -9,11 +9,48 @@ from __future__ import annotations
 
 import logging
 import time
+import traceback
 from collections.abc import Sequence
 
 from .base import BackendUnavailableError, Translator
 
 logger = logging.getLogger(__name__)
+
+_TRANSIENT_ERROR_PATTERNS = (
+    "timeout",
+    "connection",
+    "rate limit",
+    "too many requests",
+    "service unavailable",
+    "temporarily unavailable",
+    "network",
+    "reset by peer",
+    "broken pipe",
+)
+
+
+def _log_translate_error(backend: str, method: str, exc: Exception) -> None:
+    """Log a translation error with appropriate severity.
+
+    Known transient errors (network, timeout, rate limit) are logged at
+    WARNING level. Unexpected errors are logged at ERROR level with a
+    traceback fragment for diagnosis.
+    """
+    err_msg = str(exc)
+    is_transient = any(
+        pattern in err_msg.lower() for pattern in _TRANSIENT_ERROR_PATTERNS
+    )
+    if is_transient:
+        logger.warning("%s %s transient error: %s", backend, method, exc)
+    else:
+        tb_summary = traceback.format_exc()
+        # Keep only the last 4 lines of the traceback for readability
+        tb_lines = tb_summary.strip().split("\n")
+        short_tb = "\n".join(tb_lines[-4:]) if len(tb_lines) > 4 else tb_summary
+        logger.error(
+            "%s %s unexpected error: %s\n%s",
+            backend, method, exc, short_tb,
+        )
 
 
 class GoogleTranslator(Translator):
@@ -80,7 +117,7 @@ class GoogleTranslator(Translator):
                     except Exception:
                         pass
                 else:
-                    logger.warning("GoogleTranslator translate error after %d retries: %s", self.retry, e)
+                    _log_translate_error("GoogleTranslator", "translate", e)
                     return None
         return None
 

@@ -83,49 +83,12 @@ from src.sem_cat.compare.data_structures import (
     ComparisonResult,
     ModelOutput,
 )
+from src.sem_cat.utils.pd_utils import is_blank_pd, safe_float, safe_bool, parse_flags
 
 
 # ---------------------------------------------------------------------------
 # Row-level comparison logic
 # ---------------------------------------------------------------------------
-
-def _is_blank_pd(value) -> bool:
-    """Check if a pandas value is blank."""
-    if pd.isna(value):
-        return True
-    return str(value).strip() == ""
-
-
-def _safe_float(value, default=0.0) -> float:
-    """Parse float from string/number."""
-    if pd.isna(value):
-        return default
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return default
-
-
-def _safe_bool(value, default=True) -> bool:
-    """Parse bool from string/bool."""
-    if pd.isna(value):
-        return default
-    if isinstance(value, bool):
-        return value
-    s = str(value).strip().lower()
-    if s == "true":
-        return True
-    if s == "false":
-        return False
-    return default
-
-
-def _parse_flags(flags_str) -> set[str]:
-    """Parse semicolon-separated flags string."""
-    if _is_blank_pd(flags_str):
-        return set()
-    return set(str(flags_str).split(";"))
-
 
 def _collect_model_outputs(row: pd.Series, model_keys: list[str]) -> list[ModelOutput]:
     """Extract ModelOutput objects from a merged DataFrame row."""
@@ -135,13 +98,13 @@ def _collect_model_outputs(row: pd.Series, model_keys: list[str]) -> list[ModelO
         if gloss_en_col not in row.index:
             continue
 
-        gloss_en = str(row.get(gloss_en_col, "")).strip() if not _is_blank_pd(row.get(gloss_en_col)) else ""
-        qa_keep = _safe_bool(row.get(f"{mk}__qa_keep", True))
-        qa_score = _safe_float(row.get(f"{mk}__qa_score", 0.0))
-        qa_flags = _parse_flags(row.get(f"{mk}__qa_flags", ""))
+        gloss_en = str(row.get(gloss_en_col, "")).strip() if not is_blank_pd(row.get(gloss_en_col)) else ""
+        qa_keep = safe_bool(row.get(f"{mk}__qa_keep", True))
+        qa_score = safe_float(row.get(f"{mk}__qa_score", 0.0))
+        qa_flags = parse_flags(row.get(f"{mk}__qa_flags", ""))
         rt = row.get(f"{mk}__roundtrip_distance")
-        rt_val = _safe_float(rt) if not _is_blank_pd(rt) else None
-        model_name = str(row.get(f"{mk}__model_name", mk)) if not _is_blank_pd(row.get(f"{mk}__model_name")) else mk
+        rt_val = safe_float(rt) if not is_blank_pd(rt) else None
+        model_name = str(row.get(f"{mk}__model_name", mk)) if not is_blank_pd(row.get(f"{mk}__model_name")) else mk
 
         norm_en = normalize_output_for_comparison(gloss_en) if gloss_en else ""
 
@@ -162,7 +125,14 @@ def _compute_consensus_metrics(
     outputs: list[ModelOutput],
     clusters: list,
 ) -> dict[str, float | int]:
-    """Compute consensus and disagreement metrics."""
+    """Compute consensus and disagreement metrics.
+
+    consensus_ratio = largest_cluster_size / non_blank_count
+    disagreement_score = 1.0 - consensus_ratio  (for 2+ non-blank outputs)
+
+    unique_count is tracked separately as its own output field
+    and does NOT appear in the disagreement_score formula.
+    """
     non_blank = [o for o in outputs if o.gloss_en and o.gloss_en.strip()]
     good = [o for o in non_blank if o.qa_keep]
     unique_norm = set(o.normalized_gloss_en for o in non_blank if o.normalized_gloss_en)
@@ -174,11 +144,10 @@ def _compute_consensus_metrics(
 
     consensus_ratio = largest_cluster / max(1, non_blank_count) if non_blank_count > 0 else 0.0
 
-    # Disagreement: higher when many unique outputs and low consensus
     if non_blank_count <= 1:
-        disagreement = 0.0
+        disagreement_score = 0.0
     else:
-        disagreement = (1.0 - consensus_ratio) * (unique_count / max(1, non_blank_count))
+        disagreement_score = 1.0 - consensus_ratio
 
     return {
         "non_blank_model_count": non_blank_count,
@@ -186,7 +155,7 @@ def _compute_consensus_metrics(
         "unique_output_count": unique_count,
         "largest_cluster_size": largest_cluster,
         "consensus_ratio": round(consensus_ratio, 3),
-        "disagreement_score": round(disagreement, 3),
+        "disagreement_score": round(disagreement_score, 3),
     }
 
 

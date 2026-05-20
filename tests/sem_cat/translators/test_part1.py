@@ -160,6 +160,21 @@ class TestImportSafety:
         from src.sem_cat.translators import marian_translator
         assert marian_translator.MarianTranslator is not None
 
+    def test_google_translator_importable_without_deep_translator(self, monkeypatch):
+        """GoogleTranslator module must be importable even without deep_translator.
+        
+        Instantiation must raise BackendUnavailableError when the dependency
+        is absent, but the module itself must be import-safe."""
+        import sys
+        monkeypatch.setitem(sys.modules, "deep_translator", None)
+        for key in list(sys.modules):
+            if "google_translator" in key:
+                del sys.modules[key]
+        from src.sem_cat.translators.google_translator import GoogleTranslator
+        from src.sem_cat.translators.base import BackendUnavailableError
+        with pytest.raises(BackendUnavailableError):
+            GoogleTranslator(source="ru", target="en")
+
     def test_factory_imports(self):
         from src.sem_cat.translators.factory import build_translator
         assert build_translator is not None

@@ -19,17 +19,6 @@ class ModelOutput:
 
 
 @dataclass
-class GlossComparison:
-    """Aggregated comparison data for a single gloss_ru across all models."""
-    gloss_ru: str
-    outputs: list[ModelOutput] = field(default_factory=list)
-    is_singleword: bool = False
-    source_count: int | None = None
-    pos_hint: str | None = None
-    meaning_hint: str | None = None
-
-
-@dataclass
 class ConsensusCluster:
     """A cluster of near-identical outputs from different models."""
     representative: str

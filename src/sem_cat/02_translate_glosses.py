@@ -147,6 +147,9 @@ def _print_summary(
         for flag, count in sorted(flag_counts.items()):
             print(f"    - {flag}: {count}")
 
+    if total_blank > 0:
+        print(f"\nBlanks excluded from cache: {total_blank} (see .blanks.csv)")
+
 
 def _run_backend_info(
     spec,
@@ -216,7 +219,9 @@ def main() -> None:
         "--out-file", type=str, default=None,
         help=(
             "Full path to output CSV file. If provided, overrides --out-dir "
-            "and the auto-generated filename."
+            "and the auto-generated filename. "
+            "Blank/None translations are excluded from this file and written "
+            "to <out_file>.blanks.csv instead."
         ),
     )
     parser.add_argument(
@@ -409,8 +414,17 @@ def main() -> None:
     # 12. Translate in batches
     print(f"Translating with {resolved_model_key} (mode: {args.translation_input_mode})...")
 
-    # Batch size precedence: user CLI > spec default > fallback 1
-    effective_batch_size = args.batch_size or spec.default_batch_size or 1
+    # Batch size precedence:
+    #   - Google backend: always 1 (API limitation)
+    #   - Explicit CLI --batch-size: wins if positive
+    #   - spec.default_batch_size: model default
+    #   - Fallback: 1
+    if spec.backend_family == "google":
+        effective_batch_size = 1
+    elif args.batch_size is not None and args.batch_size > 0:
+        effective_batch_size = args.batch_size
+    else:
+        effective_batch_size = spec.default_batch_size or 1
     n = len(glosses_to_translate)
     n_batches = ceil(n / effective_batch_size) if n > 0 else 0
 
@@ -486,9 +500,24 @@ def main() -> None:
                 flag_counts[flag] = flag_counts.get(flag, 0) + 1
 
         batch_df = pd.DataFrame(batch_rows, columns=CANONICAL_COLUMNS)
-        batch_df.to_csv(out_path, mode="a", header=not header_written, index=False, encoding="utf-8")
-        if not header_written:
-            header_written = True
+
+        # Split rows: only save non-blank translations to the main cache.
+        # Blank/None gloss_en values go to a sidecar .blanks.csv to prevent
+        # them from being treated as cached successes on the next run.
+        good_rows = [r for r in batch_rows if r.get("gloss_en", "").strip()]
+        blank_rows = [r for r in batch_rows if not r.get("gloss_en", "").strip()]
+
+        if good_rows:
+            good_df = pd.DataFrame(good_rows, columns=CANONICAL_COLUMNS)
+            good_df.to_csv(out_path, mode="a", header=not header_written, index=False, encoding="utf-8")
+            if not header_written:
+                header_written = True
+
+        if blank_rows:
+            blanks_path = out_path.with_suffix(out_path.suffix + ".blanks.csv")
+            blanks_df = pd.DataFrame(blank_rows, columns=CANONICAL_COLUMNS)
+            write_header = not blanks_path.exists()
+            blanks_df.to_csv(blanks_path, mode="a", header=write_header, index=False, encoding="utf-8")
         total_written += len(batch_rows)
         print(f"  Batch {batch_idx + 1}/{n_batches} saved ({total_written} total written)")
 

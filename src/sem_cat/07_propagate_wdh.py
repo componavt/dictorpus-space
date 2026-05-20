@@ -70,20 +70,26 @@ def _load_meanings_per_lang(data_dir: str) -> dict[str, pd.DataFrame]:
 
 
 def _load_gloss_wdh(filepath: str) -> pd.DataFrame:
-    """Load glosses_wn_domains.csv for gloss-based WDH comparison."""
+    """Load glosses_wn_domains.csv for gloss-based WDH comparison.
+
+    Returns DataFrame with columns: gloss_ru, wn_domain, lookup_status.
+    lookup_status is used during WDH resolution to distinguish real
+    domain signals (status='found') from lookup failures (factotum fallback).
+    """
     df = pd.read_csv(filepath, dtype=str)
     for col in df.columns:
         if df[col].dtype == "object":
             df[col] = df[col].str.strip()
-    # Keep only needed columns
-    needed = {"gloss_ru", "wn_domain"}
+    # Keep columns needed for resolution
+    needed = {"gloss_ru", "wn_domain", "lookup_status"}
     available = needed & set(df.columns)
-    if available != needed:
+    if "gloss_ru" not in available or "wn_domain" not in available:
         raise ValueError(
-            f"gloss WDH file missing columns: {needed - available}. "
+            f"gloss WDH file missing required columns: gloss_ru or wn_domain. "
             f"Found: {list(df.columns)}"
         )
-    return df[list(needed)]
+    keep = [c for c in ["gloss_ru", "wn_domain", "lookup_status"] if c in df.columns]
+    return df[keep]
 
 
 def main():

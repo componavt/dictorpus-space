@@ -76,7 +76,7 @@ def build_concepts_wdh(
         if wdh_val:
             return (
                 "inherited_from_category",
-                "high",
+                "medium",
                 f"WDH inherited from category {row['category_id']}",
             )
         else:
