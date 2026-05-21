@@ -21,6 +21,7 @@ Usage:
 """
 
 import argparse
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -138,6 +139,16 @@ def main():
     # Load gloss-based WDH if provided
     gloss_wdh = None
     if args.domains_file:
+        domains_path = Path(args.domains_file)
+        if not domains_path.exists():
+            print(
+                f"ERROR: --domains-file path not found: {args.domains_file}\n"
+                f"  This argument is optional. It must point to the real output of\n"
+                f"  step 04 (wordnet_lookup), e.g. data/sem_cat/04_glosses_wn_domains.csv.\n"
+                f"  Propagation can run without it if conflict detection is not needed.\n"
+                f"  Omit --domains-file to continue."
+            )
+            sys.exit(1)
         print("Loading gloss-based WDH...")
         gloss_wdh = _load_gloss_wdh(args.domains_file)
         print(f"  {len(gloss_wdh)} gloss-domain mappings")

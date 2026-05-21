@@ -152,15 +152,10 @@ python3 -m src.sem_cat.02_translate_glosses --backend nllb --nllb-model facebook
 
 #### Batch size
 
-`--batch-size` overrides the model's default batch size when provided:
+`--batch-size` overrides the model's default batch size when provided.
+Google backend always uses batch size 1 (API limitation).
 
-```bash
-# Use batch size 7 instead of the model default (e.g. 64 for Marian)
-python3 -m src.sem_cat.02_translate_glosses \
-    --model-key helsinki_opus_mt_ru_en --batch-size 7 --device cpu
-```
-
-Precedence: user `--batch-size` > model spec default > fallback 1.
+Precedence: Google backend → always 1; explicit CLI `--batch-size` > model spec default > fallback 1.
 
 #### Proxy troubleshooting
 
@@ -232,6 +227,41 @@ python3 -m src.sem_cat.05_assign_domains \
     --domains-file data/sem_cat/04_glosses_wn_domains.csv \
     --out-dir data/sem_cat/results
 ```
+
+### Steps 06–08 — Concept-level WDH and gap audit
+
+```bash
+# 6. Build concept-level WDH (from concept categories)
+python3 -m src.sem_cat.06_concepts_wdh \
+    --cat-wdh data/sem_cat/concept_categories/concept_categories_wdh.tsv \
+    --concepts data/sem_cat/concepts/concepts_with_english_417.csv \
+    --out-file data/sem_cat/concepts/concepts_wdh.tsv
+
+# 7. Propagate WDH to meanings (with or without gloss-domain conflict detection)
+python3 -m src.sem_cat.07_propagate_wdh \
+    --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
+    --data-dir data/vepkar/ \
+    --domains-file data/sem_cat/04_glosses_wn_domains.csv \
+    --out-dir data/sem_cat/results/
+
+# 8. Gap audit — identify missing or weak concept coverage
+python3 -m src.sem_cat.08_gap_audit \
+    --data-dir data/vepkar/ \
+    --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
+    --enriched-dir data/sem_cat/results/ \
+    --out-dir data/sem_cat/results/
+```
+
+### Incremental cache behavior
+
+Step 02 is incremental: previously translated glosses (identified by `gloss_ru`)
+are skipped on reruns. Cache filtering is applied **first**, then `--offset`
+and `--limit` are applied to the remaining untranslated glosses. This means
+rerunning with `--limit 20` after a previous run can translate the next 20
+uncached glosses.
+
+Blank/None translations are excluded from the main output CSV and saved to
+a `<out_file>.blanks.csv` sidecar file instead.
 
 ---
 

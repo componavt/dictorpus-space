@@ -140,10 +140,29 @@ def main():
     # Load enriched meanings if provided
     enriched_df = None
     if args.enriched_dir:
+        enriched_path = Path(args.enriched_dir)
         print("Loading enriched meanings...")
+        if enriched_path.exists():
+            matching = list(enriched_path.glob("meanings_*_concept_wdh.csv"))
+            print(f"  Found {len(matching)} enriched file(s) in {args.enriched_dir}")
+            for f in sorted(matching):
+                print(f"    {f.name}")
+        else:
+            matching = []
+            print(f"  WARNING: enriched directory not found: {args.enriched_dir}")
         enriched_df = _load_enriched_meanings(args.enriched_dir)
         if enriched_df is not None:
             print(f"  Total enriched: {len(enriched_df)} rows")
+        elif not matching:
+            print(
+                "  WARNING: No enriched meanings_*_concept_wdh.csv files were loaded.\n"
+                "  WDH disagreement analysis will be skipped.\n"
+                "  To enable it, run step 07 (propagate_wdh) first, then point\n"
+                "  --enriched-dir to the directory containing its output files."
+            )
+        else:
+            print("  WARNING: Failed to load enriched files (format error?).")
+            print("  WDH disagreement analysis will be skipped.")
 
     # Load merged meanings
     print("Loading meanings...")

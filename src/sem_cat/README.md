@@ -96,9 +96,6 @@ src/sem_cat/
 ├── 06_concepts_wdh.py            # Step 5: build concept-level WDH table
 ├── 07_propagate_wdh.py           # Step 6: propagate concept WDH to meanings
 ├── 08_gap_audit.py               # Step 7: gap audit for concept coverage
-├── 06_concepts_wdh.py            # Step 5: build concept-level WDH table
-├── 07_propagate_wdh.py           # Step 6: propagate concept WDH to meanings
-├── 08_gap_audit.py               # Step 7: gap audit for concept coverage
 ├── utils/
 │   ├── __init__.py
 │   ├── gloss_normalizer.py       # Parentheses & ';'-based gloss processing
@@ -190,7 +187,7 @@ Loaded via `utils.wn_domains.load_wn_domains()` → `{"00001740-n": ["factotum"]
 | `--backend` | `marian` | legacy: `marian`, `google`, or `nllb` |
 | `--nllb-model` | `facebook/nllb-200-distilled-1.3B` | legacy: NLLB model name |
 | `--device` | `cpu` | `cpu` or `cuda` for local models |
-| `--batch-size` | `64` | Batch size for translation |
+| `--batch-size` | `None` (uses model default) | Batch size (Google always 1) |
 | `--round-trip` | off | Back-translate EN→RU for QA |
 | `--offset` | `0` | Skip first N glosses after cache filter |
 | `--limit` | all | Process at most N glosses |
@@ -421,113 +418,10 @@ Columns: `category_id`, `pos`, `concept_id`, `concept_ru`, `concept_en`,
 ## Step 07 — Propagate WDH to meanings (`07_propagate_wdh.py`)
 
 **Purpose:** propagate concept-level WDH to meanings that have a `concept_id`.
-Optionally compares with gloss-based WDH from WordNet domain lookup and
-records conflicts (gloss-based evidence wins).
-
-```bash
-python3 -m src.sem_cat.07_propagate_wdh \
-    --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
-    --data-dir data/vepkar/ \
-    --out-dir data/sem_cat/results/
-
-# With gloss-based WDH for conflict detection:
-python3 -m src.sem_cat.07_propagate_wdh \
-    --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
-    --data-dir data/vepkar/ \
-    --domains-file data/sem_cat/04_glosses_wn_domains.csv \
-    --out-dir data/sem_cat/results/
-```
-
-**Output:**
-- `data/sem_cat/results/meanings_{lang}_concept_wdh.csv` — per-language enriched meanings
-- `data/sem_cat/results/wdh_conflicts.csv` — rows where concept and gloss WDH disagree
-
-New columns added to meanings: `concept_wdh`, `gloss_wdh`, `wdh`,
-`wdh_source`, `wdh_conflict`, `wdh_conflict_note`.
-
----
-
-## Step 08 — Gap audit (`08_gap_audit.py`)
-
-**Purpose:** identify missing or weak concept coverage in VepKar meanings.
-Primary grouping axis: `meaning_ru`.
-
-```bash
-python3 -m src.sem_cat.08_gap_audit \
-    --data-dir data/vepkar/ \
-    --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
-    --out-dir data/sem_cat/results/
-
-# With enriched meanings for WDH disagreement analysis:
-python3 -m src.sem_cat.08_gap_audit \
-    --data-dir data/vepkar/ \
-    --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
-    --enriched-dir data/sem_cat/results/ \
-    --out-dir data/sem_cat/results/
-```
-
-**Output reports:**
-
-| File | Description |
-|------|-------------|
-| `audit_meanings_without_concept.csv` | Russian glosses without concept assignment, sorted by frequency |
-| `audit_concept_usage.csv` | How many meanings use each concept_id |
-| `audit_category_coverage.csv` | Per-category concept assignment statistics |
-| `audit_wdh_disagreement.csv` | Systematic WDH conflicts between concept and gloss sources |
-| `audit_meaning_ru_clusters.csv` | Groups of meanings sharing the same normalized Russian gloss |
-
----
-
-## Concept-aware pipeline (from repo root)
-
-After running steps 02–05, add concept-level WDH and gap analysis:
-
-```bash
-# 5. Build concept-level WDH
-python3 -m src.sem_cat.06_concepts_wdh \
-    --cat-wdh data/sem_cat/concept_categories/concept_categories_wdh.tsv \
-    --concepts data/sem_cat/concepts/concepts_with_english_417.csv
-
-# 6. Propagate WDH to meanings (with conflict detection)
-python3 -m src.sem_cat.07_propagate_wdh \
-    --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
-    --data-dir data/vepkar/ \
-    --domains-file data/sem_cat/04_glosses_wn_domains.csv \
-    --out-dir data/sem_cat/results/
-
-# 7. Gap audit
-python3 -m src.sem_cat.08_gap_audit \
-    --data-dir data/vepkar/ \
-    --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
-    --enriched-dir data/sem_cat/results/ \
-    --out-dir data/sem_cat/results/
-```
-
----
-
-## Step 06 — Build concept-level WDH (`06_concepts_wdh.py`)
-
-**Purpose:** derive WDH labels for each concept by inheriting from its category.
-
-```bash
-python3 -m src.sem_cat.06_concepts_wdh \
-    --cat-wdh data/sem_cat/concept_categories/concept_categories_wdh.tsv \
-    --concepts data/sem_cat/concepts/concepts_with_english_417.csv \
-    --out-file data/sem_cat/concepts/concepts_wdh.tsv
-```
-
-**Output:** `data/sem_cat/concepts/concepts_wdh.tsv`
-
-Columns: `category_id`, `pos`, `concept_id`, `concept_ru`, `concept_en`,
-`wdh`, `wdh_source`, `wdh_confidence`, `wdh_note`.
-
----
-
-## Step 07 — Propagate WDH to meanings (`07_propagate_wdh.py`)
-
-**Purpose:** propagate concept-level WDH to meanings that have a `concept_id`.
-Optionally compares with gloss-based WDH from WordNet domain lookup and
-records conflicts (gloss-based evidence wins).
+Optionally compares with gloss-based WDH from WordNet domain lookup.
+Uses tiered conflict resolution: meaningful non-factotum gloss-domain
+evidence (lookup_status=found) can override a concept WDH; fallback
+`factotum` values do not override specific concept domains.
 
 ```bash
 python3 -m src.sem_cat.07_propagate_wdh \
@@ -612,11 +506,16 @@ python3 -m src.sem_cat.08_gap_audit \
 
 ## Notes
 
-- `02_translate_glosses.py` is incremental: existing `gloss_ru` values are skipped automatically on reruns.
+- `02_translate_glosses.py` is incremental: cache filtering (by `gloss_ru`) is applied first, then `--offset`/`--limit` are applied to the remaining uncached glosses. Rerunning the same command can translate the next uncached slice.
+- Blank/None translations are excluded from the main output CSV and written to `<out_file>.blanks.csv` instead.
 - `04_wordnet_lookup.py` works best with POS information; use `--pos-source meanings` to derive POS automatically.
 - Short and ambiguous glosses still need expert review even after QA flags and WordNet lookup.
 - Best candidates for manual review: high `qa_score`, non-empty `qa_flags`, `lookup_status=not_found`, `wn_domain=factotum`.
-- Concept-level WDH (steps 06–07) is a parallel path to the gloss-based pipeline. It does not replace gloss-based WDH; conflicts are recorded and gloss-based evidence takes priority.
-- The gap audit (step 08) is designed for iterative ontology expansion. Use `audit_meanings_without_concept.csv` to find high-frequency glosses that need new concept assignments.
-- Concept-level WDH (steps 06–07) is a parallel path to the gloss-based pipeline. It does not replace gloss-based WDH; conflicts are recorded and gloss-based evidence takes priority.
-- The gap audit (step 08) is designed for iterative ontology expansion. Use `audit_meanings_without_concept.csv` to find high-frequency glosses that need new concept assignments.
+- Concept-level WDH (steps 06–07) is a parallel path to the gloss-based pipeline. WDH conflict resolution uses tiered logic: meaningful non-factotum gloss-domain evidence (lookup_status=found) can override a concept WDH; fallback `factotum` values do not override specific concept domains.
+- The gap audit (step 08) is designed for iterative ontology expansion. Output files:
+  - `audit_meanings_without_concept.csv` — row-level and gloss-level counts of meanings without `concept_id`
+  - `audit_concept_usage.csv` — concept_ids that exist in the catalog, with usage counts
+  - `audit_concept_ids_outside_catalog.csv` — concept_ids found in meanings but absent from the catalog
+  - `audit_category_coverage.csv` — per-category concept assignment statistics
+  - `audit_wdh_disagreement.csv` — systematic WDH conflicts (requires enriched meanings input)
+  - `audit_meaning_ru_clusters.csv` — groups of meanings sharing the same normalized Russian gloss

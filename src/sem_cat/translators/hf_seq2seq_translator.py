@@ -109,6 +109,12 @@ class HFSeq2SeqTranslator(Translator):
             AutoModelForSeq2SeqLM=AutoModelForSeq2SeqLM,
         )
 
+        # Clear max_length from generation config to avoid conflict with
+        # max_new_tokens (suppresses HuggingFace warning). See NLLB for the
+        # same pattern.
+        if hasattr(self.model.generation_config, "max_length"):
+            self.model.generation_config.max_length = None
+
     def _tokenize_and_generate(
         self,
         texts: list[str],

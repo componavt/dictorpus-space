@@ -81,6 +81,22 @@ def test_load_and_prefix_columns():
         assert df.iloc[0]["google__gloss_en"] == "house"
 
 
+def test_load_rejects_mismatched_model_key():
+    """A CLI label that mismatches the file's model_key column must fail."""
+    with tempfile.TemporaryDirectory() as td:
+        csv_path = os.path.join(td, "test.csv")
+        _make_csv(csv_path, [
+            {"gloss_ru": "дом", "gloss_en": "house", "qa_keep": "True",
+             "qa_score": "0.0", "qa_flags": "", "model_key": "helsinki_opus_mt_ru_en"},
+        ])
+        try:
+            load_single_model(pathlib.Path(csv_path), "helsinkiopusmtruen")
+            assert False, "Expected ValueError for mismatched model key"
+        except ValueError as e:
+            assert "helsinki_opus_mt_ru_en" in str(e)
+            assert "helsinkiopusmtruen" in str(e)
+
+
 # ---------------------------------------------------------------------------
 # 3. Consensus clustering groups near-identical outputs
 # ---------------------------------------------------------------------------
@@ -319,6 +335,7 @@ if __name__ == "__main__":
         test_parse_translation_arg_no_equals,
         test_parse_translation_arg_empty_key,
         test_load_and_prefix_columns,
+        test_load_rejects_mismatched_model_key,
         test_consensus_clustering_groups_identical,
         test_consensus_all_different,
         test_strong_consensus_lowers_risk,

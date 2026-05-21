@@ -53,6 +53,10 @@ def parse_translation_arg(raw: str) -> tuple[str, Path]:
 def load_single_model(path: Path, model_key: str) -> pd.DataFrame:
     """Load a single translation CSV and validate minimum schema.
 
+    If the file has a non-empty 'model_key' column with exactly one
+    distinct value that differs from the CLI label, a ValueError is
+    raised to prevent misleading aliases in comparison summaries.
+
     Returns a DataFrame with columns prefixed as {model_key}__{field}.
     """
     df = pd.read_csv(path, dtype=str)
@@ -62,6 +66,25 @@ def load_single_model(path: Path, model_key: str) -> pd.DataFrame:
             raise ValueError(
                 f"File {path} is missing required column: {col}"
             )
+
+    # Validate that the CLI model_key matches the file's content, if present
+    if "model_key" in df.columns:
+        file_keys = df["model_key"].dropna().astype(str).str.strip()
+        file_keys = file_keys[file_keys != ""]
+        if not file_keys.empty:
+            unique_keys = set(file_keys)
+            if len(unique_keys) == 1:
+                file_key = next(iter(unique_keys))
+                if file_key != model_key:
+                    raise ValueError(
+                        f"Mismatched model key: CLI label is {model_key!r}, "
+                        f"but the file contains model_key={file_key!r} in "
+                        f"every row. "
+                        f"Use --translations {file_key}={path} instead."
+                    )
+            # Mixed or blank model_key values: keep the CLI label as-is.
+            # The comparison will still work, but the summary may be
+            # misleading. This is documented as a fallback.
 
     rename_map = {
         "gloss_en": f"{model_key}__gloss_en",

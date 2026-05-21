@@ -289,8 +289,8 @@ def run_gap_audit(
     no_concept.to_csv(out / "audit_meanings_without_concept.csv", index=False)
     row_count = no_concept[no_concept["level"] == "row"]["count"].sum()
     gloss_count = len(no_concept[no_concept["level"] == "gloss"])
-    print(f"  {int(row_count)} meaning rows without concept_id")
-    print(f"  {gloss_count} unique glosses without any concept")
+    print(f"  {int(row_count)} meaning rows without concept_id (row-level, from raw meanings_*.csv)")
+    print(f"  {gloss_count} unique glosses without any concept (gloss-level, deduplicated)")
     if gloss_count > 0:
         gloss_rows = no_concept[no_concept["level"] == "gloss"]
         print(f"  Top 5: {gloss_rows.head(5)[['meaning_ru', 'count']].to_dict('records')}")
