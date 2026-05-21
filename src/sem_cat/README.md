@@ -1,83 +1,74 @@
 # sem_cat · Semantic Categorization for VepKar
 
 ```text
-   ┌───────────────────────────────┐        🌐
-   │  📖 lemma: liib              │    .- - - - - - - - - -.
-   │  🧷 pos:   NOUN              │   (  🍞 food  ·  culture  )
-   │  🔤 gloss: хлеб              │    `- - - - - - - - - -'
-   └───────────────────────────────┘            🎯
-       VepKar dictionary entry           WordNet Domain "cloud"
+   ┌───────────────────────────────┐
+   │  lemma:   liib               │
+   │  pos:     NOUN               │
+   │  gloss_ru: хлеб              │
+   └───────────────────────────────┘
+                 │
+                 ▼
+        "What domain is this about?"
+                 │
+                 ▼
+      WordNet Domains + concept-level WDH
 ```
 
-This sub-package implements a **semantic categorization pipeline** for the VepKar dictionary:
+This sub-project builds a **semantic categorization pipeline** for the VepKar dictionary.
 
-- input: VepKar **per-meaning** exports (4 languages / varieties),
-- processing: normalize Russian glosses, translate to English, map to WordNet synsets,
-- output: assign **WordNet Domains** semantic labels to each meaning.
+- **Input:** VepKar per-meaning exports for four language varieties.
+- **Processing:** normalize Russian glosses, translate to English, look up WordNet synsets and domains, propagate concept-level WDH, and audit gaps.
+- **Output:** semantic labels attached to dictionary **meanings** rather than only lemmas.
 
-The goal is to make a reusable, semi-automatic module that can later be integrated back into VepKar.
+The goal is practical, not magical:
+take noisy lexicographic data, add useful semantic structure, and keep the pipeline inspectable.
 
 ---
 
-## Data flow overview
+## What lives here?
 
 ```text
 data/vepkar/meanings_*.csv
          │
          ▼
-   [gloss normalization]
+   unique Russian glosses
          │
          ▼
- unique Russian glosses (≈ 42,962)
+   Step 02: translation cache
          │
          ▼
-   [translation backend]
-   (Google, MarianMT, NLLB, ...)
+   Step 03: compare models
          │
          ▼
-  English glosses (cache)
+   Step 04: WordNet lookup
          │
          ▼
- [multi-model comparison]  ← optional, for quality assessment
+   Step 05: assign domains to meanings
          │
-         ▼
- [WordNet synset lookup + wn-domains]
-         │
-         ▼
-  (gloss_ru, wn_synset, wn_domain)
-         │
-         ▼
- [merge back into meanings_*.csv]
-         │
-         ▼
- data/sem_cat/results/meanings_{lang}_domains.csv
-
-Concept-aware path (parallel, does not replace gloss pipeline):
-
-data/sem_cat/concept_categories/concept_categories_wdh.tsv  ─┐
-data/sem_cat/concepts/concepts_with_english_417.csv         ─┤
-         │                                                   ▼
-         │                                          [concepts_wdh]
-         │                                                   │
-         ▼                                                   ▼
-data/vepkar/meanings_*.csv (with concept_id) ─────► [propagate WDH to meanings]
-         │                                                   │
-         │                                                   ▼
-         │                                    meanings_{lang}_concept_wdh.csv
-         │                                    wdh_conflicts.csv
-         │
-         ▼
-   [gap audit]
-         │
-         ▼
-   audit_*.csv reports
+         ├──────────────────────────────────────────────┐
+         ▼                                              │
+   gloss-based semantic labels                          │
+                                                        │
+data/sem_cat/concept_categories/*.tsv                   │
+data/sem_cat/concepts/*.csv                             │
+         │                                              │
+         ▼                                              │
+   Step 06: concept-level WDH                           │
+         │                                              │
+         ▼                                              │
+   Step 07: propagate WDH to meanings                   │
+         │                                              │
+         ▼                                              │
+   Step 08: gap audit  ◄────────────────────────────────┘
 ```
 
-Key design constraints:
+Two semantic paths coexist:
 
-- **Cache everything**: translation and synset/domain lookup are computed once per unique gloss.
-- **POS-aware** lookup: where possible, disambiguate using the VepKar POS tag.
-- **Graceful fallbacks**: if no synset/domain is found, assign a neutral domain (e.g. `factotum`).
+1. **Gloss-based path** — translation → WordNet → WordNet Domains.
+2. **Concept-aware path** — concept categories → concept-level WDH → propagation to meanings.
+
+The concept-aware path does **not** replace the gloss-based path.
+It complements it, and step 07 records conflicts when the two disagree.
 
 ---
 
@@ -85,437 +76,578 @@ Key design constraints:
 
 ```text
 src/sem_cat/
-├── README.md                     # This file (technical overview)
-├── __init__.py                   # Package marker
+├── README.md
 ├── 01_meanings_examples_counter.ipynb
-│                                 # Exploration of meanings & examples
-├── 02_translate_glosses.py       # Step 1: RU→EN gloss translation + QA flags
-├── 03_compare_translations.py    # Step 2: N-model comparison, risk scoring
-├── 04_wordnet_lookup.py          # Step 3: EN→WordNet synset→WN domain
-├── 05_assign_domains.py          # Step 4: merge domains into meanings
-├── 06_concepts_wdh.py            # Step 5: build concept-level WDH table
-├── 07_propagate_wdh.py           # Step 6: propagate concept WDH to meanings
-├── 08_gap_audit.py               # Step 7: gap audit for concept coverage
-├── utils/
-│   ├── __init__.py
-│   ├── gloss_normalizer.py       # Parentheses & ';'-based gloss processing
-│   ├── vepkar_loader.py          # Load and merge meanings_*.csv
-│   ├── wn_domains.py             # Load wn-domains mapping, synset key helper
-│   ├── concept_wdh.py            # Build concept-level WDH from categories
-│   ├── meaning_propagation.py    # Propagate concept WDH to meanings
-│   └── gap_audit.py              # Gap analysis for concept coverage
+├── 02_translate_glosses.py
+├── 03_compare_translations.py
+├── 04_wordnet_lookup.py
+├── 05_assign_domains.py
+├── 06_concepts_wdh.py
+├── 07_propagate_wdh.py
+├── 08_gap_audit.py
+│
 ├── translators/
-│   ├── __init__.py
-│   ├── base.py                   # Abstract Translator class + error types
-│   ├── google_translator.py      # Google Translate backend (deep_translator)
-│   ├── hf_seq2seq_translator.py  # Generic HuggingFace seq2seq translator
-│   ├── marian_translator.py      # MarianMT (thin wrapper around HFSeq2Seq)
-│   ├── nllb_translator.py        # NLLB (facebook/nllb-200) translator
-│   ├── model_registry.py         # ModelSpec definitions + legacy resolver
-│   ├── factory.py                # build_translator() / build_reverse_translator()
-│   └── generation_presets.py     # Generation parameter presets
+│   ├── base.py
+│   ├── google_translator.py
+│   ├── hf_seq2seq_translator.py
+│   ├── marian_translator.py
+│   ├── nllb_translator.py
+│   ├── model_registry.py
+│   ├── factory.py
+│   └── generation_presets.py
+│
 ├── compare/
-│   ├── __init__.py
-│   ├── loading.py                # Load and merge multiple model CSVs
-│   ├── normalization.py          # Normalize outputs for comparison
-│   ├── consensus.py              # Cluster near-identical outputs
-│   ├── complexity.py             # Compute gloss complexity scores
-│   ├── risk.py                   # Compute total risk scores
-│   ├── proposal.py               # Select proposed translations
-│   ├── output_tables.py          # Build comparison/review/gold DataFrames
-│   └── data_structures.py        # ModelOutput, ComparisonResult, etc.
+│   ├── loading.py
+│   ├── normalization.py
+│   ├── consensus.py
+│   ├── complexity.py
+│   ├── risk.py
+│   ├── proposal.py
+│   ├── output_tables.py
+│   └── data_structures.py
+│
 ├── qa/
-│   ├── __init__.py
-│   ├── translation_qa.py         # QA analysis (keep/score/flags)
-│   └── translation_flags.py      # Pattern-based flag detectors
+│   ├── translation_qa.py
+│   └── translation_flags.py
+│
 ├── io/
-│   ├── __init__.py
-│   ├── translation_cache.py      # Cache loading and validation
-│   └── translation_rows.py       # Canonical output row builder
-└── pipeline/
-    ├── __init__.py
-    └── translation_input.py      # Gloss metadata and input preparation
+│   ├── translation_cache.py
+│   └── translation_rows.py
+│
+├── pipeline/
+│   └── translation_input.py
+│
+└── utils/
+    ├── gloss_normalizer.py
+    ├── vepkar_loader.py
+    ├── wn_domains.py
+    ├── concept_wdh.py
+    ├── meaning_propagation.py
+    └── gap_audit.py
 ```
 
 ---
 
-## Input formats
+## Environment setup
 
-### `data/vepkar/meanings_*.csv`
+From the repository root:
 
-Expected columns (all strings):
-
-| Column | Description |
-|--------|-------------|
-| `id` | Row id inside this export file |
-| `lemma_id` | Id of the lemma in VepKar |
-| `meaning_id` | Id of the meaning in VepKar |
-| `meaning_num` | Number of the meaning within the lemma (1, 2, 3…) |
-| `lemma` | Lemma form in Veps or Karelian |
-| `lang` | Language code: `vep`, `olo`, `lud`, `krl` |
-| `pos` | POS tag (UPOS+custom, e.g. `NOUN`, `VERB`, `PROPN`) |
-| `meaning_ru` | Short Russian gloss (1–3 words; may contain `;` and `(...)`) |
-
-### `data/sem_cat/00_wn-domains-3.2-20070223`
-
-WordNet Domains 3.2 mapping file. Format:
-
-```text
-00001740-n    factotum
-00001930-n    cognition
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -r requirements.txt
 ```
 
-Left column: 8-digit offset + POS letter (`n`, `v`, `a`, `r`).
-Right column: one of 164 fine-grained domain labels.
+Download NLTK resources once per environment:
 
-Loaded via `utils.wn_domains.load_wn_domains()` → `{"00001740-n": ["factotum"], ...}`
+```bash
+python3 -c "import nltk; nltk.download('wordnet'); nltk.download('omw-1.4')"
+```
 
 ---
 
-## Step 02 — Translate glosses (`02_translate_glosses.py`)
+## Smoke tests
 
-**Purpose:** load VepKar meanings, extract unique Russian glosses, translate to English, save cache with QA metadata.
-
-### CLI arguments
-
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `--data-dir` | `data/vepkar/` | Path to directory with `meanings_*.csv` |
-| `--out-dir` | `data/sem_cat/` | Output directory (if `--out-file` not given) |
-| `--out-file` | auto | Full output CSV path |
-| `--model-key` | resolved from `--backend` | Translation model key (preferred) |
-| `--backend` | `marian` | legacy: `marian`, `google`, or `nllb` |
-| `--nllb-model` | `facebook/nllb-200-distilled-1.3B` | legacy: NLLB model name |
-| `--device` | `cpu` | `cpu` or `cuda` for local models |
-| `--batch-size` | `None` (uses model default) | Batch size (Google always 1) |
-| `--round-trip` | off | Back-translate EN→RU for QA |
-| `--offset` | `0` | Skip first N glosses after cache filter |
-| `--limit` | all | Process at most N glosses |
-| `--shuffle` | off | Shuffle glosses before offset/limit |
-| `--seed` | `42` | Random seed for shuffle |
-| `--gloss-filter` | none | Substring filter on `gloss_ru` |
-| `--translation-input-mode` | `raw` | `raw`, `pos`, or `pos_meaning` |
-| `--debug-sample` | `0` | Print raw output for first N items |
-| `--retry` | backend-specific | Number of retry attempts |
-| `--retry-delay` | backend-specific | Extra sleep (s) between retries |
-| `--google-retries` | `2` | legacy alias for `--retry` |
-| `--google-retry-delay` | `1.0` | legacy alias for `--retry-delay` |
-| `--backend-info` | off | Test single translation and exit |
-
-### Usage examples
-
-#### 1. Sanity check before a long run
+Before a long run, check the backends:
 
 ```bash
 python3 -m src.sem_cat.02_translate_glosses --model-key google --backend-info
+python3 -m src.sem_cat.02_translate_glosses --model-key helsinki_opus_mt_ru_en --backend-info
 ```
 
-#### 2. Quick smoke test on a slow laptop (50 glosses, ~3 min)
+If HuggingFace loading is grumpy because of proxy variables, try:
 
 ```bash
 python3 -m src.sem_cat.02_translate_glosses \
-    --model-key helsinki_opus_mt_ru_en --device cpu --limit 50
+  --model-key helsinki_opus_mt_ru_en \
+  --ignore-proxy-env \
+  --device cpu \
+  --limit 20
 ```
 
-#### 3. Full NLLB run with round-trip QA (GPU recommended ☕)
-
-```bash
-python3 -m src.sem_cat.02_translate_glosses \
-    --model-key nllb_distilled_1_3b --device cuda --round-trip
-```
-
-#### 4. Full Google run with round-trip QA (~8–9 hours, grab coffee ☕☕)
-
-```bash
-python3 -m src.sem_cat.02_translate_glosses \
-    --model-key google --round-trip
-```
-
-### Output columns
-
-See the root README.md for the full schema. Key columns:
-- **Always:** `gloss_ru`, `gloss_en`, `qa_keep`, `qa_score`, `qa_flags`
-- **With `--round-trip`:** `+ gloss_ru_back`, `roundtrip_distance`
-- **With `--translation-input-mode pos/pos_meaning`:** `+ pos_hint`, `meaning_hint`, `source_count`
-
-### QA flags reference
-
-| Flag | Meaning |
-|------|---------|
-| `empty_translation` | Backend returned empty or None |
-| `punctuation_only` | Result is only punctuation |
-| `repeated_token_loop` | Obvious repetition garbage |
-| `no_ascii_letters` | No Latin alphabet in result |
-| `too_long_for_gloss` | Result >5× length of input |
-| `multiword_for_singleword` | Single RU word → 3+ EN words |
-| `roundtrip_far` | Back-translation edit distance > 0.5 |
-
-> `qa_keep=False` does NOT blank out `gloss_en`. The raw translation is always saved so experts can see what went wrong.
-
-### Incremental behavior
-
-If the output CSV already exists with column `gloss_ru`, previously translated glosses are skipped automatically. Allows interrupted runs and subset experiments without redoing everything.
+The translator layer uses a **registry + factory** design.
+Optional dependencies are loaded lazily, so import-time failures should not crash unrelated parts of the pipeline.
 
 ---
 
-## Step 03 — Compare translations (`03_compare_translations.py`)
+## Step 02 — Translate glosses
 
-**Purpose:** merge N model outputs by `gloss_ru`, compute `risk_score` from QA signals and cross-model disagreement, produce sorted expert review queue and Gold Standard template.
-
-```bash
-# Compare all models
-python3 -m src.sem_cat.03_compare_translations \
-    --translations google=data/sem_cat/02_glosses_translated_google.csv \
-    --translations helsinki_opus_mt_ru_en=data/sem_cat/02_glosses_translated_helsinki_opus_mt_ru_en.csv \
-    --translations nllb_distilled_1_3b=data/sem_cat/02_glosses_translated_nllb_distilled_1_3b.csv
-
-# Top-500 riskiest rows, single-word glosses first
-python3 -m src.sem_cat.03_compare_translations \
-    --translations google=data/sem_cat/02_glosses_translated_google.csv \
-    --translations nllb_distilled_1_3b=data/sem_cat/02_glosses_translated_nllb_distilled_1_3b.csv \
-    --top-k 500 --single-word-first
+```text
+RU glosses
+   │
+   ├─ "дом"
+   ├─ "кошка"
+   ├─ "обозначает количество чего-л."
+   ▼
+[translator backend]
+   │
+   ├─ google
+   ├─ helsinki_opus_mt_ru_en
+   ├─ nllb_distilled_1_3b
+   └─ friends with GPUs
+   ▼
+EN gloss cache + QA metadata
 ```
 
-**Output:**
+**What it does**
 
-| File | Description |
-|------|-------------|
-| `03_translation_comparison_full.csv` | All glosses with risk scores |
-| `03_translation_review_queue.csv` | Suspicious rows, sorted by risk ↓ |
-| `03_translation_gold_template.csv` | Expert correction template |
+- Loads VepKar meanings.
+- Extracts unique primary Russian glosses.
+- Translates them to English.
+- Runs QA checks and writes a canonical cache CSV.
 
-**Key arguments:**
+**Main commands**
 
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `--translations` | required | `model_key=path.csv` (repeatable) |
-| `--risk-threshold` | `0.35` | Min risk score for review queue |
-| `--top-k` | all | Keep only top-N rows in review file |
-| `--single-word-first` | off | Prioritize ambiguous single-word glosses |
-| `--include-low-risk` | off | Include all rows in review file |
-| `--verbose` | off | Print verbose output |
+```bash
+# Quick smoke run
+python3 -m src.sem_cat.02_translate_glosses \
+  --model-key google \
+  --limit 50 \
+  --out-file data/sem_cat/02_glosses_translated_google_smoke.csv
+
+python3 -m src.sem_cat.02_translate_glosses \
+  --model-key helsinki_opus_mt_ru_en \
+  --device cpu \
+  --limit 50 \
+  --out-file data/sem_cat/02_glosses_translated_helsinki_opus_mt_ru_en_smoke.csv
+
+# Full runs
+python3 -m src.sem_cat.02_translate_glosses --model-key google
+python3 -m src.sem_cat.02_translate_glosses --model-key helsinki_opus_mt_ru_en --device cuda
+python3 -m src.sem_cat.02_translate_glosses --model-key nllb_distilled_1_3b --device cuda --round-trip
+```
+
+**Important behavior**
+
+- The step is **incremental**: cache filtering happens first, then `--offset` and `--limit` are applied to the remaining untranslated glosses.
+- Google backend always uses effective batch size **1**.
+- Blank or failed translations are written to a sidecar file:
+  `02_glosses_translated_<model_key>.csv.blanks.csv`
+- `qa_keep=False` does not hide the raw translation; the raw output is still useful for review.
+
+**Typical output**
+
+```text
+data/sem_cat/02_glosses_translated_<model_key>.csv
+data/sem_cat/02_glosses_translated_<model_key>.csv.blanks.csv
+```
+
+**Columns you will care about**
+
+- `gloss_ru`
+- `gloss_en`
+- `qa_keep`
+- `qa_score`
+- `qa_flags`
+- `model_key`
+- `model_name`
+- `backend_family`
+- `translation_input_mode`
 
 ---
 
-## Step 04 — WordNet lookup (`04_wordnet_lookup.py`)
+## Step 03 — Multi-model comparison
 
-**Purpose:** load translated glosses, attach POS, look up WordNet synsets, map to WordNet Domains.
+```text
+google ─────────┐
+helsinki ───────┼──► merge by gloss_ru
+nllb ───────────┘
+                      │
+                      ▼
+             disagreement + QA + risk
+                      │
+          ┌───────────┴───────────┐
+          ▼                       ▼
+ review queue            gold template
+```
+
+**What it does**
+
+- Merges translation outputs from multiple models by `gloss_ru`.
+- Computes comparison and risk features.
+- Produces a full comparison table, an expert review queue, and a gold template.
+
+**Main command**
+
+```bash
+python3 -m src.sem_cat.03_compare_translations \
+  --translations google=data/sem_cat/02_glosses_translated_google.csv \
+  --translations helsinki_opus_mt_ru_en=data/sem_cat/02_glosses_translated_helsinki_opus_mt_ru_en.csv \
+  --translations nllb_distilled_1_3b=data/sem_cat/02_glosses_translated_nllb_distilled_1_3b.csv
+```
+
+**Important behavior**
+
+- Use the **real** model key in `--translations model_key=path.csv`.
+- If the file contains a single distinct `model_key` that disagrees with the CLI label, the script should reject the mismatch instead of pretending everything is fine.
+- That means `helsinki_opus_mt_ru_en=...csv` is correct, while old improvised labels are not.
+
+**Output**
+
+```text
+data/sem_cat/03_translation_comparison_full.csv
+data/sem_cat/03_translation_review_queue.csv
+data/sem_cat/03_translation_gold_template.csv
+```
+
+**Humorous technical note**
+
+This step is where several translation models politely disagree in public.
+
+---
+
+## Steps 04–05 — WordNet lookup and domain assignment
+
+```text
+English gloss
+    │
+    ▼
+[WordNet synset lookup]
+    │
+    ▼
+WN synset + WN domain
+    │
+    ▼
+merge back into meanings_*.csv
+```
+
+### Step 04 — `04_wordnet_lookup.py`
+
+**What it does**
+
+- Reads translated glosses from step 02 or step 03.
+- Looks up WordNet synsets.
+- Maps synsets to WordNet Domains.
+
+**Command**
 
 ```bash
 python3 -m src.sem_cat.04_wordnet_lookup \
-    --translated-file data/sem_cat/03_translation_comparison_full.csv \
-    --wn-domains-file data/sem_cat/00_wn-domains-3.2-20070223
+  --translated-file data/sem_cat/03_translation_comparison_full.csv \
+  --wn-domains-file data/sem_cat/00_wn-domains-3.2-20070223
 ```
 
-### CLI arguments
+**Typical output**
 
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `--translated-file` | required | Input CSV from Step 02 or 03 |
-| `--wn-domains-file` | required | Path to WordNet Domains mapping |
-| `--out-file` | auto | Output CSV path |
-| `--data-dir` | `data/vepkar/` | For POS derivation from meanings |
-| `--pos-source` | `none` | `none`, `file`, or `meanings` |
-| `--pos-file` | none | CSV with `gloss_ru,pos` columns |
+```text
+data/sem_cat/04_glosses_wn_domains.csv
+```
 
-### POS mapping to WordNet
+### Step 05 — `05_assign_domains.py`
 
-| UPOS | WordNet POS |
-|------|-------------|
-| `NOUN` | `n` |
-| `VERB` | `v` |
-| `ADJ` | `a` |
-| `ADV` | `r` |
-| `NUM`, `PROPN` | (skipped → `factotum`) |
+**What it does**
 
----
+- Merges gloss-level WordNet Domain labels back into per-meaning VepKar exports.
 
-## Step 05 — Assign domains to meanings (`05_assign_domains.py`)
-
-**Purpose:** merge WordNet Domain labels back into the four meanings files.
+**Command**
 
 ```bash
 python3 -m src.sem_cat.05_assign_domains \
-    --data-dir data/vepkar \
-    --domains-file data/sem_cat/04_glosses_wn_domains.csv \
-    --out-dir data/sem_cat/results
+  --data-dir data/vepkar \
+  --domains-file data/sem_cat/04_glosses_wn_domains.csv \
+  --out-dir data/sem_cat/results
 ```
 
-For each language `{vep, olo, lud, krl}` creates:
+**Typical output**
 
 ```text
-data/sem_cat/results/meanings_{lang}_domains.csv
+data/sem_cat/results/meanings_vep_domains.csv
+data/sem_cat/results/meanings_olo_domains.csv
+data/sem_cat/results/meanings_lud_domains.csv
+data/sem_cat/results/meanings_krl_domains.csv
 ```
 
-Columns: all original `meanings_{lang}.csv` columns + `wn_synset`, `wn_domain`.
+**Practical note**
+
+If step 04 produces too much `factotum`, do not panic.
+Panic is reserved for silent schema drift.
 
 ---
 
-## Full pipeline (from repo root)
+## Steps 06–08 — Concept-level WDH and gap audit
+
+```text
+category WDH + concept catalog
+           │
+           ▼
+   Step 06: concepts_wdh.tsv
+           │
+           ▼
+   Step 07: meanings_*_concept_wdh.csv
+           │
+           ▼
+   Step 08: audit_*.csv
+```
+
+### Step 06 — Build concept-level WDH
+
+```text
+category_id ──► WDH
+      │
+      ▼
+concept_id ───► inherited domain
+```
+
+**What it does**
+
+- Builds a concept-level WDH table from category-level WDH.
+- Produces one WDH row per concept.
+
+**Command**
+
+```bash
+python3 -m src.sem_cat.06_concepts_wdh \
+  --cat-wdh data/sem_cat/concept_categories/concept_categories_wdh.tsv \
+  --concepts data/sem_cat/concepts/concepts_with_english_417.csv \
+  --out-file data/sem_cat/concepts/concepts_wdh.tsv
+```
+
+**Output**
+
+```text
+data/sem_cat/concepts/concepts_wdh.tsv
+```
+
+### Step 07 — Propagate WDH to meanings
+
+```text
+concept_id in meanings
+        │
+        ▼
+ concept_wdh
+        │
+        ├─ optional: compare with gloss_wdh
+        ▼
+final wdh + conflict flags
+```
+
+**What it does**
+
+- Joins concept-level WDH onto meanings that already have `concept_id`.
+- Optionally compares concept WDH with gloss-based WDH from step 04.
+
+**Commands**
+
+```bash
+# Safe baseline: propagate without gloss-based conflict detection
+python3 -m src.sem_cat.07_propagate_wdh \
+  --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
+  --data-dir data/vepkar \
+  --out-dir data/sem_cat/results
+
+# Full mode: include gloss-based WDH comparison
+python3 -m src.sem_cat.07_propagate_wdh \
+  --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
+  --data-dir data/vepkar \
+  --domains-file data/sem_cat/04_glosses_wn_domains.csv \
+  --out-dir data/sem_cat/results
+```
+
+**Important behavior**
+
+- `--domains-file` is optional.
+- If you pass it, it must point to a real step-04 output file.
+- Meaningful non-`factotum` gloss-domain evidence may override concept WDH.
+- Fallback `factotum` should not override a more specific concept domain.
+
+**Output**
+
+```text
+data/sem_cat/results/meanings_vep_concept_wdh.csv
+data/sem_cat/results/meanings_olo_concept_wdh.csv
+data/sem_cat/results/meanings_lud_concept_wdh.csv
+data/sem_cat/results/meanings_krl_concept_wdh.csv
+data/sem_cat/results/wdh_conflicts.csv
+```
+
+### Step 08 — Gap audit
+
+```text
+meanings + concepts + optional enriched files
+                     │
+                     ▼
+         "What is missing, weak, or weird?"
+                     │
+                     ▼
+                  audit_*.csv
+```
+
+**What it does**
+
+- Finds meanings without concept coverage.
+- Measures concept usage.
+- Detects concept IDs outside the concept catalog.
+- Builds clusters of similar `meaning_ru`.
+- Optionally analyzes systematic WDH disagreement if enriched step-07 files are available.
+
+**Commands**
+
+```bash
+# Basic audit
+python3 -m src.sem_cat.08_gap_audit \
+  --data-dir data/vepkar \
+  --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
+  --out-dir data/sem_cat/results
+
+# Full audit with enriched step-07 outputs
+python3 -m src.sem_cat.08_gap_audit \
+  --data-dir data/vepkar \
+  --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
+  --enriched-dir data/sem_cat/results \
+  --out-dir data/sem_cat/results
+```
+
+**Important behavior**
+
+- If `--enriched-dir` is provided but no enriched files are found, the script should warn clearly and continue without WDH-disagreement analysis.
+- That warning is useful, not rude.
+
+**Output**
+
+```text
+data/sem_cat/results/audit_meanings_without_concept.csv
+data/sem_cat/results/audit_concept_usage.csv
+data/sem_cat/results/audit_concept_ids_outside_catalog.csv
+data/sem_cat/results/audit_category_coverage.csv
+data/sem_cat/results/audit_wdh_disagreement.csv
+data/sem_cat/results/audit_meaning_ru_clusters.csv
+```
+
+---
+
+## What to inspect after each step
+
+### After step 02
+Inspect:
+- `qa_keep`
+- `qa_score`
+- `qa_flags`
+- sidecar `.blanks.csv`
+
+Questions:
+- Which glosses fail QA?
+- Which model hallucinates on abbreviations, names, particles, and short function words?
+- Are repeated-token loops rare or common?
+
+### After step 03
+Inspect:
+- `03_translation_review_queue.csv`
+- high-risk rows
+- disagreement between models
+
+Questions:
+- Which glosses need expert review first?
+- Which model is safest for boring lexicographic work?
+- Which model becomes poetic at the worst possible moment?
+
+### After steps 04–05
+Inspect:
+- `lookup_status`
+- `wn_synset`
+- `wn_domain`
+- domain coverage in `meanings_*_domains.csv`
+
+Questions:
+- How often do glosses end in `factotum`?
+- Which POS classes are underperforming?
+- Are short glosses and proper names dominating failures?
+
+### After steps 06–08
+Inspect:
+- `concepts_wdh.tsv`
+- `wdh_conflicts.csv`
+- `audit_concept_ids_outside_catalog.csv`
+- `audit_meanings_without_concept.csv`
+- `audit_wdh_disagreement.csv`
+- `audit_meaning_ru_clusters.csv`
+
+Questions:
+- Which concept IDs are used in meanings but absent from the 417-concept catalog?
+- Which concept-vs-gloss conflicts are systematic rather than random?
+- Which high-frequency gloss clusters should drive the next ontology expansion pass?
+
+---
+
+## Minimal workflow from the repository root
 
 ```bash
 source .venv/bin/activate
 
-# 0. NLTK data (once)
-python3 -c "import nltk; nltk.download('wordnet'); nltk.download('omw-1.4')"
+# 0. tests
+pytest tests/sem_cat/ -q
 
-# 1. Translate — multiple models with round-trip QA ☕☕
-python3 -m src.sem_cat.02_translate_glosses --model-key google --round-trip
-python3 -m src.sem_cat.02_translate_glosses --model-key nllb_distilled_1_3b --device cuda --round-trip
-python3 -m src.sem_cat.02_translate_glosses --model-key helsinki_opus_mt_ru_en --device cuda --round-trip
+# 1. smoke tests
+python3 -m src.sem_cat.02_translate_glosses --model-key google --backend-info
+python3 -m src.sem_cat.02_translate_glosses --model-key helsinki_opus_mt_ru_en --backend-info
 
-# 2. Compare models → expert review queue
+# 2. translations
+python3 -m src.sem_cat.02_translate_glosses --model-key google
+python3 -m src.sem_cat.02_translate_glosses --model-key helsinki_opus_mt_ru_en --device cuda
+
+# 3. comparison
 python3 -m src.sem_cat.03_compare_translations \
-    --translations google=data/sem_cat/02_glosses_translated_google.csv \
-    --translations nllb_distilled_1_3b=data/sem_cat/02_glosses_translated_nllb_distilled_1_3b.csv \
-    --translations helsinki_opus_mt_ru_en=data/sem_cat/02_glosses_translated_helsinki_opus_mt_ru_en.csv
+  --translations google=data/sem_cat/02_glosses_translated_google.csv \
+  --translations helsinki_opus_mt_ru_en=data/sem_cat/02_glosses_translated_helsinki_opus_mt_ru_en.csv
 
-# 3. WordNet lookup → domains
+# 4. WordNet lookup
 python3 -m src.sem_cat.04_wordnet_lookup \
-    --translated-file data/sem_cat/03_translation_comparison_full.csv \
-    --wn-domains-file data/sem_cat/00_wn-domains-3.2-20070223
+  --translated-file data/sem_cat/03_translation_comparison_full.csv \
+  --wn-domains-file data/sem_cat/00_wn-domains-3.2-20070223
 
-# 4. Merge domains into meanings
+# 5. assign domains
 python3 -m src.sem_cat.05_assign_domains \
-    --domains-file data/sem_cat/04_glosses_wn_domains.csv \
-    --out-dir data/sem_cat/results
-```
+  --data-dir data/vepkar \
+  --domains-file data/sem_cat/04_glosses_wn_domains.csv \
+  --out-dir data/sem_cat/results
 
-Fast dev loop on a weak laptop:
-
-```bash
-# Translate 50 glosses with Marian (CPU, ~3 min per batch on old hardware)
-python3 -m src.sem_cat.02_translate_glosses \
-    --model-key helsinki_opus_mt_ru_en --device cpu --limit 50
-
-# Run WordNet lookup on the partial result
-python3 -m src.sem_cat.04_wordnet_lookup \
-    --translated-file data/sem_cat/02_glosses_translated_helsinki_opus_mt_ru_en.csv \
-    --wn-domains-file data/sem_cat/00_wn-domains-3.2-20070223 \
-    --out-file data/sem_cat/04_glosses_wn_domains_dev.csv
-```
-
----
-
-## Step 06 — Build concept-level WDH (`06_concepts_wdh.py`)
-
-**Purpose:** derive WDH labels for each concept by inheriting from its category.
-
-```bash
+# 6. concept-level WDH
 python3 -m src.sem_cat.06_concepts_wdh \
-    --cat-wdh data/sem_cat/concept_categories/concept_categories_wdh.tsv \
-    --concepts data/sem_cat/concepts/concepts_with_english_417.csv \
-    --out-file data/sem_cat/concepts/concepts_wdh.tsv
+  --cat-wdh data/sem_cat/concept_categories/concept_categories_wdh.tsv \
+  --concepts data/sem_cat/concepts/concepts_with_english_417.csv \
+  --out-file data/sem_cat/concepts/concepts_wdh.tsv
+
+# 7. propagate WDH
+python3 -m src.sem_cat.07_propagate_wdh \
+  --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
+  --data-dir data/vepkar \
+  --domains-file data/sem_cat/04_glosses_wn_domains.csv \
+  --out-dir data/sem_cat/results
+
+# 8. gap audit
+python3 -m src.sem_cat.08_gap_audit \
+  --data-dir data/vepkar \
+  --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
+  --enriched-dir data/sem_cat/results \
+  --out-dir data/sem_cat/results
 ```
-
-**Output:** `data/sem_cat/concepts/concepts_wdh.tsv`
-
-Columns: `category_id`, `pos`, `concept_id`, `concept_ru`, `concept_en`,
-`wdh`, `wdh_source`, `wdh_confidence`, `wdh_note`.
 
 ---
 
-## Step 07 — Propagate WDH to meanings (`07_propagate_wdh.py`)
-
-**Purpose:** propagate concept-level WDH to meanings that have a `concept_id`.
-Optionally compares with gloss-based WDH from WordNet domain lookup.
-Uses tiered conflict resolution: meaningful non-factotum gloss-domain
-evidence (lookup_status=found) can override a concept WDH; fallback
-`factotum` values do not override specific concept domains.
+## Tests
 
 ```bash
-python3 -m src.sem_cat.07_propagate_wdh \
-    --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
-    --data-dir data/vepkar/ \
-    --out-dir data/sem_cat/results/
-
-# With gloss-based WDH for conflict detection:
-python3 -m src.sem_cat.07_propagate_wdh \
-    --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
-    --data-dir data/vepkar/ \
-    --domains-file data/sem_cat/04_glosses_wn_domains.csv \
-    --out-dir data/sem_cat/results/
+pytest tests/sem_cat/ -q
+pytest tests/sem_cat/translators/test_part1.py -q
+pytest tests/sem_cat/test_part2.py -q
+pytest tests/sem_cat/test_part3.py -q
 ```
 
-**Output:**
-- `data/sem_cat/results/meanings_{lang}_concept_wdh.csv` — per-language enriched meanings
-- `data/sem_cat/results/wdh_conflicts.csv` — rows where concept and gloss WDH disagree
-
-New columns added to meanings: `concept_wdh`, `gloss_wdh`, `wdh`,
-`wdh_source`, `wdh_conflict`, `wdh_conflict_note`.
+The focused tests are designed to stay offline and fast.
+That is a feature, not a lack of ambition.
 
 ---
 
-## Step 08 — Gap audit (`08_gap_audit.py`)
+## Operational notes
 
-**Purpose:** identify missing or weak concept coverage in VepKar meanings.
-Primary grouping axis: `meaning_ru`.
-
-```bash
-python3 -m src.sem_cat.08_gap_audit \
-    --data-dir data/vepkar/ \
-    --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
-    --out-dir data/sem_cat/results/
-
-# With enriched meanings for WDH disagreement analysis:
-python3 -m src.sem_cat.08_gap_audit \
-    --data-dir data/vepkar/ \
-    --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
-    --enriched-dir data/sem_cat/results/ \
-    --out-dir data/sem_cat/results/
-```
-
-**Output reports:**
-
-| File | Description |
-|------|-------------|
-| `audit_meanings_without_concept.csv` | Russian glosses without concept assignment, sorted by frequency |
-| `audit_concept_usage.csv` | How many meanings use each concept_id |
-| `audit_category_coverage.csv` | Per-category concept assignment statistics |
-| `audit_wdh_disagreement.csv` | Systematic WDH conflicts between concept and gloss sources |
-| `audit_meaning_ru_clusters.csv` | Groups of meanings sharing the same normalized Russian gloss |
-
----
-
-## Concept-aware pipeline (from repo root)
-
-After running steps 02–05, add concept-level WDH and gap analysis:
-
-```bash
-# 5. Build concept-level WDH
-python3 -m src.sem_cat.06_concepts_wdh \
-    --cat-wdh data/sem_cat/concept_categories/concept_categories_wdh.tsv \
-    --concepts data/sem_cat/concepts/concepts_with_english_417.csv
-
-# 6. Propagate WDH to meanings (with conflict detection)
-python3 -m src.sem_cat.07_propagate_wdh \
-    --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
-    --data-dir data/vepkar/ \
-    --domains-file data/sem_cat/04_glosses_wn_domains.csv \
-    --out-dir data/sem_cat/results/
-
-# 7. Gap audit
-python3 -m src.sem_cat.08_gap_audit \
-    --data-dir data/vepkar/ \
-    --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
-    --enriched-dir data/sem_cat/results/ \
-    --out-dir data/sem_cat/results/
-```
-
----
-
-## Notes
-
-- `02_translate_glosses.py` is incremental: cache filtering (by `gloss_ru`) is applied first, then `--offset`/`--limit` are applied to the remaining uncached glosses. Rerunning the same command can translate the next uncached slice.
-- Blank/None translations are excluded from the main output CSV and written to `<out_file>.blanks.csv` instead.
-- `04_wordnet_lookup.py` works best with POS information; use `--pos-source meanings` to derive POS automatically.
-- Short and ambiguous glosses still need expert review even after QA flags and WordNet lookup.
-- Best candidates for manual review: high `qa_score`, non-empty `qa_flags`, `lookup_status=not_found`, `wn_domain=factotum`.
-- Concept-level WDH (steps 06–07) is a parallel path to the gloss-based pipeline. WDH conflict resolution uses tiered logic: meaningful non-factotum gloss-domain evidence (lookup_status=found) can override a concept WDH; fallback `factotum` values do not override specific concept domains.
-- The gap audit (step 08) is designed for iterative ontology expansion. Output files:
-  - `audit_meanings_without_concept.csv` — row-level and gloss-level counts of meanings without `concept_id`
-  - `audit_concept_usage.csv` — concept_ids that exist in the catalog, with usage counts
-  - `audit_concept_ids_outside_catalog.csv` — concept_ids found in meanings but absent from the catalog
-  - `audit_category_coverage.csv` — per-category concept assignment statistics
-  - `audit_wdh_disagreement.csv` — systematic WDH conflicts (requires enriched meanings input)
-  - `audit_meaning_ru_clusters.csv` — groups of meanings sharing the same normalized Russian gloss
+- Use the canonical model key `helsinki_opus_mt_ru_en`.
+- Do not improvise aliases in `03_compare_translations`.
+- Step 02 cache behavior is incremental by design.
+- Step 07 can run without `--domains-file`; use that mode if step 04 output is not ready yet.
+- Step 08 is the main driver for iterative ontology expansion.
+- The most valuable review targets are usually:
+  - high-risk comparison rows,
+  - `factotum`-heavy WordNet outputs,
+  - concept IDs outside the catalog,
+  - systematic WDH conflicts,
+  - frequent `meaning_ru` clusters with weak coverage.
