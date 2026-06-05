@@ -557,7 +557,7 @@ data/sem_cat/results/audit_meaning_ru_clusters.csv
 
 For a focused description of the QA and comparison heuristics used by the current codebase, see:
 
-- [`src/sem_cat/euristics.MD`](euristics.MD)
+- [`src/sem_cat/heuristics.md`](heuristics.md)
 
 That file is the compact field guide to the project’s suspicious instincts.
 
