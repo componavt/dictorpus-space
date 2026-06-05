@@ -213,9 +213,9 @@ def process_gloss_row(
         decision_reason = "high_risk_manual_review"
 
     needs_review = (
-        risk_score >= risk_threshold
-        or decision_reason in ("manual_review", "no_clear_winner", "all_blank", "high_risk_manual_review")
-        or (proposed and "sentence_like" in decision_reason)
+        risk_level in ("high", "medium")
+        or decision_reason in ("all_blank", "no_clear_winner")
+        or any(not o.qa_keep for o in outputs if o.gloss_en and o.gloss_en.strip())
     )
 
     # Attach outputs to result for later column building

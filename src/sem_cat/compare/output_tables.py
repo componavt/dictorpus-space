@@ -104,6 +104,9 @@ def build_gold_template_df(review_df: pd.DataFrame) -> pd.DataFrame:
     gold["expert_notes"] = ""
     gold["final_decision"] = ""
     gold["include_in_gold"] = ""
+    gold["accepted_model_key"] = ""
+    gold["accepted_raw_output"] = ""
+    gold["review_status"] = ""
 
     gold_cols = [
         "gloss_ru",
@@ -126,6 +129,9 @@ def build_gold_template_df(review_df: pd.DataFrame) -> pd.DataFrame:
         "expert_notes",
         "final_decision",
         "include_in_gold",
+        "accepted_model_key",
+        "accepted_raw_output",
+        "review_status",
     ])
 
     available = [c for c in gold_cols if c in gold.columns]

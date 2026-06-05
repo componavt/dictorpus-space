@@ -56,12 +56,29 @@ def compute_gloss_complexity(gloss_ru: str) -> tuple[float, list[str]]:
         reasons.append("punctuation_heavy_gloss")
 
     # Particle / function-word indicators
-    particle_patterns = {"-то", "-либо", "-нибудь", "кое-", "ни", "ли"}
-    for pattern in particle_patterns:
-        if pattern in stripped.lower():
-            score += 0.05
-            reasons.append("particle_or_clitic")
+    # Suffixes attached via hyphen (e.g., "-то", "-либо", "-нибудь")
+    particle_suffixes = ("-то", "-либо", "-нибудь")
+    # Hyphenated prefix (e.g., "кое-что")
+    particle_prefixes = ("кое-",)
+    # Standalone particle tokens — must match whole words, not substrings
+    particle_standalone = {"ни", "ли"}
+
+    tokens_lower = stripped.lower().split()
+    is_particle = False
+    for token in tokens_lower:
+        if token in particle_standalone:
+            is_particle = True
             break
+        if token.endswith(particle_suffixes):
+            is_particle = True
+            break
+        if token.startswith(particle_prefixes):
+            is_particle = True
+            break
+
+    if is_particle:
+        score += 0.05
+        reasons.append("particle_or_clitic")
 
     # Cap at 0.30
     score = min(0.30, score)

@@ -229,6 +229,9 @@ def test_gold_template_columns():
     assert "expert_notes" in gold.columns
     assert "final_decision" in gold.columns
     assert "include_in_gold" in gold.columns
+    assert "accepted_model_key" in gold.columns
+    assert "accepted_raw_output" in gold.columns
+    assert "review_status" in gold.columns
 
 
 # ---------------------------------------------------------------------------
@@ -284,6 +287,31 @@ def test_complexity_empty():
     assert reasons == []
 
 
+def test_particle_or_clitic_fires_on_standalone():
+    score, reasons = compute_gloss_complexity("ни")
+    assert "particle_or_clitic" in reasons
+    score, reasons = compute_gloss_complexity("ли")
+    assert "particle_or_clitic" in reasons
+
+
+def test_particle_or_clitic_fires_on_suffixed():
+    score, reasons = compute_gloss_complexity("кто-то")
+    assert "particle_or_clitic" in reasons
+    score, reasons = compute_gloss_complexity("что-либо")
+    assert "particle_or_clitic" in reasons
+    score, reasons = compute_gloss_complexity("кто-нибудь")
+    assert "particle_or_clitic" in reasons
+
+
+def test_particle_or_clitic_not_fires_on_lexical():
+    lexical_words = ["книга", "лист", "малина", "долина", "никогда", "линия",
+                     "близко", "слива", "улитка", "снимать"]
+    for word in lexical_words:
+        score, reasons = compute_gloss_complexity(word)
+        assert "particle_or_clitic" not in reasons, \
+            f"False positive on '{word}': {reasons}"
+
+
 # ---------------------------------------------------------------------------
 # 11. Proposal selection
 # ---------------------------------------------------------------------------
@@ -326,6 +354,51 @@ def test_risk_levels():
 
 
 # ---------------------------------------------------------------------------
+# 13. Expert review criteria
+# ---------------------------------------------------------------------------
+
+def test_low_risk_consensus_no_review():
+    """Low-risk rows with strong model consensus should NOT need expert review."""
+    import importlib
+    import pandas as pd
+    mod = importlib.import_module("src.sem_cat.03_compare_translations")
+    _process_row = mod.process_gloss_row
+    row_data = {
+        "gloss_ru": "дом",
+        "m1__gloss_en": "house", "m1__qa_keep": "True", "m1__qa_score": "0.0",
+        "m1__qa_flags": "", "m1__roundtrip_distance": "", "m1__model_name": "M1",
+        "m2__gloss_en": "house", "m2__qa_keep": "True", "m2__qa_score": "0.0",
+        "m2__qa_flags": "", "m2__roundtrip_distance": "", "m2__model_name": "M2",
+        "m3__gloss_en": "home", "m3__qa_keep": "True", "m3__qa_score": "0.1",
+        "m3__qa_flags": "", "m3__roundtrip_distance": "", "m3__model_name": "M3",
+    }
+    row = pd.Series(row_data)
+    result = _process_row(row, model_keys=["m1", "m2", "m3"], total_models=3)
+    assert result.needs_expert_review is False, \
+        f"Expected no review for low-risk consensus, got risk={result.total_risk} level={result.risk_level}"
+
+
+def test_qa_keep_false_triggers_review():
+    """Nonblank outputs with qa_keep=False should trigger expert review."""
+    import importlib
+    import pandas as pd
+    mod = importlib.import_module("src.sem_cat.03_compare_translations")
+    _process_row = mod.process_gloss_row
+    row_data = {
+        "gloss_ru": "тест",
+        "m1__gloss_en": "test", "m1__qa_keep": "True", "m1__qa_score": "0.0",
+        "m1__qa_flags": "", "m1__roundtrip_distance": "", "m1__model_name": "M1",
+        "m2__gloss_en": "Some garbage output with repetition", "m2__qa_keep": "False",
+        "m2__qa_score": "1.0", "m2__qa_flags": "repeated_token_loop",
+        "m2__roundtrip_distance": "", "m2__model_name": "M2",
+    }
+    row = pd.Series(row_data)
+    result = _process_row(row, model_keys=["m1", "m2"], total_models=2)
+    assert result.needs_expert_review is True, \
+        f"Expected review for qa_keep=False nonblank, got {result.needs_expert_review}"
+
+
+# ---------------------------------------------------------------------------
 # Run all tests
 # ---------------------------------------------------------------------------
 
@@ -352,9 +425,14 @@ if __name__ == "__main__":
         test_complexity_hyphenated,
         test_complexity_proper_name,
         test_complexity_empty,
+        test_particle_or_clitic_fires_on_standalone,
+        test_particle_or_clitic_fires_on_suffixed,
+        test_particle_or_clitic_not_fires_on_lexical,
         test_proposal_strong_consensus,
         test_proposal_all_blank,
         test_risk_levels,
+        test_low_risk_consensus_no_review,
+        test_qa_keep_false_triggers_review,
     ]
 
     passed = 0

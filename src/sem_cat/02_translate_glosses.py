@@ -124,9 +124,12 @@ def _print_summary(
     total_written: int,
     total_kept: int,
     total_suspicious: int,
-    total_blank: int,
+    total_rejected: int,
+    total_empty_output: int,
+    total_rejected_nonblank: int,
     total_roundtrip: int,
     flag_counts: dict[str, int],
+    blanks_path: str | None = None,
 ) -> None:
     """Print final summary statistics."""
     print(f"\n{'=' * 60}")
@@ -140,7 +143,10 @@ def _print_summary(
     print(f"Newly translated:               {total_written}")
     print(f"  - Kept (good quality):        {total_kept}")
     print(f"  - Kept (suspicious, flagged): {total_suspicious}")
-    print(f"  - Unusable (qa_keep=False):   {total_blank}")
+    print(f"  - Rejected (qa_keep=False):   {total_rejected}")
+    if total_rejected > 0:
+        print(f"      • Empty output:           {total_empty_output}")
+        print(f"      • Rejected but nonblank:  {total_rejected_nonblank}")
     print(f"  - With round-trip:            {total_roundtrip}")
 
     if flag_counts:
@@ -148,8 +154,8 @@ def _print_summary(
         for flag, count in sorted(flag_counts.items()):
             print(f"    - {flag}: {count}")
 
-    if total_blank > 0:
-        print(f"\nBlanks excluded from cache: {total_blank} (see .blanks.csv)")
+    if total_empty_output > 0:
+        print(f"\nEmpty output rows written to: {blanks_path}")
 
 
 def _run_backend_info(
@@ -435,7 +441,9 @@ def main() -> None:
     total_written = 0
     total_kept = 0
     total_suspicious = 0
-    total_blank = 0
+    total_rejected = 0
+    total_empty_output = 0
+    total_rejected_nonblank = 0
     total_roundtrip = 0
     flag_counts: dict[str, int] = {}
 
@@ -488,7 +496,11 @@ def main() -> None:
             batch_rows.append(row)
 
             if not qa_result.qa_keep:
-                total_blank += 1
+                total_rejected += 1
+                if not trans or not str(trans).strip():
+                    total_empty_output += 1
+                else:
+                    total_rejected_nonblank += 1
             elif qa_result.qa_flags:
                 total_suspicious += 1
             else:
@@ -523,6 +535,7 @@ def main() -> None:
         print(f"  Batch {batch_idx + 1}/{n_batches} saved ({total_written} total written)")
 
     # 13. Print summary
+    blanks_path = out_path.with_suffix(out_path.suffix + ".blanks.csv")
     _print_summary(
         total_unique=total_unique,
         already_cached=already_cached,
@@ -531,9 +544,12 @@ def main() -> None:
         total_written=total_written,
         total_kept=total_kept,
         total_suspicious=total_suspicious,
-        total_blank=total_blank,
+        total_rejected=total_rejected,
+        total_empty_output=total_empty_output,
+        total_rejected_nonblank=total_rejected_nonblank,
         total_roundtrip=total_roundtrip,
         flag_counts=flag_counts,
+        blanks_path=str(blanks_path) if total_empty_output > 0 else None,
     )
 
 
