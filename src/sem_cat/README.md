@@ -102,6 +102,8 @@ python3 -m src.sem_cat.02_translate_glosses --model-key nllb_distilled_1_3b --ba
 python3 -m src.sem_cat.02_translate_glosses --model-key wmt19_ru_en --backend-info
 ```
 
+`--backend-info` is a quick preflight check. It loads the selected backend, runs a few tiny probe translations, prints an `OK / WARN / FAIL` summary, and exits without touching your real data files.
+
 If HuggingFace loading is grumpy because of proxy variables, try:
 
 ```bash
@@ -142,11 +144,11 @@ The actual model behind it is `Helsinki-NLP/opus-mt-ru-en`.
 | CLI / registry key | Actual model / backend | Backend family | Round-trip | Notes |
 |---|---|---|---|---|
 | `google` | GoogleTranslator service | `google` | ✓ | Handy baseline for quick checks and small runs |
-| `helsinki_opus_mt_ru_en` | `Helsinki-NLP/opus-mt-ru-en` | `hf_seq2seq`-style HF backend in the current translator stack | ✓ | MarianMT baseline; fast and practical |
+| `helsinki_opus_mt_ru_en` | `Helsinki-NLP/opus-mt-ru-en` | Helsinki MarianMT RU->EN baseline; fast, practical, and easy to run locally | ✓ | MarianMT baseline; fast and practical |
 | `nllb_distilled_1_3b` | `facebook/nllb-200-distilled-1.3B` | `nllb` | ✓ | Distilled NLLB baseline |
 | `nllb_1_3b` | `facebook/nllb-200-1.3B` | `nllb` | ✓ | Larger NLLB model |
 | `nllb_3_3b` | `facebook/nllb-200-3.3B` | `nllb` | ✓ | Largest registered NLLB option |
-| `wmt19_ru_en` | `facebook/wmt19-ru-en` | `hf_seq2seq`-style HF backend in the current translator stack | ✗ | Useful extra baseline; no reverse model is registered |
+| `wmt19_ru_en` | `facebook/wmt19-ru-en` | Fairseq WMT19 RU->EN baseline; useful as an additional non-NLLB HuggingFace comparison point | ✗ | Useful extra baseline; no reverse model is registered |
 
 Legacy arguments are still supported for compatibility:
 
