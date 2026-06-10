@@ -18,25 +18,24 @@ This script does NOT use WordNet, NLTK, or any translation model.
 It only reads CSV files, computes metrics, and writes CSV files.
 
 EXAMPLE COMMANDS:
-  # Compare all 6 models
+  # Compare all 5 models
   python3 -m src.sem_cat.03_compare_translations \\
       --translations google=data/sem_cat/02_glosses_translated_google.csv \\
       --translations helsinki_opus_mt_ru_en=data/sem_cat/02_glosses_translated_helsinki_opus_mt_ru_en.csv \\
-      --translations nllb_distilled_1_3b=data/sem_cat/02_glosses_translated_nllb_distilled_1_3b.csv \\
-      --translations nllb_1_3b=data/sem_cat/02_glosses_translated_nllb_1_3b.csv \\
       --translations nllb_3_3b=data/sem_cat/02_glosses_translated_nllb_3_3b.csv \\
-      --translations wmt19_ru_en=data/sem_cat/02_glosses_translated_wmt19_ru_en.csv
+      --translations tower_instruct_13b=data/sem_cat/02_glosses_translated_tower_instruct_13b.csv \\
+      --translations alma_7b_r=data/sem_cat/02_glosses_translated_alma_7b_r.csv
 
   # Compare only 3 models
   python3 -m src.sem_cat.03_compare_translations \\
       --translations google=data/sem_cat/02_glosses_translated_google.csv \\
       --translations helsinki_opus_mt_ru_en=data/sem_cat/02_glosses_translated_helsinki_opus_mt_ru_en.csv \\
-      --translations nllb_distilled_1_3b=data/sem_cat/02_glosses_translated_nllb_distilled_1_3b.csv
+      --translations nllb_3_3b=data/sem_cat/02_glosses_translated_nllb_3_3b.csv
 
   # Export top-k risky rows only
   python3 -m src.sem_cat.03_compare_translations \\
       --translations google=data/sem_cat/02_glosses_translated_google.csv \\
-      --translations nllb_distilled_1_3b=data/sem_cat/02_glosses_translated_nllb_distilled_1_3b.csv \\
+      --translations nllb_3_3b=data/sem_cat/02_glosses_translated_nllb_3_3b.csv \\
       --top-k 500 --single-word-first
 
   # Legacy compatibility (pairwise Marian/Google)

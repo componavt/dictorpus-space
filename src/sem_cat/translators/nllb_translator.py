@@ -59,7 +59,7 @@ class NLLBTranslator(Translator):
     instantiation time, not at module import time.
     """
 
-    DEFAULT_MODEL = "facebook/nllb-200-distilled-1.3B"
+    DEFAULT_MODEL = "facebook/nllb-200-3.3B"
 
     def __init__(
         self,

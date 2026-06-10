@@ -201,3 +201,71 @@ def load_hf_model(
         with temporarily_unset_env(PROXY_ENV_VARS):
             return _load()
     return _load()
+
+
+def load_hf_model_causal(
+    model_name: str,
+    *,
+    local_files_only: bool = False,
+    cache_dir: str | None = None,
+    device: str = "cpu",
+    ignore_proxy_env: bool = False,
+    trust_remote_code: bool = False,
+    torch: Any,
+    AutoTokenizer: Any,
+    AutoModelForCausalLM: Any,
+) -> tuple[Any, Any]:
+    """Load a HuggingFace tokenizer and causal LM model.
+
+    Args:
+        model_name: HuggingFace model identifier.
+        local_files_only: If True, only use locally cached files.
+        cache_dir: Optional custom cache directory.
+        device: Target device ("cpu" or "cuda").
+        ignore_proxy_env: If True, temporarily unset proxy env vars during loading.
+        trust_remote_code: If True, allow execution of model code from the HF repo.
+            Required by some models (e.g. tencent/Hy-MT2-30B-A3B).
+        torch: The torch module (already imported).
+        AutoTokenizer: Tokenizer class from transformers.
+        AutoModelForCausalLM: Model class from transformers.
+
+    Returns:
+        Tuple of (tokenizer, model).
+
+    Raises:
+        TranslatorInitializationError: If model/tokenizer loading fails.
+    """
+    from .base import TranslatorInitializationError
+
+    common_kwargs: dict[str, Any] = {}
+    if local_files_only:
+        common_kwargs["local_files_only"] = True
+    if cache_dir:
+        common_kwargs["cache_dir"] = cache_dir
+    if trust_remote_code:
+        common_kwargs["trust_remote_code"] = True
+
+    def _load() -> tuple[Any, Any]:
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(model_name, **common_kwargs)
+        except Exception as e:
+            msg = explain_hf_init_error(
+                e, model_name, local_files_only=local_files_only, cache_dir=cache_dir
+            )
+            raise TranslatorInitializationError(msg) from e
+
+        try:
+            model = AutoModelForCausalLM.from_pretrained(model_name, **common_kwargs)
+        except Exception as e:
+            msg = explain_hf_init_error(
+                e, model_name, local_files_only=local_files_only, cache_dir=cache_dir
+            )
+            raise TranslatorInitializationError(msg) from e
+
+        model = model.to(device)
+        return tokenizer, model
+
+    if ignore_proxy_env:
+        with temporarily_unset_env(PROXY_ENV_VARS):
+            return _load()
+    return _load()

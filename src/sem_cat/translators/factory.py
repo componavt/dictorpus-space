@@ -86,6 +86,26 @@ def build_translator(
             ignore_proxy_env=ignore_proxy_env,
         )
 
+    if spec.backend_family == "hf_causal":
+        from .hf_causal_translator import HFCausalTranslator
+
+        return HFCausalTranslator(
+            model_key=spec.model_key,
+            model_name=spec.model_name,
+            device=device,
+            tokenizer_max_length=spec.tokenizer_max_length,
+            default_batch_size=spec.default_batch_size,
+            generation_kwargs=gen_kwargs,
+            local_files_only=local_files_only,
+            cache_dir=cache_dir,
+            ignore_proxy_env=ignore_proxy_env,
+            src_lang=spec.src_lang,
+            tgt_lang=spec.tgt_lang,
+            prompt_style=spec.prompt_style,
+            use_chat_template=spec.use_chat_template,
+            trust_remote_code=spec.trust_remote_code,
+        )
+
     raise ValueError(f"Unknown backend family: {spec.backend_family!r}")
 
 
@@ -164,5 +184,9 @@ def build_reverse_translator(
             cache_dir=cache_dir,
             ignore_proxy_env=ignore_proxy_env,
         )
+
+    if spec.backend_family == "hf_causal":
+        # Decoder-only models registered as RU->EN only; reverse not supported.
+        return None
 
     return None

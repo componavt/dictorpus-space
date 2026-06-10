@@ -98,8 +98,8 @@ Before a long run, check the backends. It is cheaper to discover drama here than
 ```bash
 python3 -m src.sem_cat.02_translate_glosses --model-key google --backend-info
 python3 -m src.sem_cat.02_translate_glosses --model-key helsinki_opus_mt_ru_en --backend-info
-python3 -m src.sem_cat.02_translate_glosses --model-key nllb_distilled_1_3b --backend-info
-python3 -m src.sem_cat.02_translate_glosses --model-key wmt19_ru_en --backend-info
+python3 -m src.sem_cat.02_translate_glosses --model-key nllb_3_3b --backend-info
+python3 -m src.sem_cat.02_translate_glosses --model-key tower_instruct_13b --backend-info
 ```
 
 `--backend-info` is a quick preflight check. It loads the selected backend, runs a few tiny probe translations, prints an `OK / WARN / FAIL` summary, and exits without touching your real data files.
@@ -130,32 +130,40 @@ For example, `helsinki_opus_mt_ru_en` is the registry key.
 The actual model behind it is `Helsinki-NLP/opus-mt-ru-en`.
 
 ```text
-    Registry / CLI keys
-    ─────────────────────────────────────────────────────────────────────
-    google                │ google / service                │ round-trip: yes
-    helsinki_opus_mt_ru_en│ Helsinki-NLP/opus-mt-ru-en      │ round-trip: yes
-    nllb_distilled_1_3b   │ facebook/nllb-200-distilled-1.3B│ round-trip: yes
-    nllb_1_3b             │ facebook/nllb-200-1.3B          │ round-trip: yes
-    nllb_3_3b             │ facebook/nllb-200-3.3B          │ round-trip: yes
-    wmt19_ru_en           │ facebook/wmt19-ru-en            │ round-trip: no
-    ─────────────────────────────────────────────────────────────────────
+    Registry / CLI keys        │ Actual model / backend            │ Backend family │ Round-trip
+    ─────────────────────────────────────────────────────────────────────────────────────────────
+    google                     │ GoogleTranslator service          │ google         │ yes
+    helsinki_opus_mt_ru_en     │ Helsinki-NLP/opus-mt-ru-en        │ hf_seq2seq     │ yes
+    nllb_3_3b                  │ facebook/nllb-200-3.3B           │ nllb           │ yes
+    tower_instruct_13b         │ Unbabel/TowerInstruct-13B-v0.1   │ hf_causal      │ no
+    hy_mt2_30b_a3b             │ tencent/Hy-MT2-30B-A3B           │ hf_causal      │ no
+    alma_7b_r                  │ haoranxu/ALMA-7B-R               │ hf_causal      │ no
+    ─────────────────────────────────────────────────────────────────────────────────────────────
 ```
 
 | CLI / registry key | Actual model / backend | Backend family | Round-trip | Notes |
-|---|---|---|---|---|
+|---|---|---|---|---|---|
 | `google` | GoogleTranslator service | `google` | ✓ | Handy baseline for quick checks and small runs |
-| `helsinki_opus_mt_ru_en` | `Helsinki-NLP/opus-mt-ru-en` | Helsinki MarianMT RU->EN baseline; fast, practical, and easy to run locally | ✓ | MarianMT baseline; fast and practical |
-| `nllb_distilled_1_3b` | `facebook/nllb-200-distilled-1.3B` | `nllb` | ✓ | Distilled NLLB baseline |
-| `nllb_1_3b` | `facebook/nllb-200-1.3B` | `nllb` | ✓ | Larger NLLB model |
+| `helsinki_opus_mt_ru_en` | `Helsinki-NLP/opus-mt-ru-en` | `hf_seq2seq` | ✓ | MarianMT baseline; fast and practical |
 | `nllb_3_3b` | `facebook/nllb-200-3.3B` | `nllb` | ✓ | Largest registered NLLB option |
-| `wmt19_ru_en` | `facebook/wmt19-ru-en` | Fairseq WMT19 RU->EN baseline; useful as an additional non-NLLB HuggingFace comparison point | ✗ | Useful extra baseline; no reverse model is registered |
+| `tower_instruct_13b` | `Unbabel/TowerInstruct-13B-v0.1` | `hf_causal` | ✗ | Instruction-style causal LM; RU→EN only |
+| `hy_mt2_30b_a3b` | `tencent/Hy-MT2-30B-A3B` | `hf_causal` | ✗ | MoE translation model; requires `trust_remote_code` |
+| `alma_7b_r` | `haoranxu/ALMA-7B-R` | `hf_causal` | ✗ | Translation-focused ALMA-R model; RU→EN only |
+
+The repository supports four backend families:
+- **`google`** – GoogleTranslator API service.
+- **`hf_seq2seq`** – HuggingFace encoder-decoder seq2seq models (MarianMT style). Loaded via `AutoModelForSeq2SeqLM`.
+- **`nllb`** – NLLB-200 models via HuggingFace with forced BOS language tokens.
+- **`hf_causal`** – Decoder-only causal LMs loaded via `AutoModelForCausalLM`. These use prompt templates or chat templates for translation and do not support round-trip in the current configuration.
+
+The causal models differ from seq2seq models in two important ways:
+1. They cannot be loaded with `AutoModelForSeq2SeqLM`; they need `AutoModelForCausalLM`.
+2. They require a prompt template or chat format to specify the translation task, rather than accepting raw source text.
 
 Legacy arguments are still supported for compatibility:
 
 - `--backend google` → `google`
 - `--backend marian` → `helsinki_opus_mt_ru_en`
-- `--backend nllb --nllb-model facebook/nllb-200-distilled-1.3B` → `nllb_distilled_1_3b`
-- `--backend nllb --nllb-model facebook/nllb-200-1.3B` → `nllb_1_3b`
 - `--backend nllb --nllb-model facebook/nllb-200-3.3B` → `nllb_3_3b`
 
 In short: use the canonical key shown above, and prefer `--model-key` over legacy `--backend` arguments.
@@ -175,10 +183,10 @@ RU glosses
    │
    ├─ google
    ├─ helsinki_opus_mt_ru_en
-   ├─ nllb_distilled_1_3b
-   ├─ nllb_1_3b
    ├─ nllb_3_3b
-   └─ wmt19_ru_en
+   ├─ tower_instruct_13b
+   ├─ hy_mt2_30b_a3b
+   └─ alma_7b_r
    ▼
 EN gloss cache + QA metadata
 ```
@@ -206,20 +214,20 @@ python3 -m src.sem_cat.02_translate_glosses \
   --out-file data/sem_cat/02_glosses_translated_helsinki_opus_mt_ru_en_smoke.csv
 
 python3 -m src.sem_cat.02_translate_glosses \
-  --model-key nllb_distilled_1_3b \
+  --model-key nllb_3_3b \
   --device cpu \
   --limit 50 \
-  --out-file data/sem_cat/02_glosses_translated_nllb_distilled_1_3b_smoke.csv
+  --out-file data/sem_cat/02_glosses_translated_nllb_3_3b_smoke.csv
 ```
 
 ```bash
 # Full runs
 python3 -m src.sem_cat.02_translate_glosses --model-key google
 python3 -m src.sem_cat.02_translate_glosses --model-key helsinki_opus_mt_ru_en --device cuda
-python3 -m src.sem_cat.02_translate_glosses --model-key nllb_distilled_1_3b --device cuda --round-trip
-python3 -m src.sem_cat.02_translate_glosses --model-key nllb_1_3b --device cuda --round-trip
 python3 -m src.sem_cat.02_translate_glosses --model-key nllb_3_3b --device cuda --round-trip
-python3 -m src.sem_cat.02_translate_glosses --model-key wmt19_ru_en --device cuda
+python3 -m src.sem_cat.02_translate_glosses --model-key tower_instruct_13b --device cuda
+python3 -m src.sem_cat.02_translate_glosses --model-key hy_mt2_30b_a3b --device cuda
+python3 -m src.sem_cat.02_translate_glosses --model-key alma_7b_r --device cuda
 ```
 
 **Important behavior**
@@ -265,10 +273,10 @@ data/sem_cat/02_glosses_translated_<model_key>.csv.blanks.csv
 ```text
 google ─────────────────┐
 helsinki_opus_mt_ru_en ┤
-nllb_distilled_1_3b ───┼──► merge by gloss_ru
-nllb_1_3b ─────────────┤
-nllb_3_3b ─────────────┤
-wmt19_ru_en ───────────┘
+nllb_3_3b ──────────────┤
+tower_instruct_13b ─────┼──► merge by gloss_ru
+hy_mt2_30b_a3b ─────────┤
+alma_7b_r ──────────────┘
                     │
                     ▼
      consensus clusters + disagreement score
@@ -294,7 +302,7 @@ wmt19_ru_en ───────────┘
 python3 -m src.sem_cat.03_compare_translations \
   --translations google=data/sem_cat/02_glosses_translated_google.csv \
   --translations helsinki_opus_mt_ru_en=data/sem_cat/02_glosses_translated_helsinki_opus_mt_ru_en.csv \
-  --translations nllb_distilled_1_3b=data/sem_cat/02_glosses_translated_nllb_distilled_1_3b.csv
+  --translations nllb_3_3b=data/sem_cat/02_glosses_translated_nllb_3_3b.csv
 ```
 
 **Larger example**
@@ -303,10 +311,9 @@ python3 -m src.sem_cat.03_compare_translations \
 python3 -m src.sem_cat.03_compare_translations \
   --translations google=data/sem_cat/02_glosses_translated_google.csv \
   --translations helsinki_opus_mt_ru_en=data/sem_cat/02_glosses_translated_helsinki_opus_mt_ru_en.csv \
-  --translations nllb_distilled_1_3b=data/sem_cat/02_glosses_translated_nllb_distilled_1_3b.csv \
-  --translations nllb_1_3b=data/sem_cat/02_glosses_translated_nllb_1_3b.csv \
   --translations nllb_3_3b=data/sem_cat/02_glosses_translated_nllb_3_3b.csv \
-  --translations wmt19_ru_en=data/sem_cat/02_glosses_translated_wmt19_ru_en.csv
+  --translations tower_instruct_13b=data/sem_cat/02_glosses_translated_tower_instruct_13b.csv \
+  --translations alma_7b_r=data/sem_cat/02_glosses_translated_alma_7b_r.csv
 ```
 
 **Important behavior**
@@ -642,18 +649,18 @@ pytest tests/sem_cat/ -q
 # 1. smoke tests
 python3 -m src.sem_cat.02_translate_glosses --model-key google --backend-info
 python3 -m src.sem_cat.02_translate_glosses --model-key helsinki_opus_mt_ru_en --backend-info
-python3 -m src.sem_cat.02_translate_glosses --model-key nllb_distilled_1_3b --backend-info
+python3 -m src.sem_cat.02_translate_glosses --model-key nllb_3_3b --backend-info
 
 # 2. translations
 python3 -m src.sem_cat.02_translate_glosses --model-key google
 python3 -m src.sem_cat.02_translate_glosses --model-key helsinki_opus_mt_ru_en --device cuda
-python3 -m src.sem_cat.02_translate_glosses --model-key nllb_distilled_1_3b --device cuda --round-trip
+python3 -m src.sem_cat.02_translate_glosses --model-key nllb_3_3b --device cuda --round-trip
 
 # 3. comparison
 python3 -m src.sem_cat.03_compare_translations \
   --translations google=data/sem_cat/02_glosses_translated_google.csv \
   --translations helsinki_opus_mt_ru_en=data/sem_cat/02_glosses_translated_helsinki_opus_mt_ru_en.csv \
-  --translations nllb_distilled_1_3b=data/sem_cat/02_glosses_translated_nllb_distilled_1_3b.csv
+  --translations nllb_3_3b=data/sem_cat/02_glosses_translated_nllb_3_3b.csv
 
 # 4. WordNet lookup
 python3 -m src.sem_cat.04_wordnet_lookup \

@@ -211,7 +211,7 @@ def main() -> None:
     parser.add_argument("--backend", type=str, choices=["marian", "google", "nllb"], default="marian",
                         help='legacy: translation backend (default: marian). Prefer --model-key.')
     parser.add_argument(
-        "--nllb-model", type=str, default="facebook/nllb-200-distilled-1.3B",
+        "--nllb-model", type=str, default="facebook/nllb-200-3.3B",
         help="legacy: NLLB model name (used with --backend nllb). Prefer --model-key.",
     )
     parser.add_argument(

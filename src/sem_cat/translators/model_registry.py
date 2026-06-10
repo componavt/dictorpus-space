@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 
-BackendFamily = Literal["google", "hf_seq2seq", "nllb"]
+BackendFamily = Literal["google", "hf_seq2seq", "nllb", "hf_causal"]
 
 
 @dataclass(frozen=True)
@@ -28,6 +28,11 @@ class ModelSpec:
     tokenizer_max_length: int = 64
     generation_preset: str = "gloss_strict"
     supports_roundtrip: bool = True
+
+    # Causal LM specific (ignored for non-causal backends)
+    prompt_style: str | None = None
+    use_chat_template: bool = False
+    trust_remote_code: bool = False
 
 
 MODEL_REGISTRY: dict[str, ModelSpec] = {
@@ -59,34 +64,6 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
         generation_preset="gloss_strict",
         supports_roundtrip=True,
     ),
-    "nllb_distilled_1_3b": ModelSpec(
-        model_key="nllb_distilled_1_3b",
-        backend_family="nllb",
-        model_name="facebook/nllb-200-distilled-1.3B",
-        src_lang="rus_Cyrl",
-        tgt_lang="eng_Latn",
-        reverse_model_name="facebook/nllb-200-distilled-1.3B",
-        reverse_src_lang="eng_Latn",
-        reverse_tgt_lang="rus_Cyrl",
-        default_batch_size=32,
-        tokenizer_max_length=128,
-        generation_preset="gloss_strict",
-        supports_roundtrip=True,
-    ),
-    "nllb_1_3b": ModelSpec(
-        model_key="nllb_1_3b",
-        backend_family="nllb",
-        model_name="facebook/nllb-200-1.3B",
-        src_lang="rus_Cyrl",
-        tgt_lang="eng_Latn",
-        reverse_model_name="facebook/nllb-200-1.3B",
-        reverse_src_lang="eng_Latn",
-        reverse_tgt_lang="rus_Cyrl",
-        default_batch_size=32,
-        tokenizer_max_length=128,
-        generation_preset="gloss_strict",
-        supports_roundtrip=True,
-    ),
     "nllb_3_3b": ModelSpec(
         model_key="nllb_3_3b",
         backend_family="nllb",
@@ -101,19 +78,52 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
         generation_preset="gloss_strict",
         supports_roundtrip=True,
     ),
-    "wmt19_ru_en": ModelSpec(
-        model_key="wmt19_ru_en",
-        backend_family="hf_seq2seq",
-        model_name="facebook/wmt19-ru-en",
-        src_lang="ru",
-        tgt_lang="en",
+    "tower_instruct_13b": ModelSpec(
+        model_key="tower_instruct_13b",
+        backend_family="hf_causal",
+        model_name="Unbabel/TowerInstruct-13B-v0.1",
+        src_lang="Russian",
+        tgt_lang="English",
         reverse_model_name=None,
         reverse_src_lang=None,
         reverse_tgt_lang=None,
-        default_batch_size=32,
-        tokenizer_max_length=128,
+        default_batch_size=4,
+        tokenizer_max_length=256,
         generation_preset="gloss_strict",
         supports_roundtrip=False,
+        prompt_style="tower_chatml",
+        use_chat_template=True,
+    ),
+    "hy_mt2_30b_a3b": ModelSpec(
+        model_key="hy_mt2_30b_a3b",
+        backend_family="hf_causal",
+        model_name="tencent/Hy-MT2-30B-A3B",
+        src_lang="Russian",
+        tgt_lang="English",
+        reverse_model_name=None,
+        reverse_src_lang=None,
+        reverse_tgt_lang=None,
+        default_batch_size=4,
+        tokenizer_max_length=256,
+        generation_preset="gloss_strict",
+        supports_roundtrip=False,
+        prompt_style="hy_chat",
+        trust_remote_code=True,
+    ),
+    "alma_7b_r": ModelSpec(
+        model_key="alma_7b_r",
+        backend_family="hf_causal",
+        model_name="haoranxu/ALMA-7B-R",
+        src_lang="Russian",
+        tgt_lang="English",
+        reverse_model_name=None,
+        reverse_src_lang=None,
+        reverse_tgt_lang=None,
+        default_batch_size=4,
+        tokenizer_max_length=256,
+        generation_preset="gloss_strict",
+        supports_roundtrip=False,
+        prompt_style="alma_plain",
     ),
 }
 
@@ -146,13 +156,9 @@ def resolve_legacy_args_to_model_key(
     Supports old usage patterns:
         --backend google                              -> google
         --backend marian                              -> helsinki_opus_mt_ru_en
-        --backend nllb --nllb-model facebook/nllb-200-distilled-1.3B -> nllb_distilled_1_3b
-        --backend nllb --nllb-model facebook/nllb-200-1.3B         -> nllb_1_3b
-        --backend nllb --nllb-model facebook/nllb-200-3.3B         -> nllb_3_3b
+        --backend nllb --nllb-model facebook/nllb-200-3.3B -> nllb_3_3b
     """
     nllb_model_map = {
-        "facebook/nllb-200-distilled-1.3B": "nllb_distilled_1_3b",
-        "facebook/nllb-200-1.3B": "nllb_1_3b",
         "facebook/nllb-200-3.3B": "nllb_3_3b",
     }
 
@@ -161,7 +167,7 @@ def resolve_legacy_args_to_model_key(
     if backend == "marian":
         return "helsinki_opus_mt_ru_en"
     if backend == "nllb":
-        model = nllb_model or "facebook/nllb-200-distilled-1.3B"
+        model = nllb_model or "facebook/nllb-200-3.3B"
         if model in nllb_model_map:
             return nllb_model_map[model]
         raise ValueError(

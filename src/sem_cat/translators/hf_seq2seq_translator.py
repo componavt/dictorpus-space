@@ -3,7 +3,6 @@
 Handles encoder-decoder models such as:
 - Helsinki-NLP/opus-mt-ru-en
 - Helsinki-NLP/opus-mt-en-ru
-- facebook/wmt19-ru-en
 
 torch and transformers are lazily imported so that the module is
 import-safe even when those heavy dependencies are absent.

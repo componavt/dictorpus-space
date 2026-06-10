@@ -29,26 +29,37 @@ from src.sem_cat.translators.factory import build_translator, build_reverse_tran
 
 
 # ---------------------------------------------------------------------------
-# 1. Model registry contains all 6 model keys
+# 1. Model registry contains all 7 model keys
 # ---------------------------------------------------------------------------
 
 EXPECTED_KEYS = [
     "google",
     "helsinki_opus_mt_ru_en",
+    "nllb_3_3b",
+    "tower_instruct_13b",
+    "hy_mt2_30b_a3b",
+    "alma_7b_r",
+]
+
+EXPECTED_REMOVED_KEYS = [
     "nllb_distilled_1_3b",
     "nllb_1_3b",
-    "nllb_3_3b",
     "wmt19_ru_en",
 ]
 
 
 class TestModelRegistry:
-    def test_all_six_keys_present(self):
+    def test_all_expected_keys_present(self):
         keys = list_model_keys()
         for key in EXPECTED_KEYS:
             assert key in keys, f"Missing model key: {key}"
 
-    def test_no_extra_keys(self):
+    def test_removed_keys_absent(self):
+        keys = set(list_model_keys())
+        for key in EXPECTED_REMOVED_KEYS:
+            assert key not in keys, f"Removed key still present: {key}"
+
+    def test_registry_has_six_keys(self):
         keys = list_model_keys()
         assert len(keys) == 6, f"Expected 6 keys, got {len(keys)}: {keys}"
 
@@ -65,15 +76,16 @@ class TestModelRegistry:
     def test_backend_families(self):
         assert get_model_spec("google").backend_family == "google"
         assert get_model_spec("helsinki_opus_mt_ru_en").backend_family == "hf_seq2seq"
-        assert get_model_spec("nllb_distilled_1_3b").backend_family == "nllb"
-        assert get_model_spec("nllb_1_3b").backend_family == "nllb"
         assert get_model_spec("nllb_3_3b").backend_family == "nllb"
-        assert get_model_spec("wmt19_ru_en").backend_family == "hf_seq2seq"
+        assert get_model_spec("tower_instruct_13b").backend_family == "hf_causal"
+        assert get_model_spec("hy_mt2_30b_a3b").backend_family == "hf_causal"
+        assert get_model_spec("alma_7b_r").backend_family == "hf_causal"
 
-    def test_wmt19_no_roundtrip(self):
-        spec = get_model_spec("wmt19_ru_en")
-        assert spec.supports_roundtrip is False
-        assert spec.reverse_model_name is None
+    def test_causal_models_no_roundtrip(self):
+        for key in ["tower_instruct_13b", "hy_mt2_30b_a3b", "alma_7b_r"]:
+            spec = get_model_spec(key)
+            assert spec.supports_roundtrip is False
+            assert spec.reverse_model_name is None
 
     def test_google_supports_roundtrip(self):
         spec = get_model_spec("google")
@@ -81,12 +93,11 @@ class TestModelRegistry:
         assert spec.reverse_model_name == "google"
 
     def test_nllb_specs_have_reverse(self):
-        for key in ["nllb_distilled_1_3b", "nllb_1_3b", "nllb_3_3b"]:
-            spec = get_model_spec(key)
-            assert spec.supports_roundtrip is True
-            assert spec.reverse_model_name is not None
-            assert spec.reverse_src_lang is not None
-            assert spec.reverse_tgt_lang is not None
+        spec = get_model_spec("nllb_3_3b")
+        assert spec.supports_roundtrip is True
+        assert spec.reverse_model_name is not None
+        assert spec.reverse_src_lang is not None
+        assert spec.reverse_tgt_lang is not None
 
 
 # ---------------------------------------------------------------------------
@@ -100,28 +111,23 @@ class TestLegacyResolver:
     def test_marian(self):
         assert resolve_legacy_args_to_model_key("marian", None) == "helsinki_opus_mt_ru_en"
 
-    def test_nllb_distilled(self):
-        assert resolve_legacy_args_to_model_key(
-            "nllb", "facebook/nllb-200-distilled-1.3B"
-        ) == "nllb_distilled_1_3b"
-
-    def test_nllb_1_3b(self):
-        assert resolve_legacy_args_to_model_key(
-            "nllb", "facebook/nllb-200-1.3B"
-        ) == "nllb_1_3b"
-
     def test_nllb_3_3b(self):
         assert resolve_legacy_args_to_model_key(
             "nllb", "facebook/nllb-200-3.3B"
         ) == "nllb_3_3b"
 
     def test_nllb_default(self):
-        # Default NLLB model should resolve to distilled
-        assert resolve_legacy_args_to_model_key("nllb", None) == "nllb_distilled_1_3b"
+        assert resolve_legacy_args_to_model_key("nllb", None) == "nllb_3_3b"
 
     def test_unknown_nllb_model(self):
         with pytest.raises(ValueError, match="Unknown NLLB model"):
             resolve_legacy_args_to_model_key("nllb", "unknown/model")
+
+    def test_removed_nllb_models_raise_error(self):
+        with pytest.raises(ValueError, match="Unknown NLLB model"):
+            resolve_legacy_args_to_model_key("nllb", "facebook/nllb-200-distilled-1.3B")
+        with pytest.raises(ValueError, match="Unknown NLLB model"):
+            resolve_legacy_args_to_model_key("nllb", "facebook/nllb-200-1.3B")
 
     def test_default_fallback(self):
         # No backend specified -> default to helsinki
@@ -159,6 +165,11 @@ class TestImportSafety:
         """marian_translator module must import without torch/transformers."""
         from src.sem_cat.translators import marian_translator
         assert marian_translator.MarianTranslator is not None
+
+    def test_hf_causal_module_imports(self):
+        """hf_causal_translator module must import without torch/transformers."""
+        from src.sem_cat.translators import hf_causal_translator
+        assert hf_causal_translator.HFCausalTranslator is not None
 
     def test_google_translator_importable_without_deep_translator(self, monkeypatch):
         """GoogleTranslator module must be importable even without deep_translator.
@@ -206,8 +217,8 @@ class TestErrorHierarchy:
 
         with pytest.raises(BackendUnavailableError):
             NLLBTranslator(
-                model_key="nllb_distilled_1_3b",
-                model_name="facebook/nllb-200-distilled-1.3B",
+                model_key="nllb_3_3b",
+                model_name="facebook/nllb-200-3.3B",
             )
 
 
@@ -236,15 +247,16 @@ class TestFactory:
         except Exception:
             pytest.skip("deep_translator not available")
 
-    def test_wmt19_no_reverse(self):
-        spec = get_model_spec("wmt19_ru_en")
-        reverse = build_reverse_translator(spec)
-        assert reverse is None
+    def test_causal_no_reverse(self):
+        for key in ["tower_instruct_13b", "hy_mt2_30b_a3b", "alma_7b_r"]:
+            spec = get_model_spec(key)
+            reverse = build_reverse_translator(spec)
+            assert reverse is None
 
     def test_nllb_raises_without_torch(self, monkeypatch):
         """NLLBTranslator should raise BackendUnavailableError when
         torch is not available."""
-        spec = get_model_spec("nllb_distilled_1_3b")
+        spec = get_model_spec("nllb_3_3b")
         from src.sem_cat.translators.base import BackendUnavailableError
 
         with pytest.raises(BackendUnavailableError):
@@ -287,8 +299,8 @@ class TestNLLBGeneration:
 
         from src.sem_cat.translators.nllb_translator import NLLBTranslator
         translator = NLLBTranslator(
-            model_key="nllb_distilled_1_3b",
-            model_name="facebook/nllb-200-distilled-1.3B",
+            model_key="nllb_3_3b",
+            model_name="facebook/nllb-200-3.3B",
         )
         # The generation config should have max_length set to 20
         # to avoid conflict with max_new_tokens
@@ -622,8 +634,220 @@ class TestCLIGracefulFailure:
 
 
 # ---------------------------------------------------------------------------
-# 15. Batch-size precedence
+# 15. HFCausalTranslator prompt and continuation tests
 # ---------------------------------------------------------------------------
+
+class TestHFCausalPromptBuilding:
+    def test_different_prompt_styles_exist(self):
+        from src.sem_cat.translators.hf_causal_translator import _PROMPT_TEMPLATES
+        assert "tower_chatml" in _PROMPT_TEMPLATES
+        assert "hy_chat" in _PROMPT_TEMPLATES
+        assert "alma_plain" in _PROMPT_TEMPLATES
+
+    def test_alma_prompt_includes_src_tgt(self):
+        from src.sem_cat.translators.hf_causal_translator import _PROMPT_TEMPLATES
+        template = _PROMPT_TEMPLATES["alma_plain"]
+        result = template.format(src_lang="Russian", tgt_lang="English", text="дом")
+        assert "Russian" in result
+        assert "English" in result
+        assert "дом" in result
+
+    def test_tower_prompt_includes_src_lang(self):
+        from src.sem_cat.translators.hf_causal_translator import _PROMPT_TEMPLATES
+        template = _PROMPT_TEMPLATES["tower_chatml"]
+        result = template.format(src_lang="Russian", tgt_lang="English", text="дом")
+        assert "Russian" in result
+        assert "дом" in result
+
+    def test_unknown_prompt_style_uses_default(self, monkeypatch):
+        import types
+        fake_torch = types.ModuleType("torch")
+        fake_torch.no_grad = lambda: type("ctx", (), {"__enter__": lambda s: None, "__exit__": lambda s, *a: None})()
+        monkeypatch.setitem(sys.modules, "torch", fake_torch)
+
+        class FakeTokenizer:
+            @classmethod
+            def from_pretrained(cls, *args, **kwargs):
+                tok = types.SimpleNamespace()
+                tok.pad_token = None
+                tok.eos_token = "</s>"
+                return tok
+
+        class FakeCausalLM:
+            @classmethod
+            def from_pretrained(cls, *args, **kwargs):
+                class M:
+                    def to(self, device): return self
+                return M()
+
+        fake_transformers = types.ModuleType("transformers")
+        fake_transformers.AutoTokenizer = FakeTokenizer
+        fake_transformers.AutoModelForCausalLM = FakeCausalLM
+        monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+        from src.sem_cat.translators.hf_causal_translator import (
+            HFCausalTranslator, _DEFAULT_TEMPLATE,
+        )
+        t = HFCausalTranslator(
+            model_key="test",
+            model_name="test-model",
+            prompt_style="nonexistent_style",
+        )
+        assert t._prompt_template == _DEFAULT_TEMPLATE
+
+
+class TestHFCausalContinuationSlicing:
+    def test_generated_continuation_is_token_based(self, monkeypatch):
+        import types
+        fake_torch = types.ModuleType("torch")
+        fake_torch.no_grad = lambda: type("ctx", (), {"__enter__": lambda s: None, "__exit__": lambda s, *a: None})()
+
+        class FakeTensor:
+            def __init__(self, data):
+                self._data = data
+            @property
+            def shape(self):
+                data = self._data
+                if isinstance(data, list) and data and isinstance(data[0], list):
+                    return [len(data), len(data[0])]
+                return [len(data)]
+            def __getitem__(self, idx):
+                if isinstance(idx, tuple):
+                    row = idx[0]
+                    if isinstance(row, slice):
+                        return FakeTensor(self._data[idx[1]:])
+                    result = self._data[row][idx[1]] if isinstance(idx[1], slice) else self._data[row]
+                    return FakeTensor(result) if isinstance(result, list) else result
+                if isinstance(idx, slice):
+                    return FakeTensor(self._data[idx])
+                return self._data[idx]
+            def to(self, device):
+                return self
+
+        class FakeTokenizer:
+            @classmethod
+            def from_pretrained(cls, *args, **kwargs):
+                tok = FakeTokenizer()
+                tok.pad_token = None
+                tok.eos_token = "</s>"
+                tok.apply_chat_template = None
+                return tok
+            def __call__(self, texts, **kwargs):
+                input_ids = FakeTensor([[1, 2, 3] for _ in texts])
+                attention_mask = FakeTensor([[1, 1, 1] for _ in texts])
+                return {"input_ids": input_ids, "attention_mask": attention_mask}
+            def decode(self, ids, **kwargs):
+                if hasattr(ids, '_data'):
+                    return "house"
+                return "house"
+
+        class FakeModel:
+            generation_config = types.SimpleNamespace()
+            generation_config.max_length = None
+            def to(self, device):
+                return self
+            def generate(self, **kwargs):
+                return FakeTensor([[1, 2, 3, 4, 5, 6, 7]])
+
+        fake_transformers = types.ModuleType("transformers")
+        fake_transformers.AutoTokenizer = FakeTokenizer
+        fake_transformers.AutoModelForCausalLM = type(
+            "FakeCausalLM", (),
+            {"from_pretrained": classmethod(lambda c, *a, **k: FakeModel())}
+        )
+        monkeypatch.setitem(sys.modules, "torch", fake_torch)
+        monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+        from src.sem_cat.translators.hf_causal_translator import HFCausalTranslator
+        t = HFCausalTranslator(
+            model_key="test", model_name="test-model",
+            prompt_style="alma_plain",
+        )
+        result = t.translate("дом")
+        assert isinstance(result, str)
+        assert result == "house"
+
+    def test_empty_input_returns_none(self, monkeypatch):
+        import types
+        fake_torch = types.ModuleType("torch")
+        fake_torch.no_grad = lambda: type("ctx", (), {"__enter__": lambda s: None, "__exit__": lambda s, *a: None})()
+
+        class FakeTokenizer:
+            @classmethod
+            def from_pretrained(cls, *args, **kwargs):
+                tok = types.SimpleNamespace()
+                tok.pad_token = None
+                tok.eos_token = "</s>"
+                return tok
+
+        class FakeCausalLM:
+            @classmethod
+            def from_pretrained(cls, *args, **kwargs):
+                class M:
+                    def to(self, device): return self
+                return M()
+
+        fake_transformers = types.ModuleType("transformers")
+        fake_transformers.AutoTokenizer = FakeTokenizer
+        fake_transformers.AutoModelForCausalLM = FakeCausalLM
+        monkeypatch.setitem(sys.modules, "torch", fake_torch)
+        monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+        from src.sem_cat.translators.hf_causal_translator import HFCausalTranslator
+        t = HFCausalTranslator(
+            model_key="test", model_name="test-model",
+        )
+        assert t.translate("") is None
+        assert t.translate("   ") is None
+
+    def test_causal_has_no_roundtrip(self, monkeypatch):
+        import types
+        fake_torch = types.ModuleType("torch")
+        fake_torch.no_grad = lambda: type("ctx", (), {"__enter__": lambda s: None, "__exit__": lambda s, *a: None})()
+
+        class FakeTokenizer:
+            @classmethod
+            def from_pretrained(cls, *args, **kwargs):
+                tok = types.SimpleNamespace()
+                tok.pad_token = None
+                tok.eos_token = "</s>"
+                return tok
+
+        class FakeCausalLM:
+            @classmethod
+            def from_pretrained(cls, *args, **kwargs):
+                class M:
+                    def to(self, device): return self
+                return M()
+
+        fake_transformers = types.ModuleType("transformers")
+        fake_transformers.AutoTokenizer = FakeTokenizer
+        fake_transformers.AutoModelForCausalLM = FakeCausalLM
+        monkeypatch.setitem(sys.modules, "torch", fake_torch)
+        monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+        from src.sem_cat.translators.hf_causal_translator import HFCausalTranslator
+        t = HFCausalTranslator(
+            model_key="test", model_name="test-model",
+        )
+        assert t.supports_roundtrip is False
+
+
+class TestHFCausalModelSpecProperties:
+    def test_tower_has_chat_template_enabled(self):
+        spec = get_model_spec("tower_instruct_13b")
+        assert spec.use_chat_template is True
+        assert spec.prompt_style == "tower_chatml"
+
+    def test_hy_mt2_requires_trust_remote_code(self):
+        spec = get_model_spec("hy_mt2_30b_a3b")
+        assert spec.trust_remote_code is True
+        assert spec.prompt_style == "hy_chat"
+
+    def test_alma_uses_plain_prompt(self):
+        spec = get_model_spec("alma_7b_r")
+        assert spec.prompt_style == "alma_plain"
+        assert spec.use_chat_template is False
 
 class TestBatchSizePrecedence:
     def test_user_cli_overrides_spec_default(self):

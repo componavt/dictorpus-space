@@ -6,4 +6,4 @@ gitingest src \
   --exclude-pattern "src/notebooks" \
   --exclude-pattern "*/__pycache__/*" \
   --exclude-pattern "*.ipynb" \
-  --output out/ai_concat/digest_git_ingest_11.txt
+  --output out/ai_concat/digest_git_ingest_14.txt
