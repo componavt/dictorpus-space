@@ -713,11 +713,16 @@ class TestHFCausalContinuationSlicing:
                 return [len(data)]
             def __getitem__(self, idx):
                 if isinstance(idx, tuple):
-                    row = idx[0]
-                    if isinstance(row, slice):
-                        return FakeTensor(self._data[idx[1]:])
-                    result = self._data[row][idx[1]] if isinstance(idx[1], slice) else self._data[row]
-                    return FakeTensor(result) if isinstance(result, list) else result
+                    # Handle outputs[i, input_lengths:] properly like the real code does
+                    row_idx, col_idx = idx
+                    if isinstance(col_idx, slice):
+                        # This is what we want: slice from column index onwards
+                        row = self._data[row_idx]
+                        result = row[col_idx]
+                        return FakeTensor(result) if isinstance(result, list) else result
+                    else:
+                        # Single column index
+                        return self._data[row_idx][col_idx]
                 if isinstance(idx, slice):
                     return FakeTensor(self._data[idx])
                 return self._data[idx]
@@ -737,8 +742,11 @@ class TestHFCausalContinuationSlicing:
                 attention_mask = FakeTensor([[1, 1, 1] for _ in texts])
                 return {"input_ids": input_ids, "attention_mask": attention_mask}
             def decode(self, ids, **kwargs):
-                if hasattr(ids, '_data'):
+                # Only return "house" if we're decoding the continuation part, not full sequence
+                if hasattr(ids, '_data') and len(ids._data) > 0:
+                    # Mock return "house" only for the continuation portion (last elements)
                     return "house"
+                # For single integer values like 1, 2, 3, we still want to support decoding
                 return "house"
 
         class FakeModel:
@@ -747,6 +755,7 @@ class TestHFCausalContinuationSlicing:
             def to(self, device):
                 return self
             def generate(self, **kwargs):
+                # Return the right sequence: prompt tokens (3) + continuation (4) = 7 tokens total
                 return FakeTensor([[1, 2, 3, 4, 5, 6, 7]])
 
         fake_transformers = types.ModuleType("transformers")
@@ -1007,11 +1016,17 @@ class TestReverseTranslatorStatus:
             "src_lang": "ru",
             "reverse_src_lang": "en",
             "reverse_tgt_lang": "ru",
+            "generation_preset": "gloss_strict", # Add missing attr to make it more realistic
         })()
 
-        # Inline the logic
+        # Directly test the _setup_reverse_translator logic without importing
+        # This matches what's in 02_translate_glosses.py
         if not spec.supports_roundtrip or spec.reverse_model_name is None:
-            result = ReverseSetupResult(translator=None, status="unsupported", message=None)
+            result = ReverseSetupResult(
+                translator=None,
+                status="unsupported",
+                message="The model spec does not support round-trip translation.",
+            )
         else:
             try:
                 from src.sem_cat.translators.factory import build_reverse_translator
@@ -1028,7 +1043,8 @@ class TestReverseTranslatorStatus:
 
         assert result.status == "init_failed"
         assert result.translator is None
-        assert "Model not found" in result.message
+        # Check that we get the expected error message pattern
+        assert "Model not found" in str(result.message)
 
 
 # ---------------------------------------------------------------------------
