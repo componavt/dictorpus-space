@@ -113,8 +113,8 @@ def lookup_domain(gloss_en: str, wn_pos: str | None, wn_domains: dict) -> tuple[
 def main():
     parser = argparse.ArgumentParser(description="Map English glosses to WordNet domains")
     parser.add_argument("--translated-file", type=str,
-                        default=str(_DEFAULT_OUT_DIR / "glosses_translated_marian.csv"),
-                        help="path to glosses_translated_*.csv (default: glosses_translated_marian.csv)")
+                        default=None,
+                        help="path to glosses_translated_*.csv (default: required, pick a model key from step 02)")
     parser.add_argument("--wn-domains-file", type=str, required=True,
                         help="path to wn-domains-3.2-20070223")
     parser.add_argument("--out-file", type=str,
@@ -129,6 +129,11 @@ def main():
                         help="source of POS tags: 'none', 'file', or 'meanings' (default: meanings)")
     
     args = parser.parse_args()
+    
+    if args.translated_file is None:
+        print("ERROR: --translated-file is required.")
+        print("Choose a model key from step 02 (e.g., google, helsinki_opus_mt_ru_en, nllb_3_3b, tower_instruct_13b, hy_mt2_30b_a3b, alma_7b_r)")
+        sys.exit(1)
 
     # Load glosses_translated.csv into a DataFrame
     print("Loading translated glosses...")

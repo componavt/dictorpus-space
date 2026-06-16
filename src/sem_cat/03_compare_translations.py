@@ -18,12 +18,13 @@ This script does NOT use WordNet, NLTK, or any translation model.
 It only reads CSV files, computes metrics, and writes CSV files.
 
 EXAMPLE COMMANDS:
-  # Compare all 5 models
+  # Compare all 6 models
   python3 -m src.sem_cat.03_compare_translations \\
       --translations google=data/sem_cat/02_glosses_translated_google.csv \\
       --translations helsinki_opus_mt_ru_en=data/sem_cat/02_glosses_translated_helsinki_opus_mt_ru_en.csv \\
       --translations nllb_3_3b=data/sem_cat/02_glosses_translated_nllb_3_3b.csv \\
       --translations tower_instruct_13b=data/sem_cat/02_glosses_translated_tower_instruct_13b.csv \\
+      --translations hy_mt2_30b_a3b=data/sem_cat/02_glosses_translated_hy_mt2_30b_a3b.csv \\
       --translations alma_7b_r=data/sem_cat/02_glosses_translated_alma_7b_r.csv
 
   # Compare only 3 models
@@ -40,7 +41,7 @@ EXAMPLE COMMANDS:
 
   # Legacy compatibility (pairwise Marian/Google)
   python3 -m src.sem_cat.03_compare_translations \\
-      --marian-file data/sem_cat/02_glosses_translated_marian.csv \\
+      --marian-file data/sem_cat/02_glosses_translated_helsinki_opus_mt_ru_en.csv \\
       --google-file data/sem_cat/02_glosses_translated_google.csv
 
 All models are treated as first-class citizens. Google is just another
@@ -253,6 +254,8 @@ def print_comparison_summary(
     out_path: Path,
     review_path: Path,
     gold_path: Path,
+    review_df: pd.DataFrame | None = None,
+    gold_df: pd.DataFrame | None = None,
 ) -> None:
     """Print console summary statistics."""
     total = len(results)
@@ -266,7 +269,9 @@ def print_comparison_summary(
 
     all_blank = sum(1 for r in results if r.non_blank_model_count == 0)
     strong_consensus = sum(1 for r in results if r.consensus_ratio >= 0.6 and r.good_model_count >= 3)
-    needs_review = sum(1 for r in results if r.needs_expert_review)
+
+    review_count = len(review_df) if review_df is not None else 0
+    gold_count = len(gold_df) if gold_df is not None else 0
 
     print(f"\n{'=' * 60}")
     print("COMPARISON SUMMARY")
@@ -284,8 +289,8 @@ def print_comparison_summary(
     print(f"  Medium (0.35-0.65):      {medium}")
     print(f"  Low    (< 0.35):         {low}")
     print()
-    print(f"Expert review queue:        {needs_review} rows -> {review_path}")
-    print(f"Gold standard template:     {needs_review} rows -> {gold_path}")
+    print(f"Expert review queue:        {review_count} rows -> {review_path}")
+    print(f"Gold standard template:     {gold_count} rows -> {gold_path}")
     print(f"Full comparison:            {total} rows -> {out_path}")
 
     # Per-model stats
@@ -494,10 +499,7 @@ def main() -> None:
         ).reset_index(drop=True)
 
     # Build review queue
-    if args.include_low_risk:
-        review_df = build_review_queue_df(full_df)
-    else:
-        review_df = build_review_queue_df(full_df)
+    review_df = build_review_queue_df(full_df, include_low_risk=args.include_low_risk)
 
     # Apply top-k
     if args.top_k is not None:
@@ -520,7 +522,7 @@ def main() -> None:
     gold_df.to_csv(gold_path, index=False)
 
     # Summary
-    print_comparison_summary(results, model_keys, out_path, review_path, gold_path)
+    print_comparison_summary(results, model_keys, out_path, review_path, gold_path, review_df, gold_df)
 
 
 if __name__ == "__main__":

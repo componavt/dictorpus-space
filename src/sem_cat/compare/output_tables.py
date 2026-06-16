@@ -70,9 +70,22 @@ def build_full_comparison_df(
     return pd.DataFrame(rows)
 
 
-def build_review_queue_df(full_df: pd.DataFrame) -> pd.DataFrame:
-    """Extract and format the review queue from the full comparison table."""
-    review = full_df[full_df["needs_expert_review"] == True].copy()
+def build_review_queue_df(
+    full_df: pd.DataFrame, include_low_risk: bool = False
+) -> pd.DataFrame:
+    """Extract and format the review queue from the full comparison table.
+    
+    Args:
+        full_df: Full comparison DataFrame
+        include_low_risk: If True, include rows with risk_level='low' in review queue
+    """
+    if include_low_risk:
+        review = full_df[
+            (full_df["needs_expert_review"] == True) | 
+            (full_df["risk_level"] == "low")
+        ].copy()
+    else:
+        review = full_df[full_df["needs_expert_review"] == True].copy()
 
     review_cols = [
         "gloss_ru",

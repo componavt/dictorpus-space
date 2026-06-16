@@ -399,6 +399,33 @@ def test_qa_keep_false_triggers_review():
 
 
 # ---------------------------------------------------------------------------
+# 14. Review queue include-low-risk behavior
+# ---------------------------------------------------------------------------
+
+def test_include_low_risk_flag():
+    """Verify that --include-low-risk expands the review queue."""
+    import importlib
+    import pandas as pd
+    mod = importlib.import_module("src.sem_cat.compare.output_tables")
+    build_review = mod.build_review_queue_df
+    
+    df = pd.DataFrame([
+        {"gloss_ru": "a", "needs_expert_review": True, "risk_level": "high"},
+        {"gloss_ru": "b", "needs_expert_review": True, "risk_level": "medium"},
+        {"gloss_ru": "c", "needs_expert_review": False, "risk_level": "low"},
+        {"gloss_ru": "d", "needs_expert_review": False, "risk_level": "medium"},
+    ])
+    
+    review_strict = build_review(df, include_low_risk=False)
+    review_inclusive = build_review(df, include_low_risk=True)
+    
+    assert len(review_strict) == 2, "Strict mode should exclude low-risk"
+    assert len(review_inclusive) == 3, "Include mode should add low-risk row"
+    assert "c" in review_inclusive["gloss_ru"].values, "Low-risk row should be included"
+    assert "c" not in review_strict["gloss_ru"].values, "Low-risk row should be excluded"
+
+
+# ---------------------------------------------------------------------------
 # Run all tests
 # ---------------------------------------------------------------------------
 
@@ -433,6 +460,7 @@ if __name__ == "__main__":
         test_risk_levels,
         test_low_risk_consensus_no_review,
         test_qa_keep_false_triggers_review,
+        test_include_low_risk_flag,
     ]
 
     passed = 0
