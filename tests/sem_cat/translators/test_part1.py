@@ -36,7 +36,7 @@ EXPECTED_KEYS = [
     "google",
     "helsinki_opus_mt_ru_en",
     "nllb_3_3b",
-    "tower_instruct_13b",
+    "tower_plus_9b",
     "hy_mt2_30b_a3b",
     "alma_7b_r",
 ]
@@ -77,12 +77,12 @@ class TestModelRegistry:
         assert get_model_spec("google").backend_family == "google"
         assert get_model_spec("helsinki_opus_mt_ru_en").backend_family == "hf_seq2seq"
         assert get_model_spec("nllb_3_3b").backend_family == "nllb"
-        assert get_model_spec("tower_instruct_13b").backend_family == "hf_causal"
+        assert get_model_spec("tower_plus_9b").backend_family == "hf_causal"
         assert get_model_spec("hy_mt2_30b_a3b").backend_family == "hf_causal"
         assert get_model_spec("alma_7b_r").backend_family == "hf_causal"
 
     def test_causal_models_no_roundtrip(self):
-        for key in ["tower_instruct_13b", "hy_mt2_30b_a3b", "alma_7b_r"]:
+        for key in ["tower_plus_9b", "hy_mt2_30b_a3b", "alma_7b_r"]:
             spec = get_model_spec(key)
             assert spec.supports_roundtrip is False
             assert spec.reverse_model_name is None
@@ -248,7 +248,7 @@ class TestFactory:
             pytest.skip("deep_translator not available")
 
     def test_causal_no_reverse(self):
-        for key in ["tower_instruct_13b", "hy_mt2_30b_a3b", "alma_7b_r"]:
+        for key in ["tower_plus_9b", "hy_mt2_30b_a3b", "alma_7b_r"]:
             spec = get_model_spec(key)
             reverse = build_reverse_translator(spec)
             assert reverse is None
@@ -843,8 +843,8 @@ class TestHFCausalContinuationSlicing:
 
 
 class TestHFCausalModelSpecProperties:
-    def test_tower_has_chat_template_enabled(self):
-        spec = get_model_spec("tower_instruct_13b")
+    def test_tower_plus_has_chat_template_enabled(self):
+        spec = get_model_spec("tower_plus_9b")
         assert spec.use_chat_template is True
         assert spec.prompt_style == "tower_chatml"
 

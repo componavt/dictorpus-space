@@ -78,10 +78,10 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
         generation_preset="gloss_strict",
         supports_roundtrip=True,
     ),
-    "tower_instruct_13b": ModelSpec(
-        model_key="tower_instruct_13b",
+    "tower_plus_9b": ModelSpec(
+        model_key="tower_plus_9b",
         backend_family="hf_causal",
-        model_name="Unbabel/TowerInstruct-13B-v0.1",
+        model_name="Unbabel/Tower-Plus-9B",
         src_lang="Russian",
         tgt_lang="English",
         reverse_model_name=None,

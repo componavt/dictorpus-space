@@ -132,7 +132,7 @@ def main():
     
     if args.translated_file is None:
         print("ERROR: --translated-file is required.")
-        print("Choose a model key from step 02 (e.g., google, helsinki_opus_mt_ru_en, nllb_3_3b, tower_instruct_13b, hy_mt2_30b_a3b, alma_7b_r)")
+        print("Choose a model key from step 02 (e.g., google, helsinki_opus_mt_ru_en, nllb_3_3b, tower_plus_9b, hy_mt2_30b_a3b, alma_7b_r)")
         sys.exit(1)
 
     # Load glosses_translated.csv into a DataFrame

@@ -1,7 +1,7 @@
 """HuggingFace causal LM translator for decoder-only translation models.
 
 Handles models such as:
-- Unbabel/TowerInstruct-13B-v0.1  (chat-template, instruction-style)
+- Unbabel/Tower-Plus-9B            (chat-template, instruction-style)
 - tencent/Hy-MT2-30B-A3B          (plain prompt, trust_remote_code)
 - haoranxu/ALMA-7B-R              (plain prompt, translation-focused)
 

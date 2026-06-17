@@ -99,7 +99,7 @@ Before a long run, check the backends. It is cheaper to discover drama here than
 python3 -m src.sem_cat.02_translate_glosses --model-key google --backend-info
 python3 -m src.sem_cat.02_translate_glosses --model-key helsinki_opus_mt_ru_en --backend-info
 python3 -m src.sem_cat.02_translate_glosses --model-key nllb_3_3b --backend-info
-python3 -m src.sem_cat.02_translate_glosses --model-key tower_instruct_13b --backend-info
+python3 -m src.sem_cat.02_translate_glosses --model-key tower_plus_9b --backend-info
 ```
 
 `--backend-info` is a quick preflight check. It loads the selected backend, runs a few tiny probe translations, prints an `OK / WARN / FAIL` summary, and exits without touching your real data files.
@@ -135,18 +135,18 @@ The actual model behind it is `Helsinki-NLP/opus-mt-ru-en`.
     google                     │ GoogleTranslator service          │ google         │ yes
     helsinki_opus_mt_ru_en     │ Helsinki-NLP/opus-mt-ru-en        │ hf_seq2seq     │ yes
     nllb_3_3b                  │ facebook/nllb-200-3.3B           │ nllb           │ yes
-    tower_instruct_13b         │ Unbabel/TowerInstruct-13B-v0.1   │ hf_causal      │ no
+    tower_plus_9b              │ Unbabel/Tower-Plus-9B             │ hf_causal      │ no
     hy_mt2_30b_a3b             │ tencent/Hy-MT2-30B-A3B           │ hf_causal      │ no
     alma_7b_r                  │ haoranxu/ALMA-7B-R               │ hf_causal      │ no
     ─────────────────────────────────────────────────────────────────────────────────────────────
 ```
 
 | CLI / registry key | Actual model / backend | Backend family | Round-trip | Notes |
-|---|---|---|---|---|---|
+|---|---|---|---|---|
 | `google` | GoogleTranslator service | `google` | ✓ | Handy baseline for quick checks and small runs |
 | `helsinki_opus_mt_ru_en` | `Helsinki-NLP/opus-mt-ru-en` | `hf_seq2seq` | ✓ | MarianMT baseline; fast and practical |
 | `nllb_3_3b` | `facebook/nllb-200-3.3B` | `nllb` | ✓ | Largest registered NLLB option |
-| `tower_instruct_13b` | `Unbabel/TowerInstruct-13B-v0.1` | `hf_causal` | ✗ | Instruction-style causal LM; RU→EN only |
+| `tower_plus_9b` | `Unbabel/Tower-Plus-9B` | `hf_causal` | ✗ | Instruction-style causal LM; RU→EN only |
 | `hy_mt2_30b_a3b` | `tencent/Hy-MT2-30B-A3B` | `hf_causal` | ✗ | MoE translation model; requires `trust_remote_code` |
 | `alma_7b_r` | `haoranxu/ALMA-7B-R` | `hf_causal` | ✗ | Translation-focused ALMA-R model; RU→EN only |
 
@@ -225,7 +225,7 @@ python3 -m src.sem_cat.02_translate_glosses \
 python3 -m src.sem_cat.02_translate_glosses --model-key google
 python3 -m src.sem_cat.02_translate_glosses --model-key helsinki_opus_mt_ru_en --device cuda
 python3 -m src.sem_cat.02_translate_glosses --model-key nllb_3_3b --device cuda --round-trip
-python3 -m src.sem_cat.02_translate_glosses --model-key tower_instruct_13b --device cuda
+python3 -m src.sem_cat.02_translate_glosses --model-key tower_plus_9b --device cuda
 python3 -m src.sem_cat.02_translate_glosses --model-key hy_mt2_30b_a3b --device cuda
 python3 -m src.sem_cat.02_translate_glosses --model-key alma_7b_r --device cuda
 ```
@@ -274,7 +274,7 @@ data/sem_cat/02_glosses_translated_<model_key>.csv.blanks.csv
 google ─────────────────┐
 helsinki_opus_mt_ru_en ┤
 nllb_3_3b ──────────────┤
-tower_instruct_13b ─────┼──► merge by gloss_ru
+tower_plus_9b ──────────┼──► merge by gloss_ru
 hy_mt2_30b_a3b ─────────┤
 alma_7b_r ──────────────┘
                     │
@@ -312,7 +312,7 @@ python3 -m src.sem_cat.03_compare_translations \
   --translations google=data/sem_cat/02_glosses_translated_google.csv \
   --translations helsinki_opus_mt_ru_en=data/sem_cat/02_glosses_translated_helsinki_opus_mt_ru_en.csv \
   --translations nllb_3_3b=data/sem_cat/02_glosses_translated_nllb_3_3b.csv \
-  --translations tower_instruct_13b=data/sem_cat/02_glosses_translated_tower_instruct_13b.csv \
+  --translations tower_plus_9b=data/sem_cat/02_glosses_translated_tower_plus_9b.csv \
   --translations alma_7b_r=data/sem_cat/02_glosses_translated_alma_7b_r.csv
 ```
 

@@ -23,7 +23,7 @@ EXAMPLE COMMANDS:
       --translations google=data/sem_cat/02_glosses_translated_google.csv \\
       --translations helsinki_opus_mt_ru_en=data/sem_cat/02_glosses_translated_helsinki_opus_mt_ru_en.csv \\
       --translations nllb_3_3b=data/sem_cat/02_glosses_translated_nllb_3_3b.csv \\
-      --translations tower_instruct_13b=data/sem_cat/02_glosses_translated_tower_instruct_13b.csv \\
+      --translations tower_plus_9b=data/sem_cat/02_glosses_translated_tower_plus_9b.csv \\
       --translations hy_mt2_30b_a3b=data/sem_cat/02_glosses_translated_hy_mt2_30b_a3b.csv \\
       --translations alma_7b_r=data/sem_cat/02_glosses_translated_alma_7b_r.csv
 
