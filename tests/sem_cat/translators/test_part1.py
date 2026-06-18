@@ -6,11 +6,33 @@ Run with: python3 -m pytest tests/sem_cat/translators/test_part1.py -v
 
 import sys
 import pathlib
+import os
 
 # Add project root to sys.path
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent.parent.parent))
 
 import pytest
+
+# Fixture to isolate proxy environment variables across tests
+@pytest.fixture(autouse=True)
+def isolate_proxy_env():
+    """Temporarily clear proxy env vars for test isolation.
+    
+    Prevents tests from accidentally picking up userproxy settings
+    that could cause HF initialization failures or false negatives.
+    """
+    proxy_vars = ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy")
+    saved = {v: os.environ.get(v) for v in proxy_vars if v in os.environ}
+    try:
+        for v in proxy_vars:
+            os.environ.pop(v, None)
+        yield
+    finally:
+        for v in proxy_vars:
+            if saved.get(v) is not None:
+                os.environ[v] = saved[v]
+            else:
+                os.environ.pop(v, None)
 
 from src.sem_cat.translators.model_registry import (
     MODEL_REGISTRY,
@@ -938,20 +960,17 @@ class TestProxyEnvHandling:
         assert len(bad) == 1
         assert bad[0][0] == "ALL_PROXY"
 
-    def test_explain_error_identifies_offending_var(self):
+    def test_explain_error_identifies_offending_var(self, monkeypatch):
         """Error message should identify the specific bad proxy var."""
         from src.sem_cat.translators.hf_runtime import explain_hf_init_error
         import os
-        os.environ["ALL_PROXY"] = "socks://127.0.0.1:12334"
-        try:
-            exc = ValueError("Unknown scheme for proxy URL URL('socks://127.0.0.1:12334/')")
-            msg = explain_hf_init_error(exc, "test-model")
-            assert "ALL_PROXY" in msg
-            assert "socks://" in msg
-            assert "socks5://" in msg
-            assert "env -u" in msg
-        finally:
-            del os.environ["ALL_PROXY"]
+        monkeypatch.setenv("ALL_PROXY", "socks://127.0.0.1:12334")
+        exc = ValueError("Unknown scheme for proxy URL URL('socks://127.0.0.1:12334/')")
+        msg = explain_hf_init_error(exc, "test-model")
+        assert "ALL_PROXY" in msg
+        assert "socks://" in msg
+        assert "socks5://" in msg
+        assert "env -u" in msg
 
 
 # ---------------------------------------------------------------------------

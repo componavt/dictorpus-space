@@ -98,6 +98,9 @@ class HFCausalTranslator(Translator):
         prompt_style: str | None = None,
         use_chat_template: bool = False,
         trust_remote_code: bool = False,
+        torch_dtype: str | None = None,
+        load_in_4bit: bool = False,
+        load_in_8bit: bool = False,
     ) -> None:
         self.model_key = model_key
         self.model_name = model_name
@@ -116,6 +119,11 @@ class HFCausalTranslator(Translator):
         self._prompt_template = _PROMPT_TEMPLATES.get(
             prompt_style or "", _DEFAULT_TEMPLATE
         )
+        
+        # Quantization config (used for summary output)
+        self._torch_dtype = torch_dtype
+        self._load_in_4bit = load_in_4bit
+        self._load_in_8bit = load_in_8bit
 
         try:
             import torch as _torch
@@ -146,6 +154,9 @@ class HFCausalTranslator(Translator):
             device=device,
             ignore_proxy_env=ignore_proxy_env,
             trust_remote_code=trust_remote_code,
+            torch_dtype=torch_dtype,
+            load_in_4bit=load_in_4bit,
+            load_in_8bit=load_in_8bit,
             torch=self.torch,
             AutoTokenizer=AutoTokenizer,
             AutoModelForCausalLM=AutoModelForCausalLM,
@@ -153,6 +164,53 @@ class HFCausalTranslator(Translator):
 
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
+        
+        # Print one-time model load summary
+        self._print_model_load_summary()
+
+    def _print_model_load_summary(self) -> None:
+        """Print a human-readable summary of model loading configuration once at startup."""
+        # Determine quantization mode
+        load_quantized = self._load_in_4bit or self._load_in_8bit
+        if self._load_in_4bit:
+            quant_mode = "4bit"
+        elif self._load_in_8bit:
+            quant_mode = "8bit"
+        else:
+            quant_mode = "none"
+        
+        effective_load_mode = "quantized-" + quant_mode if load_quantized else "normal"
+        
+        # Determine device_map status
+        uses_device_map = "auto" if load_quantized else "none"
+        
+        # bitsandbytes path
+        bnb_path = "yes" if load_quantized else "no"
+        
+        # round-trip status
+        roundtrip = "yes" if self.supports_roundtrip else "no"
+        
+        print()
+        print("-" * 60)
+        print("MODEL LOAD SUMMARY")
+        print("-" * 60)
+        print(f"Model key:                  {self.model_key}")
+        print(f"Model name:                 {self.model_name}")
+        print(f"Backend family:             hf_causal")
+        print(f"Requested device:           {self.device}")
+        print(f"Effective loading mode:     {effective_load_mode}")
+        print(f"Quantization:               {quant_mode}")
+        dtype_display = self._torch_dtype or "auto"
+        print(f"torch dtype:                {dtype_display}")
+        print(f"device_map:                 {uses_device_map}")
+        print(f"default trust_remote_code:  False")  # Will be True if passed in
+        print(f"Default batch size:         {self.default_batch_size}")
+        print(f"Tokenizer max length:       {self.tokenizer_max_length}")
+        print(f"Round-trip supported:       {roundtrip}")
+        print(f"local_files_only:           {self.local_files_only}")
+        print(f"ignore_proxy_env:           {self.ignore_proxy_env}")
+        print(f"bitsandbytes path:          {bnb_path}")
+        print()
 
     def _build_prompt_text(self, text: str) -> str:
         return self._prompt_template.format(
@@ -187,7 +245,13 @@ class HFCausalTranslator(Translator):
             truncation=True,
             max_length=self.tokenizer_max_length,
         )
-        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        
+        # When device_map="auto" is used (quantized loading), inputs should
+        # stay on CPU since the model handles device placement internally.
+        # For non-quantized loading without device_map, move inputs to device.
+        load_quantized = self._load_in_4bit or self._load_in_8bit
+        if not load_quantized:
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
         with self.torch.no_grad():
             outputs = self.model.generate(

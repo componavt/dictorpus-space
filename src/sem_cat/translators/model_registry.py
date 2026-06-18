@@ -29,6 +29,10 @@ class ModelSpec:
     generation_preset: str = "gloss_strict"
     supports_roundtrip: bool = True
 
+    torch_dtype: str | None = None
+    load_in_4bit: bool = False
+    load_in_8bit: bool = False
+
     # Causal LM specific (ignored for non-causal backends)
     prompt_style: str | None = None
     use_chat_template: bool = False
@@ -93,6 +97,7 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
         supports_roundtrip=False,
         prompt_style="tower_chatml",
         use_chat_template=True,
+        load_in_4bit=True,   # ~4.5 GB VRAM, fits comfortably on 16 GB
     ),
     "hy_mt2_30b_a3b": ModelSpec(
         model_key="hy_mt2_30b_a3b",

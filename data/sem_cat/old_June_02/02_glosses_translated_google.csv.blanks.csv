@@ -1,0 +1,28 @@
+gloss_ru,gloss_en,qa_keep,qa_score,qa_flags,qa_version,model_key,model_name,backend_family,translation_input_mode,input_text_used,pos_hint,meaning_hint,source_count,gloss_ru_back,roundtrip_distance,is_singleword_ru,input_token_count,output_token_count
+"застывание, загустение",,False,1.0,empty_translation,v2,google,google,google,raw,"застывание, загустение",,,0,,,False,2,0
+в обмороке,,False,1.0,empty_translation,v2,google,google,google,raw,в обмороке,,,0,,,False,2,0
+"преподаватель, преподавательница языка",,False,1.0,empty_translation,v2,google,google,google,raw,"преподаватель, преподавательница языка",,,0,,,False,3,0
+преподавание языка,,False,1.0,empty_translation,v2,google,google,google,raw,преподавание языка,,,0,,,False,2,0
+обучение языку,,False,1.0,empty_translation,v2,google,google,google,raw,обучение языку,,,0,,,False,2,0
+лоск,,False,1.0,empty_translation,v2,google,google,google,raw,лоск,,,0,,,True,1,0
+ослепительный,,False,1.0,empty_translation,v2,google,google,google,raw,ослепительный,,,0,,,True,1,0
+"ток, токование",,False,1.0,empty_translation,v2,google,google,google,raw,"ток, токование",,,0,,,False,2,0
+"гон, период половой активности",,False,1.0,empty_translation,v2,google,google,google,raw,"гон, период половой активности",,,0,,,False,4,0
+"нажимать, надавливать",,False,1.0,empty_translation,v2,google,google,google,raw,"нажимать, надавливать",,,0,,,False,2,0
+манометр,,False,1.0,empty_translation,v2,google,google,google,raw,манометр,,,0,,,True,1,0
+тиснёный,,False,1.0,empty_translation,v2,google,google,google,raw,тиснёный,,,0,,,True,1,0
+"напечатанный, изданный",,False,1.0,empty_translation,v2,google,google,google,raw,"напечатанный, изданный",,,0,,,False,2,0
+"вес, тяжесть",,False,1.0,empty_translation,v2,google,google,google,raw,"вес, тяжесть",,,0,,,False,2,0
+"груз, гнёт",,False,1.0,empty_translation,v2,google,google,google,raw,"груз, гнёт",,,0,,,False,2,0
+ударение,,False,1.0,empty_translation,v2,google,google,google,raw,ударение,,,0,,,True,1,0
+"весом в ..., какого-либо веса",,False,1.0,empty_translation,v2,google,google,google,raw,"весом в ..., какого-либо веса",,,0,,,False,5,0
+"весомый, внушительный",,False,1.0,empty_translation,v2,google,google,google,raw,"весомый, внушительный",,,0,,,False,2,0
+печатная буква,,False,1.0,empty_translation,v2,google,google,google,raw,печатная буква,,,0,,,False,2,0
+знак ударения,,False,1.0,empty_translation,v2,google,google,google,raw,знак ударения,,,0,,,False,2,0
+"часть, доля, пай",,False,1.0,empty_translation,v2,google,google,google,raw,"часть, доля, пай",,,0,,,False,3,0
+"участок, земельный надел",,False,1.0,empty_translation,v2,google,google,google,raw,"участок, земельный надел",,,0,,,False,3,0
+"кусочек, кусок",,False,1.0,empty_translation,v2,google,google,google,raw,"кусочек, кусок",,,0,,,False,2,0
+несгоревший,,False,1.0,empty_translation,v2,google,google,google,raw,несгоревший,,,0,,,True,1,0
+"несгораемый, огнестойкий",,False,1.0,empty_translation,v2,google,google,google,raw,"несгораемый, огнестойкий",,,0,,,False,2,0
+:,,False,1.0,empty_translation,v2,google,google,google,raw,:,,,0,,,True,1,0
+:,,False,1.0,empty_translation,v2,google,google,google,raw,:,,,0,,,True,1,0

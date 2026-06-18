@@ -146,7 +146,7 @@ The actual model behind it is `Helsinki-NLP/opus-mt-ru-en`.
 | `google` | GoogleTranslator service | `google` | ✓ | Handy baseline for quick checks and small runs |
 | `helsinki_opus_mt_ru_en` | `Helsinki-NLP/opus-mt-ru-en` | `hf_seq2seq` | ✓ | MarianMT baseline; fast and practical |
 | `nllb_3_3b` | `facebook/nllb-200-3.3B` | `nllb` | ✓ | Largest registered NLLB option |
-| `tower_plus_9b` | `Unbabel/Tower-Plus-9B` | `hf_causal` | ✗ | Instruction-style causal LM; RU→EN only |
+| `tower_plus_9b` | `Unbabel/Tower-Plus-9B` | `hf_causal` | ✗ | Instruction-style causal LM; 4-bit quantized by default (~4.5 GB VRAM) |
 | `hy_mt2_30b_a3b` | `tencent/Hy-MT2-30B-A3B` | `hf_causal` | ✗ | MoE translation model; requires `trust_remote_code` |
 | `alma_7b_r` | `haoranxu/ALMA-7B-R` | `hf_causal` | ✗ | Translation-focused ALMA-R model; RU→EN only |
 
@@ -155,6 +155,15 @@ The repository supports four backend families:
 - **`hf_seq2seq`** – HuggingFace encoder-decoder seq2seq models (MarianMT style). Loaded via `AutoModelForSeq2SeqLM`.
 - **`nllb`** – NLLB-200 models via HuggingFace with forced BOS language tokens.
 - **`hf_causal`** – Decoder-only causal LMs loaded via `AutoModelForCausalLM`. These use prompt templates or chat templates for translation and do not support round-trip in the current configuration.
+
+Quantization for causal models reduces VRAM usage:
+- Full precision: ~14-26 GB for 7B-13B models (may OOM on consumer GPUs)
+- 4-bit: ~4-6 GB (recommended for 16 GB VRAM cards)
+- 8-bit: ~8-12 GB
+
+Many causal models have quantization enabled in the registry defaults:
+- `tower_plus_9b` loads in 4-bit quantized mode by default
+- Others can be overridden with `--quantization {none,4bit,8bit}`
 
 The causal models differ from seq2seq models in two important ways:
 1. They cannot be loaded with `AutoModelForSeq2SeqLM`; they need `AutoModelForCausalLM`.
@@ -184,7 +193,7 @@ RU glosses
    ├─ google
    ├─ helsinki_opus_mt_ru_en
    ├─ nllb_3_3b
-   ├─ tower_instruct_13b
+   ├─ tower_plus_9b
    ├─ hy_mt2_30b_a3b
    └─ alma_7b_r
    ▼
@@ -265,6 +274,65 @@ data/sem_cat/02_glosses_translated_<model_key>.csv.blanks.csv
 - `translation_input_mode`
 - `gloss_ru_back`
 - `roundtrip_distance`
+
+### hf_causal models and quantization
+
+The `hf_causal` backend family includes causal LMs like `tower_plus_9b`. These models differ from seq2seq models in two important ways:
+
+1. They cannot be loaded with `AutoModelForSeq2SeqLM`; they need `AutoModelForCausalLM`.
+2. They require a prompt template or chat format to specify the translation task.
+
+**Quantization options**
+
+For `hf_causal` models, you can override the default quantization mode:
+
+- `--quantization 4bit` loads the model in 4-bit quantized mode (recommended for 16 GB VRAM or less)
+- `--quantization 8bit` loads the model in 8-bit quantized mode
+- `--quantization none` forces full-precision loading. If --quantization is omitted, the registry default is used; for tower_plus_9b that default is 4-bit.
+
+Quantization significantly reduces VRAM usage:
+- Full precision 7B-13B models: 14-26 GB VRAM
+- 4-bit quantized: ~4-6 GB VRAM
+- 8-bit quantized: ~8-12 GB VRAM
+
+**Example causal model commands**
+
+```bash
+# Default causal model (registry default quantization)
+python3 -m src.sem_cat.02_translate_glosses --model-key tower_plus_9b
+
+# 4-bit quantized (least VRAM)
+python3 -m src.sem_cat.02_translate_glosses --model-key tower_plus_9b --quantization 4bit --device cuda
+
+# 8-bit quantized
+python3 -m src.sem_cat.02_translate_glosses --model-key tower_plus_9b --quantization 8bit --device cuda
+
+# Full precision (only if you have enough VRAM)
+python3 -m src.sem_cat.02_translate_glosses --model-key tower_plus_9b --quantization none --device cuda
+```
+
+**Model variant override**
+
+You can also override the model name directly for experimental variants:
+
+```bash
+python3 -m src.sem_cat.02_translate_glosses --model-key tower_plus_9b \
+  --model-variant Unbabel/Tower-Plus-9B --quantization 4bit
+```
+
+**Model load summary**
+
+When any model initializes, a one-time summary is printed to console:
+- Model key and name
+- Backend family and device
+- Quantization mode
+- torch dtype
+- device_map status
+- trust_remote_code
+- batch size and tokenizer settings
+- round-trip support
+
+This helps debug memory issues and verify your load configuration.
 
 ---
 

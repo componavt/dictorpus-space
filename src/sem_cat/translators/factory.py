@@ -104,6 +104,9 @@ def build_translator(
             prompt_style=spec.prompt_style,
             use_chat_template=spec.use_chat_template,
             trust_remote_code=spec.trust_remote_code,
+            torch_dtype=spec.torch_dtype,
+            load_in_4bit=spec.load_in_4bit,
+            load_in_8bit=spec.load_in_8bit,
         )
 
     raise ValueError(f"Unknown backend family: {spec.backend_family!r}")

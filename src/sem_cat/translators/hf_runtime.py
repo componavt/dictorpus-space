@@ -211,11 +211,14 @@ def load_hf_model_causal(
     device: str = "cpu",
     ignore_proxy_env: bool = False,
     trust_remote_code: bool = False,
+    torch_dtype: str | None = None,
+    load_in_4bit: bool = False,
+    load_in_8bit: bool = False,
     torch: Any,
     AutoTokenizer: Any,
     AutoModelForCausalLM: Any,
 ) -> tuple[Any, Any]:
-    """Load a HuggingFace tokenizer and causal LM model.
+    """Load a HuggingFace tokenizer and causal LM model with optional quantization.
 
     Args:
         model_name: HuggingFace model identifier.
@@ -225,6 +228,9 @@ def load_hf_model_causal(
         ignore_proxy_env: If True, temporarily unset proxy env vars during loading.
         trust_remote_code: If True, allow execution of model code from the HF repo.
             Required by some models (e.g. tencent/Hy-MT2-30B-A3B).
+        torch_dtype: Optional torch dtype string ("float16", "bfloat16", "float32", etc.).
+        load_in_4bit: If True, load model in 4-bit quantized mode.
+        load_in_8bit: If True, load model in 8-bit quantized mode.
         torch: The torch module (already imported).
         AutoTokenizer: Tokenizer class from transformers.
         AutoModelForCausalLM: Model class from transformers.
@@ -234,8 +240,9 @@ def load_hf_model_causal(
 
     Raises:
         TranslatorInitializationError: If model/tokenizer loading fails.
+        BackendUnavailableError: If quantization requested but bitsandbytes unavailable.
     """
-    from .base import TranslatorInitializationError
+    from .base import BackendUnavailableError, TranslatorInitializationError
 
     common_kwargs: dict[str, Any] = {}
     if local_files_only:
@@ -244,6 +251,48 @@ def load_hf_model_causal(
         common_kwargs["cache_dir"] = cache_dir
     if trust_remote_code:
         common_kwargs["trust_remote_code"] = True
+    if torch_dtype:
+        if torch_dtype == "float16":
+            common_kwargs["torch_dtype"] = torch.float16
+        elif torch_dtype == "bfloat16":
+            common_kwargs["torch_dtype"] = torch.bfloat16
+        elif torch_dtype == "float32":
+            common_kwargs["torch_dtype"] = torch.float32
+        else:
+            common_kwargs["torch_dtype"] = torch_dtype
+
+    # Handle quantization with BitsAndBytesConfig
+    load_quantized = load_in_4bit or load_in_8bit
+    if load_quantized:
+        try:
+            from transformers import BitsAndBytesConfig
+        except ImportError as e:
+            raise BackendUnavailableError(
+                f"Quantized loading requested but 'bitsandbytes' is not installed. "
+                f"Install it with: pip install bitsandbytes"
+            ) from e
+
+        bnb_kwargs: dict[str, Any] = {}
+        if load_in_4bit:
+            bnb_kwargs["load_in_4bit"] = True
+            bnb_kwargs["bnb_4bit_compute_dtype"] = torch.float16
+            bnb_kwargs["bnb_4bit_use_double_quant"] = True
+            bnb_kwargs["bnb_4bit_quant_type"] = "nf4"
+        elif load_in_8bit:
+            bnb_kwargs["load_in_8bit"] = True
+
+        bnb_config = BitsAndBytesConfig(**bnb_kwargs)
+        common_kwargs["quantization_config"] = bnb_config
+
+    # For CUDA, use device_map="auto" with quantization to avoid OOM
+    if device == "cuda" and load_quantized:
+        common_kwargs["device_map"] = "auto"
+    # For CPU loading with quantization, explicitly reject it
+    elif device == "cpu" and load_quantized:
+        raise TranslatorInitializationError(
+            f"Quantized loading is not supported on CPU. "
+            f"Remove --device cpu or disable quantization."
+        )
 
     def _load() -> tuple[Any, Any]:
         try:
@@ -262,7 +311,10 @@ def load_hf_model_causal(
             )
             raise TranslatorInitializationError(msg) from e
 
-        model = model.to(device)
+        # Skip manual .to(device) when device_map="auto" handles placement
+        # Quantized models with device_map should NOT be moved manually
+        if "device_map" not in common_kwargs:
+            model = model.to(device)
         return tokenizer, model
 
     if ignore_proxy_env:

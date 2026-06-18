@@ -26,6 +26,7 @@ from src.sem_cat.translators.model_registry import (
     get_model_spec,
     list_model_keys,
     resolve_legacy_args_to_model_key,
+    ModelSpec,
 )
 from src.sem_cat.translators.factory import build_translator, build_reverse_translator
 from src.sem_cat.translators.base import (
@@ -271,6 +272,20 @@ def main() -> None:
                         help="Temporarily unset proxy env vars during HF/NLLB model loading")
     parser.add_argument("--backend-info", action="store_true",
                         help="Run backend diagnostics with probe translations, then exit")
+    # hf_causal model loading options
+    parser.add_argument(
+        "--quantization",
+        type=str,
+        default=None,
+        choices=["none", "4bit", "8bit"],
+        help="Quantization mode for hf_causal models (default: registry setting)",
+    )
+    parser.add_argument(
+        "--model-variant",
+        type=str,
+        default=None,
+        help="Variant/override for model name (e.g., '4bit', '8bit') - only for hf_causal models",
+    )
 
     args = parser.parse_args()
 
@@ -288,6 +303,26 @@ def main() -> None:
         nllb_model=args.nllb_model,
     )
     spec = get_model_spec(resolved_model_key)
+    
+    # Apply CLI overrides for quantization (hf_causal only)
+    if args.quantization is not None and spec.backend_family == "hf_causal":
+        if args.quantization == "4bit":
+            spec = ModelSpec(**{**spec.__dict__, "load_in_4bit": True, "load_in_8bit": False})
+        elif args.quantization == "8bit":
+            spec = ModelSpec(**{**spec.__dict__, "load_in_4bit": False, "load_in_8bit": True})
+        elif args.quantization == "none":
+            spec = ModelSpec(**{**spec.__dict__, "load_in_4bit": False, "load_in_8bit": False})
+    elif args.quantization is not None and spec.backend_family != "hf_causal":
+        print(f"ERROR: --quantization is only valid for hf_causal models, not {spec.backend_family}")
+        sys.exit(1)
+    
+    # Handle --model-variant for hf_causal (override model_name)
+    if args.model_variant is not None and spec.backend_family == "hf_causal":
+        print(f"NOTE: Using model variant override: {args.model_variant}")
+        spec = ModelSpec(**{**spec.__dict__, "model_name": args.model_variant})
+    elif args.model_variant is not None and spec.backend_family != "hf_causal":
+        print(f"ERROR: --model-variant is only valid for hf_causal models, not {spec.backend_family}")
+        sys.exit(1)
 
     # 2. Compute output path
     if args.out_file:
