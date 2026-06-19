@@ -136,6 +136,123 @@ def explain_hf_init_error(
     )
 
 
+def _contains_any(text: str, needles: list[str]) -> bool:
+    """Check if text contains any of the needles (case-insensitive)."""
+    lowered = text.lower()
+    return any(needle.lower() in lowered for needle in needles)
+
+
+def explain_hf_causal_init_error(
+    exc: Exception,
+    model_name: str,
+    *,
+    local_files_only: bool = False,
+    cache_dir: str | None = None,
+    load_in_4bit: bool = False,
+    load_in_8bit: bool = False,
+) -> str:
+    """Produce a human-readable explanation for a HuggingFace causal LM init failure.
+
+    Args:
+        exc: The original exception caught during model/tokenizer loading.
+        model_name: The HuggingFace model identifier being loaded.
+        local_files_only: Whether local-files-only mode was active.
+        cache_dir: Optional custom cache directory path.
+        load_in_4bit: Whether 4-bit quantization was requested.
+        load_in_8bit: Whether 8-bit quantization was requested.
+
+    Returns:
+        An actionable error message string.
+    """
+    text = str(exc)
+    proxy_env = collect_proxy_env()
+    bad_proxies = identify_bad_proxy_vars(proxy_env)
+
+    # Proxy-related errors
+    if "Unknown scheme for proxy URL" in text or "proxy" in text.lower():
+        if bad_proxies:
+            bad_desc = ", ".join(f"{n}={v!r}" for n, v in bad_proxies)
+            proxy_hint = (
+                f"The following variables use an unsupported proxy scheme: {bad_desc}. "
+                "Use 'socks5://' instead of 'socks://', or unset them."
+            )
+        else:
+            all_proxy = ", ".join(f"{k}={v!r}" for k, v in proxy_env.items())
+            proxy_hint = (
+                f"Detected proxy variables: {all_proxy}. "
+                "One of them may have an invalid URL scheme."
+            )
+
+        shell_workaround = (
+            "Shell workaround for Linux/macOS:\n"
+            "  env -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY "
+            "-u http_proxy -u https_proxy -u all_proxy \\\n"
+            f"  python3 -m src.sem_cat.02_translate_glosses --model-key <key>"
+        )
+
+        return (
+            f"Failed to initialize HuggingFace causal model '{model_name}' because proxy "
+            f"configuration is invalid.\n{proxy_hint}\n{shell_workaround}"
+        )
+
+    # Local files only mode
+    if local_files_only:
+        cache_info = f" in cache_dir={cache_dir!r}" if cache_dir else ""
+        return (
+            f"Failed to initialize HuggingFace causal model '{model_name}' in local-files-only mode. "
+            f"No usable local cache was found{cache_info}. "
+            "Pre-download the model with 'huggingface-cli download <model>' "
+            "or disable --local-files-only."
+        )
+
+    # Offline / connection errors
+    if "offline" in text.lower() or "connection" in text.lower() or "404" in text:
+        return (
+            f"Failed to initialize HuggingFace causal model '{model_name}'. "
+            f"The model may not be available locally and network access failed. "
+            f"Original error: {text}"
+        )
+
+    # Check for accelerate requirements
+    if _contains_any(text, ["requires `accelerate`", "requires accelerate"]):
+        return (
+            f"Failed to initialize HuggingFace causal model '{model_name}'. "
+            "The selected loading mode requires the `accelerate` package. "
+            "Install it with: pip install accelerate\n\n"
+            f"Original error: {text}"
+        )
+
+    # Check for bitsandbytes/CUDA runtime issues (quantization-related)
+    load_quantized = load_in_4bit or load_in_8bit
+    if load_quantized:
+        bnb_error_indicators = [
+            "bitsandbytes",
+            "cuda setup error",
+            "libnvjitlink",
+            "cannot open shared object file",
+            "native code method attempted to call",
+        ]
+        if any(indicator in text.lower() for indicator in bnb_error_indicators):
+            return (
+                f"Failed to initialize HuggingFace causal model '{model_name}'. "
+                "4-bit/8-bit quantized loading requires a working bitsandbytes + CUDA runtime setup.\n\n"
+                "Detected a bitsandbytes / CUDA runtime failure. "
+                "This often means the Python package is present, but a required CUDA shared library is missing.\n\n"
+                "Recommended actions:\n"
+                "1. Run: python -m bitsandbytes\n"
+                "2. Verify the required CUDA runtime/toolkit is installed\n"
+                "3. Ensure the CUDA lib directory is visible in LD_LIBRARY_PATH\n"
+                "4. If supported, rerun without quantization (--quantization none)\n\n"
+                f"Original error: {text}"
+            )
+
+    # Generic
+    return (
+        f"Failed to initialize HuggingFace causal model '{model_name}'. "
+        f"Original error: {text}"
+    )
+
+
 def load_hf_model(
     model_name: str,
     *,
@@ -306,8 +423,12 @@ def load_hf_model_causal(
         try:
             model = AutoModelForCausalLM.from_pretrained(model_name, **common_kwargs)
         except Exception as e:
-            msg = explain_hf_init_error(
-                e, model_name, local_files_only=local_files_only, cache_dir=cache_dir
+            msg = explain_hf_causal_init_error(
+                e, model_name,
+                local_files_only=local_files_only,
+                cache_dir=cache_dir,
+                load_in_4bit=load_in_4bit,
+                load_in_8bit=load_in_8bit,
             )
             raise TranslatorInitializationError(msg) from e
 

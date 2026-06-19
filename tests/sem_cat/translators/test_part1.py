@@ -7,18 +7,41 @@ Run with: python3 -m pytest tests/sem_cat/translators/test_part1.py -v
 import sys
 import pathlib
 import os
+import builtins
+import importlib
 
 # Add project root to sys.path
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent.parent.parent))
 
 import pytest
 
+
+def _patch_missing_torch(monkeypatch):
+    """Patch builtins.__import__ to simulate missing torch module.
+    
+    This helper ensures tests verify lazy import behavior rather than
+    relying on environment state.
+    """
+    real_import = builtins.__import__
+
+    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "torch" or name.startswith("torch."):
+            raise ImportError("simulated missing torch")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    # Clear cached modules that depend on torch
+    for key in list(sys.modules):
+        if "nllb_translator" in key or "hf_seq2seq_translator" in key:
+            del sys.modules[key]
+
+
 # Fixture to isolate proxy environment variables across tests
 @pytest.fixture(autouse=True)
 def isolate_proxy_env():
     """Temporarily clear proxy env vars for test isolation.
     
-    Prevents tests from accidentally picking up userproxy settings
+    Prevents tests from accidentally picking up user proxy settings
     that could cause HF initialization failures or false negatives.
     """
     proxy_vars = ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy")
@@ -33,6 +56,7 @@ def isolate_proxy_env():
                 os.environ[v] = saved[v]
             else:
                 os.environ.pop(v, None)
+
 
 from src.sem_cat.translators.model_registry import (
     MODEL_REGISTRY,
@@ -231,14 +255,21 @@ class TestErrorHierarchy:
         assert issubclass(BackendUnavailableError, TranslatorError)
         assert issubclass(TranslatorInitializationError, TranslatorError)
 
-    def test_nllb_raises_backend_unavailable_without_torch(self):
+    def test_nllb_raises_backend_unavailable_without_torch(self, monkeypatch):
         """NLLBTranslator should raise BackendUnavailableError when
-        torch is not available."""
+        torch is not available. Uses module mocking to verify lazy import boundary."""
         from src.sem_cat.translators.base import BackendUnavailableError
-        from src.sem_cat.translators.nllb_translator import NLLBTranslator
 
-        with pytest.raises(BackendUnavailableError):
-            NLLBTranslator(
+        # Mock torch module to fail on import in the NLLBTranslator scope
+        # by patching sys.modules to return None for torch
+        monkeypatch.setitem(sys.modules, "torch", None)
+
+        # NLLBTranslator should raise BackendUnavailableError from missing torch
+        with pytest.raises(BackendUnavailableError, match="PyTorch"):
+            from src.sem_cat.translators import nllb_translator
+            # Force reload to pick up the mocked torch
+            importlib.reload(nllb_translator)
+            nllb_translator.NLLBTranslator(
                 model_key="nllb_3_3b",
                 model_name="facebook/nllb-200-3.3B",
             )
@@ -277,10 +308,14 @@ class TestFactory:
 
     def test_nllb_raises_without_torch(self, monkeypatch):
         """NLLBTranslator should raise BackendUnavailableError when
-        torch is not available."""
+        torch is not available. Uses import patching to verify lazy import boundary."""
         spec = get_model_spec("nllb_3_3b")
         from src.sem_cat.translators.base import BackendUnavailableError
 
+        # Patch to simulate missing torch
+        _patch_missing_torch(monkeypatch)
+
+        # Try to build translator - should raise BackendUnavailableError from import
         with pytest.raises(BackendUnavailableError):
             build_translator(spec)
 
@@ -1207,3 +1242,50 @@ class TestNonePreservation:
 
 # Import os for proxy env tests
 import os
+
+
+# ---------------------------------------------------------------------------
+# 18. HuggingFace causal init error diagnostics
+# ---------------------------------------------------------------------------
+
+
+class TestHFCausalInitErrorDiagnostics:
+    def test_explain_error_for_missing_accelerate(self):
+        """Error message should guide user to install accelerate when device_map needed."""
+        from src.sem_cat.translators.hf_runtime import explain_hf_causal_init_error
+        
+        exc = RuntimeError(
+            r"Using a `device_map`, `tp_plan`, `torch.device` context manager or "
+            r"setting `torch.set_default_device(device)` requires `accelerate`."
+        )
+        msg = explain_hf_causal_init_error(
+            exc,
+            "Unbabel/Tower-Plus-9B",
+            local_files_only=False,
+            cache_dir=None,
+            load_in_4bit=True,
+            load_in_8bit=False,
+        )
+        assert "accelerate" in msg
+        assert "pip install accelerate" in msg
+        assert "Unbabel/Tower-Plus-9B" in msg
+
+    def test_explain_error_for_bitsandbytes_cuda_failure(self):
+        """Error message should guide user about bitsandbytes / CUDA runtime issue."""
+        from src.sem_cat.translators.hf_runtime import explain_hf_causal_init_error
+        
+        exc = RuntimeError(
+            "bitsandbytes library load error: libnvJitLink.so.13: cannot open shared object file"
+        )
+        msg = explain_hf_causal_init_error(
+            exc,
+            "Unbabel/Tower-Plus-9B",
+            local_files_only=False,
+            cache_dir=None,
+            load_in_4bit=True,
+            load_in_8bit=False,
+        )
+        assert "bitsandbytes" in msg.lower()
+        assert "libnvJitLink.so.13" in msg
+        assert "LD_LIBRARY_PATH" in msg
+        assert "quantization" in msg.lower()

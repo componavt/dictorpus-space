@@ -9,6 +9,7 @@ tqdm
 deep_translator
 transformers>=4.40.0
 torch>=2.6
+accelerate
 sentencepiece
 sacremoses
 pytest
