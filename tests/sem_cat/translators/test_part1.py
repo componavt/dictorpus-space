@@ -1289,3 +1289,77 @@ class TestHFCausalInitErrorDiagnostics:
         assert "libnvJitLink.so.13" in msg
         assert "LD_LIBRARY_PATH" in msg
         assert "quantization" in msg.lower()
+
+
+# ---------------------------------------------------------------------------
+# 19. Causal preflight regression tests
+# ---------------------------------------------------------------------------
+
+
+def test_causal_preflight_uses_effective_batch_size():
+    """Preflight should use the actual effective batch size, not a fixed value."""
+    import types
+    import pathlib
+    import sys
+    import importlib
+
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent))
+
+    class RecordingTranslator:
+        def __init__(self):
+            self.calls = []
+
+        def translate_batch(self, texts, batch_size=None):
+            self.calls.append((list(texts), batch_size))
+            return ["ok"] * len(texts)
+
+    tr = RecordingTranslator()
+    prepared = ["a", "b", "c", "d", "e"]
+
+    mod = importlib.import_module("src.sem_cat.02_translate_glosses")
+
+    mod._causal_generation_preflight(
+        tr,
+        prepared,
+        "towerplus9b",
+        "hf_causal",
+        effective_batch_size=4,
+    )
+
+    assert len(tr.calls) == 1, "Should have called translate_batch once"
+    texts, batch_size = tr.calls[0]
+    assert len(texts) == 4, "Should probe up to effective_batch_size items"
+    assert batch_size == 4, "Should use effective_batch_size as probe batch size"
+
+
+def test_causal_preflight_skips_non_hfcausal():
+    """Non-hf_causal backends should skip the preflight entirely."""
+    import types
+    import pathlib
+    import sys
+    import importlib
+
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent))
+
+    class RecordingTranslator:
+        def __init__(self):
+            self.calls = []
+
+        def translate_batch(self, texts, batch_size=None):
+            self.calls.append((list(texts), batch_size))
+            return ["ok"] * len(texts)
+
+    tr = RecordingTranslator()
+    prepared = ["a", "b", "c", "d", "e"]
+
+    mod = importlib.import_module("src.sem_cat.02_translate_glosses")
+
+    mod._causal_generation_preflight(
+        tr,
+        prepared,
+        "google",
+        "google",
+        effective_batch_size=4,
+    )
+
+    assert len(tr.calls) == 0, "Non-hf_causal backend should not call translate_batch"

@@ -3,7 +3,8 @@
 gitingest src \
   --include-pattern "*.py" \
   --include-pattern "*.md" \
+  --include-pattern "*.toml" \
   --exclude-pattern "src/notebooks" \
   --exclude-pattern "*/__pycache__/*" \
   --exclude-pattern "*.ipynb" \
-  --output out/ai_concat/digest_git_ingest_21_tower_plus_9b_errors.txt
+  --output out/ai_concat/digest_git_ingest_23_Tower+toml.txt

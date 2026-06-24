@@ -510,10 +510,15 @@ concept_id ───► inherited domain
 **Command**
 
 ```bash
+python3 -m src.sem_cat.06_concepts_wdh
+```
+
+By default, this reads from `src/sem_cat/sem_cat_paths.toml`. Override examples:
+
+```bash
 python3 -m src.sem_cat.06_concepts_wdh \
-  --cat-wdh data/sem_cat/concept_categories/concept_categories_wdh.tsv \
-  --concepts data/sem_cat/concepts/concepts_with_english_417.csv \
-  --out-file data/sem_cat/concepts/concepts_wdh.tsv
+  --concepts /tmp/concepts_experiment.csv \
+  --out-file /tmp/concepts_wdh_experiment.tsv
 ```
 
 **Output**
@@ -700,7 +705,7 @@ Start with:
 
 Useful questions:
 
-- Which concept IDs are used in meanings but absent from the 417-concept catalog?
+- Which concept IDs are used in meanings but absent from the concept catalog?
 - Which concept-vs-gloss conflicts are systematic rather than random?
 - Which frequent `meaning_ru` clusters should drive the next ontology-expansion pass?
 
@@ -742,10 +747,7 @@ python3 -m src.sem_cat.05_assign_domains \
   --out-dir data/sem_cat/results
 
 # 6. concept-level WDH
-python3 -m src.sem_cat.06_concepts_wdh \
-  --cat-wdh data/sem_cat/concept_categories/concept_categories_wdh.tsv \
-  --concepts data/sem_cat/concepts/concepts_with_english_417.csv \
-  --out-file data/sem_cat/concepts/concepts_wdh.tsv
+python3 -m src.sem_cat.06_concepts_wdh
 
 # 7. propagate WDH
 python3 -m src.sem_cat.07_propagate_wdh \

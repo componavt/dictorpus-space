@@ -33,6 +33,7 @@ from src.sem_cat.translators.base import (
     BackendUnavailableError,
     Translator,
     TranslatorInitializationError,
+    TranslatorRuntimeError,
 )
 from src.sem_cat.translators.diagnostics import (
     run_backend_diagnostics,
@@ -197,6 +198,98 @@ def _run_backend_info(
         print("\nTranslator is usable but produced suspicious output on some probes.")
     else:
         print("\nTranslator is working correctly.")
+
+
+def _causal_generation_preflight(
+    translator: Translator,
+    prepared_inputs: list[str],
+    model_key: str,
+    backend_family: str,
+    *,
+    effective_batch_size: int,
+) -> None:
+    """Run a causal generation preflight probe to catch runtime failures early.
+    
+    When a causal backend loads successfully but generation is broken (e.g.
+    device mismatch), this helper will detect the issue before processing
+    tens of thousands of glosses.
+    
+    The probe size is tied to the actual effective batch size that will be
+    used in the translation loop, ensuring batch-dependent failures are
+    meaningfully exercised.
+    
+    Args:
+        translator: The translator instance.
+        prepared_inputs: List of prepared input texts.
+        model_key: The model key for error messages.
+        backend_family: The backend family (e.g., 'hf_causal').
+        effective_batch_size: The batch size that will be used in the main loop.
+    """
+    if backend_family != "hf_causal":
+        return
+
+    nonempty = [x for x in prepared_inputs if x and x.strip()]
+    if not nonempty:
+        return
+
+    target_probe_size = max(1, effective_batch_size)
+    sample = nonempty[:target_probe_size]
+    probe_batch_size = min(target_probe_size, len(sample))
+
+    try:
+        outputs = translator.translate_batch(sample, batch_size=probe_batch_size)
+    except TranslatorRuntimeError as e:
+        print(f"ERROR: Causal generation preflight failed for {model_key!r}: {e}")
+        sys.exit(1)
+
+    if not any(o and o.strip() for o in outputs):
+        raise TranslatorRuntimeError(
+            f"Causal backend {model_key!r} loaded, but preflight generation produced "
+            "no non-empty outputs. Aborting before full run."
+        )
+
+
+def _should_abort_for_early_empty_run(
+    *,
+    backend_family: str,
+    batches_seen: int,
+    total_written: int,
+    total_empty_output: int,
+    total_kept: int,
+    min_rows: int = 16,
+    max_batches: int = 4,
+    empty_ratio_threshold: float = 0.95,
+) -> bool:
+    """Detect pathological early-empty runs and abort with clear message.
+    
+    If a causal backend produces almost nothing but empty translations at
+    the start of a run, the script should stop and tell the user something
+    is wrong (likely generation failure, not genuine blank translations).
+    
+    Args:
+        backend_family: The backend family (e.g., 'hf_causal').
+        batches_seen: Number of batches processed so far.
+        total_written: Total rows written (all types).
+        total_empty_output: Count of empty/None outputs.
+        total_kept: Count of kept (good quality) outputs.
+        min_rows: Minimum rows before checking.
+        max_batches: Maximum batches to check.
+        empty_ratio_threshold: Empty ratio above which to abort.
+    
+    Returns:
+        True if the run should be aborted, False otherwise.
+    """
+    if backend_family != "hf_causal":
+        return False
+    if batches_seen > max_batches:
+        return False
+    if total_written < min_rows:
+        return False
+    if total_kept > 0:
+        return False
+    if total_empty_output == 0:
+        return False
+    return (total_empty_output / total_written) >= empty_ratio_threshold
 
 
 def main() -> None:
@@ -446,6 +539,14 @@ def main() -> None:
 
     back_translator = reverse_result.translator
 
+    # Compute effective batch size before preflight (needed for causal preflight)
+    if spec.backend_family == "google":
+        effective_batch_size = 1
+    elif args.batch_size is not None and args.batch_size > 0:
+        effective_batch_size = args.batch_size
+    else:
+        effective_batch_size = spec.default_batch_size or 1
+
     # 11. Build input texts
     input_texts: list[str] = []
     for gloss in glosses_to_translate:
@@ -453,20 +554,19 @@ def main() -> None:
         input_text = prepare_translation_input(gloss, args.translation_input_mode, meta)
         input_texts.append(input_text)
 
+    # 11a. Causal generation preflight probe (hf_causal only)
+    _causal_generation_preflight(
+        translator,
+        input_texts,
+        resolved_model_key,
+        spec.backend_family,
+        effective_batch_size=effective_batch_size,
+    )
+
     # 12. Translate in batches
     print(f"Translating with {resolved_model_key} (mode: {args.translation_input_mode})...")
+    print(f"Effective batch size: {effective_batch_size}")
 
-    # Batch size precedence:
-    #   - Google backend: always 1 (API limitation)
-    #   - Explicit CLI --batch-size: wins if positive
-    #   - spec.default_batch_size: model default
-    #   - Fallback: 1
-    if spec.backend_family == "google":
-        effective_batch_size = 1
-    elif args.batch_size is not None and args.batch_size > 0:
-        effective_batch_size = args.batch_size
-    else:
-        effective_batch_size = spec.default_batch_size or 1
     n = len(glosses_to_translate)
     n_batches = ceil(n / effective_batch_size) if n > 0 else 0
 
@@ -568,6 +668,22 @@ def main() -> None:
             blanks_df.to_csv(blanks_path, mode="a", header=write_header, index=False, encoding="utf-8")
         total_written += len(batch_rows)
         print(f"  Batch {batch_idx + 1}/{n_batches} saved ({total_written} total written)")
+
+        # Early abort guard for pathological empty-output runs on hf_causal
+        if _should_abort_for_early_empty_run(
+            backend_family=spec.backend_family,
+            batches_seen=batch_idx + 1,
+            total_written=total_written,
+            total_empty_output=total_empty_output,
+            total_kept=total_kept,
+        ):
+            raise TranslatorRuntimeError(
+                f"Causal backend {resolved_model_key!r} produced near-100% empty "
+                f"output ({total_empty_output}/{total_written} = "
+                f"{100*total_empty_output/total_written:.1f}%) after {batch_idx + 1} "
+                f"batches with {total_kept} kept items. This indicates generation is "
+                f"broken, not genuine blank translations. Aborting."
+            )
 
     # 13. Print summary
     blanks_path = out_path.with_suffix(out_path.suffix + ".blanks.csv")

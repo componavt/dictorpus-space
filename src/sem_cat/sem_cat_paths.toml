@@ -1,0 +1,5 @@
+[paths]
+wn_domains = "data/sem_cat/00_wn-domains-3.2-20070223"
+concept_categories_wdh = "data/sem_cat/concept_categories/concept_categories_wdh.tsv"
+concepts_catalog = "data/sem_cat/concepts/concepts_with_english_1445.csv"
+concepts_wdh = "data/sem_cat/concepts/concepts_wdh.tsv"

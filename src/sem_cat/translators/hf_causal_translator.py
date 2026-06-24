@@ -19,7 +19,12 @@ import traceback
 from collections.abc import Sequence
 from typing import Any
 
-from .base import BackendUnavailableError, Translator, TranslatorInitializationError
+from .base import (
+    BackendUnavailableError,
+    Translator,
+    TranslatorInitializationError,
+    TranslatorRuntimeError,
+)
 from .hf_runtime import load_hf_model_causal
 
 logger = logging.getLogger(__name__)
@@ -71,6 +76,60 @@ def _log_translate_error(backend: str, method: str, exc: Exception) -> None:
             "%s %s unexpected error: %s\n%s",
             backend, method, exc, short_tb,
         )
+
+
+def _is_fatal_generation_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    fatal_patterns = [
+        "expected all tensors to be on the same device",
+        "input_ids is on cpu",
+        "different from other tensors on cuda",
+        "cuda out of memory",
+        "device-side assert",
+        "cublas",
+        "cuda error",
+        "device map",
+        "device placement",
+    ]
+    return any(p in text for p in fatal_patterns)
+
+
+def _summarize_generation_device_state(model, device: str, load_quantized: bool) -> str:
+    emb_getter = getattr(model, "get_input_embeddings", None)
+    emb_dev = None
+    if callable(emb_getter):
+        emb = emb_getter()
+        weight = getattr(emb, "weight", None)
+        if weight is not None:
+            emb_dev = getattr(weight, "device", None)
+
+    hf_map = getattr(model, "hf_device_map", None)
+    map_preview = None
+    if isinstance(hf_map, dict):
+        items = list(hf_map.items())[:5]
+        map_preview = ", ".join(f"{k}:{v}" for k, v in items)
+
+    if emb_dev is not None:
+        inferred = str(emb_dev)
+    elif isinstance(hf_map, dict):
+        for value in hf_map.values():
+            if value not in (None, "cpu", "disk"):
+                inferred = str(value)
+                break
+        else:
+            inferred = "cpu"
+    else:
+        inferred = str(device)
+
+    load_quantized_str = "4bit" if getattr(model, "_load_in_4bit", False) else ("8bit" if getattr(model, "_load_in_8bit", False) else "none")
+
+    return (
+        f"requested_device={device}, "
+        f"inferred_input_device={inferred}, "
+        f"quantization={load_quantized_str}, "
+        f"has_hf_device_map={bool(hf_map)}, "
+        f"hf_device_map_preview={map_preview or 'none'}"
+    )
 
 
 class HFCausalTranslator(Translator):
@@ -245,13 +304,10 @@ class HFCausalTranslator(Translator):
             truncation=True,
             max_length=self.tokenizer_max_length,
         )
-        
-        # When device_map="auto" is used (quantized loading), inputs should
-        # stay on CPU since the model handles device placement internally.
-        # For non-quantized loading without device_map, move inputs to device.
+
         load_quantized = self._load_in_4bit or self._load_in_8bit
-        if not load_quantized:
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        target_device = self._get_inference_device()
+        inputs = {k: v.to(target_device) for k, v in inputs.items()}
 
         with self.torch.no_grad():
             outputs = self.model.generate(
@@ -269,6 +325,22 @@ class HFCausalTranslator(Translator):
             results.append(decoded.strip())
         return results
 
+    def _get_inference_device(self) -> str | self.torch.device:
+        emb_getter = getattr(self.model, "get_input_embeddings", None)
+        if callable(emb_getter):
+            emb = emb_getter()
+            weight = getattr(emb, "weight", None)
+            if weight is not None:
+                return getattr(weight, "device", self.device)
+
+        hf_map = getattr(self.model, "hf_device_map", None)
+        if isinstance(hf_map, dict):
+            for value in hf_map.values():
+                if value not in (None, "cpu", "disk"):
+                    return self.torch.device(value) if isinstance(value, str) else value
+
+        return self.torch.device(self.device) if isinstance(self.device, str) else self.device
+
     def translate(self, text: str) -> str | None:
         try:
             if not text or not text.strip():
@@ -278,6 +350,16 @@ class HFCausalTranslator(Translator):
             translated = decoded[0]
             return translated if translated else None
         except Exception as e:
+            if _is_fatal_generation_error(e):
+                device_state = _summarize_generation_device_state(
+                    self.model, self.device, self._load_in_4bit or self._load_in_8bit
+                )
+                raise TranslatorRuntimeError(
+                    f"HFCausalTranslator generation failed. "
+                    f"model={self.model_name!r}; "
+                    f"{device_state}; "
+                    f"original_error={e}"
+                ) from e
             _log_translate_error("HFCausalTranslator", "translate", e)
             return None
 
@@ -301,6 +383,14 @@ class HFCausalTranslator(Translator):
                 decoded = self._tokenize_and_generate(batch_slice)
                 results.extend([t if t else None for t in decoded])
             except Exception as e:
+                if _is_fatal_generation_error(e):
+                    device_state = _summarize_generation_device_state(
+                        self.model, self.device, self._load_in_4bit or self._load_in_8bit
+                    )
+                    raise TranslatorRuntimeError(
+                        f"HFCausalTranslator batch generation failed for model "
+                        f"{self.model_name!r}: {e}"
+                    ) from e
                 _log_translate_error("HFCausalTranslator", "translate_batch", e)
                 results.extend([None] * len(batch_slice))
 

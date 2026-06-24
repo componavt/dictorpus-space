@@ -304,6 +304,9 @@ if __name__ == "__main__":
         test_length_inflation_not_triggered_on_normal,
         test_token_inflation_3_words,
         test_token_inflation_4_words,
+        test_paths_config_loads_default,
+        test_paths_config_resolves_repo_relative_paths,
+        test_paths_config_raises_on_missing_key,
     ]
 
     passed = 0
@@ -319,3 +322,180 @@ if __name__ == "__main__":
     print(f"\n{passed} passed, {failed} failed out of {len(tests)} tests")
     if failed > 0:
         sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
+# 21. Path config loader tests
+# ---------------------------------------------------------------------------
+
+
+def test_paths_config_loads_default():
+    """Default config should load successfully from sem_cat_paths.toml."""
+    from src.sem_cat.paths_config import (
+        load_sem_cat_paths,
+        SemCatPaths,
+    )
+    import os
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(pathlib.Path(__file__).resolve().parents[2])
+        cfg = load_sem_cat_paths()
+        assert isinstance(cfg, SemCatPaths)
+        assert cfg.wn_domains.name == "00_wn-domains-3.2-20070223"
+        assert cfg.concepts_catalog.name == "concepts_with_english_1445.csv"
+        assert cfg.concepts_wdh.name == "concepts_wdh.tsv"
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_paths_config_resolves_repo_relative_paths():
+    """Repo-relative paths should be resolved to absolute paths from project root."""
+    from src.sem_cat.paths_config import load_sem_cat_paths
+
+    import os
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(pathlib.Path(__file__).resolve().parents[2])
+        cfg = load_sem_cat_paths()
+        assert cfg.concepts_catalog.is_absolute()
+        assert "data" in cfg.concepts_catalog.parts
+        assert "concepts" in cfg.concepts_catalog.parts
+        assert "concepts_with_english_1445.csv" in cfg.concepts_catalog.parts
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_paths_config_raises_on_missing_key():
+    """Missing required key should raise ValueError with clear message."""
+    import tempfile
+
+    from src.sem_cat.paths_config import load_sem_cat_paths
+
+    with tempfile.TemporaryDirectory() as td:
+        config_file = pathlib.Path(td) / "test_config.toml"
+        config_file.write_text(
+            """[paths]
+wn_domains = "data/sem_cat/test"
+concepts_catalog = "data/sem_cat/test.csv"
+"""
+        )
+        try:
+            load_sem_cat_paths(str(config_file))
+            assert False, "Expected ValueError for missing key"
+        except ValueError as e:
+            assert "concept_categories_wdh" in str(e) or "concepts_wdh" in str(e)
+
+
+# ---------------------------------------------------------------------------
+# 22. Step-06 path resolution tests
+# ---------------------------------------------------------------------------
+
+
+def test_step06_resolve_no_overrides():
+    """No CLI overrides -> use config defaults."""
+    import types
+    import importlib
+
+    from src.sem_cat.paths_config import SemCatPaths
+
+    mod = importlib.import_module("src.sem_cat.06_concepts_wdh")
+
+    config = types.SimpleNamespace(
+        concept_categories_wdh=pathlib.Path("/cfg/cat.tsv"),
+        concepts_catalog=pathlib.Path("/cfg/concepts.csv"),
+        concepts_wdh=pathlib.Path("/cfg/out.tsv"),
+    )
+
+    class Args:
+        cat_wdh = None
+        concepts = None
+        out_file = None
+
+    args = Args()
+    cat_wdh, concepts, out = mod.resolve_step06_paths(args, config)
+    assert cat_wdh == pathlib.Path("/cfg/cat.tsv")
+    assert concepts == pathlib.Path("/cfg/concepts.csv")
+    assert out == pathlib.Path("/cfg/out.tsv")
+
+
+def test_step06_resolve_concepts_override():
+    """--concepts override only -> only concepts path changes."""
+    import types
+    import importlib
+
+    from src.sem_cat.paths_config import SemCatPaths
+
+    mod = importlib.import_module("src.sem_cat.06_concepts_wdh")
+
+    config = types.SimpleNamespace(
+        concept_categories_wdh=pathlib.Path("/cfg/cat.tsv"),
+        concepts_catalog=pathlib.Path("/cfg/concepts.csv"),
+        concepts_wdh=pathlib.Path("/cfg/out.tsv"),
+    )
+
+    class Args:
+        cat_wdh = None
+        concepts = "/override/concepts.csv"
+        out_file = None
+
+    args = Args()
+    cat_wdh, concepts, out = mod.resolve_step06_paths(args, config)
+    assert cat_wdh == pathlib.Path("/cfg/cat.tsv")
+    assert str(concepts) == "/override/concepts.csv"
+    assert out == pathlib.Path("/cfg/out.tsv")
+
+
+def test_step06_resolve_out_file_override():
+    """--out-file override only -> only output path changes."""
+    import types
+    import importlib
+
+    from src.sem_cat.paths_config import SemCatPaths
+
+    mod = importlib.import_module("src.sem_cat.06_concepts_wdh")
+
+    config = types.SimpleNamespace(
+        concept_categories_wdh=pathlib.Path("/cfg/cat.tsv"),
+        concepts_catalog=pathlib.Path("/cfg/concepts.csv"),
+        concepts_wdh=pathlib.Path("/cfg/out.tsv"),
+    )
+
+    class Args:
+        cat_wdh = None
+        concepts = None
+        out_file = "/override/out.tsv"
+
+    args = Args()
+    cat_wdh, concepts, out = mod.resolve_step06_paths(args, config)
+    assert cat_wdh == pathlib.Path("/cfg/cat.tsv")
+    assert concepts == pathlib.Path("/cfg/concepts.csv")
+    assert str(out) == "/override/out.tsv"
+
+
+def test_step06_resolve_all_overrides():
+    """All CLI overrides -> all respected."""
+    import types
+    import importlib
+
+    from src.sem_cat.paths_config import SemCatPaths
+
+    mod = importlib.import_module("src.sem_cat.06_concepts_wdh")
+
+    config = types.SimpleNamespace(
+        concept_categories_wdh=pathlib.Path("/cfg/cat.tsv"),
+        concepts_catalog=pathlib.Path("/cfg/concepts.csv"),
+        concepts_wdh=pathlib.Path("/cfg/out.tsv"),
+    )
+
+    class Args:
+        cat_wdh = "/override/cat.tsv"
+        concepts = "/override/concepts.csv"
+        out_file = "/override/out.tsv"
+
+    args = Args()
+    cat_wdh, concepts, out = mod.resolve_step06_paths(args, config)
+    assert str(cat_wdh) == "/override/cat.tsv"
+    assert str(concepts) == "/override/concepts.csv"
+    assert str(out) == "/override/out.tsv"

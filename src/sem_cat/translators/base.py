@@ -18,6 +18,10 @@ class TranslatorInitializationError(TranslatorError):
     """Raised when a translator fails to initialize (e.g. bad config, missing model)."""
 
 
+class TranslatorRuntimeError(RuntimeError):
+    """Runtime failure during translation after successful backend initialization."""
+
+
 class Translator(ABC):
     """Base translator with a consistent metadata and behavior contract.
 

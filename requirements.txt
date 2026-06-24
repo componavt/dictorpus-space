@@ -8,8 +8,15 @@ tqdm
 #   pip install -r requirements.txt
 deep_translator
 transformers>=4.40.0
-torch>=2.6
 accelerate
 sentencepiece
 sacremoses
 pytest
+bitsandbytes
+
+# PyTorch with CUDA 12.8 (IMPORTANT!)
+# This ensures compatibility with NVIDIA driver 580.159.03
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch>=2.6
+torchvision
+torchaudio

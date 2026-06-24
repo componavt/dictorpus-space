@@ -1,7 +1,8 @@
 """Build concept-level WDH (WordNet Domain Hierarchy) table.
 
-Reads concept_categories_wdh.tsv and concepts_with_english_417.csv,
-produces a per-concept WDH assignment with source, confidence, and notes.
+Reads concept_categories_wdh.tsv and the current concept catalog
+(concepts_with_english_1445.csv by default), produces a per-concept WDH
+assignment with source, confidence, and notes.
 
 Output schema:
     category_id, pos, concept_id, concept_ru, concept_en,
@@ -25,7 +26,7 @@ def load_category_wdh(filepath: str) -> pd.DataFrame:
 
 
 def load_concepts(filepath: str) -> pd.DataFrame:
-    """Load concepts_with_english_417.csv (tab-separated).
+    """Load concepts catalog (tab-separated).
 
     Returns DataFrame with columns:
         category_id, pos, concept_id, concept_ru, concept_en,
