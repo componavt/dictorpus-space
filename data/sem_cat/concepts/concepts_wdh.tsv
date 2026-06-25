@@ -6,6 +6,7 @@ A11	VERB	4	взойти (о небесных светилах)	to rise (of a hea
 A11	VERB	5	опуститься, закатиться (о небесных светилах)	то descend, to set (of a heavenly body)	astronomy	inherited_from_category	medium	WDH inherited from category A11
 A11	NOUN	6	луна	moon	astronomy	inherited_from_category	medium	WDH inherited from category A11
 A11	NOUN	7	звезда	star	astronomy	inherited_from_category	medium	WDH inherited from category A11
+A11	NOUN	1434	пешеход	pedestrian	astronomy	inherited_from_category	medium	WDH inherited from category A11
 A12	NOUN	8	погода	weather	meteorology	inherited_from_category	medium	WDH inherited from category A12
 A12	ADJ	9	тёмный (о ночи)	dark, gloomy	meteorology	inherited_from_category	medium	WDH inherited from category A12
 A12	ADJ	10	мокрый	wet	meteorology	inherited_from_category	medium	WDH inherited from category A12
@@ -53,6 +54,7 @@ A21	NOUN	51	полынья	clearing, water opening	geography, oceanography	inher
 A21	NOUN	52	прорубь	ice hole	geography, oceanography	inherited_from_category	medium	WDH inherited from category A21
 A21	NOUN	53	озеро	lake	geography, oceanography	inherited_from_category	medium	WDH inherited from category A21
 A21	NOUN	54	маленькое лесное озеро	small forest lake	geography, oceanography	inherited_from_category	medium	WDH inherited from category A21
+A21	NOUN	55	пространство озера (вдали от берегов)	Lake area (away from the coast)	geography, oceanography	inherited_from_category	medium	WDH inherited from category A21
 A21	NOUN	56	ил	silt	geography, oceanography	inherited_from_category	medium	WDH inherited from category A21
 A21	NOUN	57	пролив	strait	geography, oceanography	inherited_from_category	medium	WDH inherited from category A21
 A21	NOUN	58	залив	bay	geography, oceanography	inherited_from_category	medium	WDH inherited from category A21
@@ -61,7 +63,7 @@ A21	NOUN	60	море	sea	geography, oceanography	inherited_from_category	medium	
 A21	ADJ	61	глубокий	deep	geography, oceanography	inherited_from_category	medium	WDH inherited from category A21
 A21	ADJ	62	мелкий (неглубокий)	shallow	geography, oceanography	inherited_from_category	medium	WDH inherited from category A21
 A21	NOUN	63	болото	bog	geography, oceanography	inherited_from_category	medium	WDH inherited from category A21
-A21	NOUN	64	подснежная вода	subnival water 	geography, oceanography	inherited_from_category	medium	WDH inherited from category A21
+A21	NOUN	64	подснежная вода	subnival water	geography, oceanography	inherited_from_category	medium	WDH inherited from category A21
 A22	NOUN	65	гора	mountain	earth, geology	inherited_from_category	medium	WDH inherited from category A22
 A22	NOUN	66	скала	cliff	earth, geology	inherited_from_category	medium	WDH inherited from category A22
 A22	NOUN	67	низина	lowland	earth, geology	inherited_from_category	medium	WDH inherited from category A22
@@ -111,104 +113,406 @@ A322	NOUN	110	дуб	oak	biology, plants	inherited_from_category	medium	WDH inhe
 A322	NOUN	111	береза	birch	biology, plants	inherited_from_category	medium	WDH inherited from category A322
 A322	NOUN	112	сок	sap	biology, plants	inherited_from_category	medium	WDH inherited from category A322
 A322	NOUN	113	гриб-трутовик	polypore	biology, plants	inherited_from_category	medium	WDH inherited from category A322
-A323	NOUN	129	голубика	blueberry	biology, food, plants	inherited_from_category	medium	WDH inherited from category A323
+A322	NOUN	114	осина	aspen	biology, plants	inherited_from_category	medium	WDH inherited from category A322
+A322	NOUN	115	липа	linden	biology, plants	inherited_from_category	medium	WDH inherited from category A322
+A322	NOUN	116	клен	maple	biology, plants	inherited_from_category	medium	WDH inherited from category A322
+A322	NOUN	117	ива	willow	biology, plants	inherited_from_category	medium	WDH inherited from category A322
+A322	NOUN	118	рябина	mountain ash, rowan	biology, plants	inherited_from_category	medium	WDH inherited from category A322
+A322	NOUN	119	черемуха	bird cherry	biology, plants	inherited_from_category	medium	WDH inherited from category A322
+A322	NOUN	120	ольха	alder	biology, plants	inherited_from_category	medium	WDH inherited from category A322
+A323	NOUN	121	можжевельник	juniper	biology, food, plants	inherited_from_category	medium	WDH inherited from category A323
+A323	NOUN	122	малина	raspberry	biology, food, plants	inherited_from_category	medium	WDH inherited from category A323
+A323	NOUN	123	красная смородина	redcurrant	biology, food, plants	inherited_from_category	medium	WDH inherited from category A323
+A323	NOUN	124	черная смородина	currant	biology, food, plants	inherited_from_category	medium	WDH inherited from category A323
+A323	NOUN	125	ягода	berry	biology, food, plants	inherited_from_category	medium	WDH inherited from category A323
+A323	ADJ	126	незрелый (о ягодах)	unripe	biology, food, plants	inherited_from_category	medium	WDH inherited from category A323
+A323	VERB	127	собирать (ягоды)	to pick, to harvest	biology, food, plants	inherited_from_category	medium	WDH inherited from category A323
+A323	NOUN	128	черника	blueberry, whortleberry	biology, food, plants	inherited_from_category	medium	WDH inherited from category A323
+A323	NOUN	129	голубика	bilberry	biology, food, plants	inherited_from_category	medium	WDH inherited from category A323
 A323	NOUN	130	земляника	wild strawberry	biology, food, plants	inherited_from_category	medium	WDH inherited from category A323
+A323	NOUN	131	поленика	Arctic bramble, Arctic raspberry	biology, food, plants	inherited_from_category	medium	WDH inherited from category A323
+A323	NOUN	132	костяника	stone bramble	biology, food, plants	inherited_from_category	medium	WDH inherited from category A323
+A323	NOUN	133	морошка	cloudberry	biology, food, plants	inherited_from_category	medium	WDH inherited from category A323
 A323	NOUN	134	брусника	cowberry	biology, food, plants	inherited_from_category	medium	WDH inherited from category A323
-A34	NOUN	143	горох	peas	agriculture, food, plants	inherited_from_category	medium	WDH inherited from category A34
+A323	NOUN	135	клюква	cranberry	biology, food, plants	inherited_from_category	medium	WDH inherited from category A323
+A33	NOUN	136	хлеб, хлеба (все злаковые культуры)	bread (all cereals)	agriculture, food, plants	inherited_from_category	medium	WDH inherited from category A33
+A33	NOUN	137	рожь	rye	agriculture, food, plants	inherited_from_category	medium	WDH inherited from category A33
+A33	NOUN	138	пшеница	wheat	agriculture, food, plants	inherited_from_category	medium	WDH inherited from category A33
+A33	NOUN	139	ячмень	barley	agriculture, food, plants	inherited_from_category	medium	WDH inherited from category A33
+A33	NOUN	140	ость ячменя	awn (of barley)	agriculture, food, plants	inherited_from_category	medium	WDH inherited from category A33
+A33	NOUN	141	овёс	oat	agriculture, food, plants	inherited_from_category	medium	WDH inherited from category A33
+A33	NOUN	142	метелка овса	oat panicle	agriculture, food, plants	inherited_from_category	medium	WDH inherited from category A33
+A34	NOUN	143	горох	pea	agriculture, food, plants	inherited_from_category	medium	WDH inherited from category A34
+A34	NOUN	144	стручок	pod	agriculture, food, plants	inherited_from_category	medium	WDH inherited from category A34
+A34	NOUN	145	репа	turnip	agriculture, food, plants	inherited_from_category	medium	WDH inherited from category A34
 A34	NOUN	146	брюква	rutabaga	agriculture, food, plants	inherited_from_category	medium	WDH inherited from category A34
+A34	NOUN	147	лук	onion	agriculture, food, plants	inherited_from_category	medium	WDH inherited from category A34
+A35	NOUN	148	куст	bush, shrub	biology, plants	inherited_from_category	medium	WDH inherited from category A35
 A35	NOUN	149	вереск	heather	biology, plants	inherited_from_category	medium	WDH inherited from category A35
+A35	NOUN	150	клевер	clover	biology, plants	inherited_from_category	medium	WDH inherited from category A35
+A35	NOUN	151	крапива	nettle	biology, plants	inherited_from_category	medium	WDH inherited from category A35
+A35	NOUN	152	щавель	sorrel	biology, plants	inherited_from_category	medium	WDH inherited from category A35
+A35	NOUN	153	папоротник	fern	biology, plants	inherited_from_category	medium	WDH inherited from category A35
 A35	NOUN	154	гриб (губчатый)	Bolete	biology, plants	inherited_from_category	medium	WDH inherited from category A35
 A35	NOUN	155	гриб (пластинчатый)	agaric	biology, plants	inherited_from_category	medium	WDH inherited from category A35
 A35	NOUN	156	груздь	Lactarius mushroom	biology, plants	inherited_from_category	medium	WDH inherited from category A35
+A35	NOUN	157	маслёнок	slippery jack mushroom, sticky bun mushroom	biology, plants	inherited_from_category	medium	WDH inherited from category A35
 A35	NOUN	158	волнушка	woolly milkcap	biology, plants	inherited_from_category	medium	WDH inherited from category A35
 A36	ADJ	159	белый	white	color	inherited_from_category	medium	WDH inherited from category A36
+A36	ADJ	160	черный	black	color	inherited_from_category	medium	WDH inherited from category A36
+A36	ADJ	161	красный	red	color	inherited_from_category	medium	WDH inherited from category A36
 A36	ADJ	162	зелёный	green	color	inherited_from_category	medium	WDH inherited from category A36
+A36	ADJ	163	синий	blue	color	inherited_from_category	medium	WDH inherited from category A36
+A36	ADJ	164	жёлтый	yellow	color	inherited_from_category	medium	WDH inherited from category A36
+A36	ADJ	165	серый	grey	color	inherited_from_category	medium	WDH inherited from category A36
+A36	ADJ	166	пёстрый	variegated, motley	color	inherited_from_category	medium	WDH inherited from category A36
+A36	ADJ	167	тёмный	dark	color	inherited_from_category	medium	WDH inherited from category A36
+A411	NOUN	168	собака	dog	animal_husbandry, animals	inherited_from_category	medium	WDH inherited from category A411
+A411	NOUN	169	щенок	puppy	animal_husbandry, animals	inherited_from_category	medium	WDH inherited from category A411
+A411	VERB	170	лаять	to bark	animal_husbandry, animals	inherited_from_category	medium	WDH inherited from category A411
+A411	NOUN	171	кошка	cat	animal_husbandry, animals	inherited_from_category	medium	WDH inherited from category A411
+A411	NOUN	172	котёнок	kitten	animal_husbandry, animals	inherited_from_category	medium	WDH inherited from category A411
+A411	VERB	173	мяукать	to meow	animal_husbandry, animals	inherited_from_category	medium	WDH inherited from category A411
+A411	NOUN	174	коготь	claw	animal_husbandry, animals	inherited_from_category	medium	WDH inherited from category A411
 A411	NOUN	1447	детёныш (животного)	baby animal, cub	animal_husbandry, animals	inherited_from_category	medium	WDH inherited from category A411
+A412	NOUN	175	медведь	bear	animals, biology	inherited_from_category	medium	WDH inherited from category A412
+A412	NOUN	176	лапа (медведя)	paw	animals, biology	inherited_from_category	medium	WDH inherited from category A412
+A412	NOUN	177	морда	muzzle, snout	animals, biology	inherited_from_category	medium	WDH inherited from category A412
 A412	NOUN	178	волк	wolf	animals, biology	inherited_from_category	medium	WDH inherited from category A412
 A412	VERB	179	выть	to howl	animals, biology	inherited_from_category	medium	WDH inherited from category A412
+A412	NOUN	180	олень	deer	animals, biology	inherited_from_category	medium	WDH inherited from category A412
+A412	NOUN	181	лось	moose	animals, biology	inherited_from_category	medium	WDH inherited from category A412
+A412	NOUN	182	куница	marten	animals, biology	inherited_from_category	medium	WDH inherited from category A412
+A412	NOUN	183	рысь	lynx	animals, biology	inherited_from_category	medium	WDH inherited from category A412
 A412	NOUN	184	горностай	stoat	animals, biology	inherited_from_category	medium	WDH inherited from category A412
+A412	NOUN	185	лиса	fox	animals, biology	inherited_from_category	medium	WDH inherited from category A412
 A412	NOUN	186	белка	squirrel	animals, biology	inherited_from_category	medium	WDH inherited from category A412
+A412	NOUN	187	шерсть (животных)	fur, hair (animal)	animals, biology	inherited_from_category	medium	WDH inherited from category A412
 A412	NOUN	188	заяц	hare	animals, biology	inherited_from_category	medium	WDH inherited from category A412
+A412	NOUN	189	ласка	weasel (mammal)	animals, biology	inherited_from_category	medium	WDH inherited from category A412
+A412	NOUN	190	норка	mink (animal)	animals, biology	inherited_from_category	medium	WDH inherited from category A412
 A412	NOUN	191	выдра	otter	animals, biology	inherited_from_category	medium	WDH inherited from category A412
 A412	NOUN	192	бобр	beaver	animals, biology	inherited_from_category	medium	WDH inherited from category A412
 A412	NOUN	193	барсук	badger	animals, biology	inherited_from_category	medium	WDH inherited from category A412
+A412	NOUN	194	росомаха	wolverine	animals, biology	inherited_from_category	medium	WDH inherited from category A412
+A412	NOUN	195	крот	mole	animals, biology	inherited_from_category	medium	WDH inherited from category A412
+A412	NOUN	196	крыса	rat	animals, biology	inherited_from_category	medium	WDH inherited from category A412
+A412	NOUN	197	летучая мышь	bat (flying mouse)	animals, biology	inherited_from_category	medium	WDH inherited from category A412
+A412	NOUN	198	мышь	mouse	animals, biology	inherited_from_category	medium	WDH inherited from category A412
 A412	NOUN	199	ёж	hedgehog (animal)	animals, biology	inherited_from_category	medium	WDH inherited from category A412
+A42	NOUN	200	птица	bird	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	201	стая (птиц)	flock (of birds)	animals, biology	inherited_from_category	medium	WDH inherited from category A42
 A42	NOUN	202	гребень петуха	crest of a rooster	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	203	клюв	beak	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	204	крыло	wing	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	205	перо	feather	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	206	пух	down, underfur	animals, biology	inherited_from_category	medium	WDH inherited from category A42
 A42	NOUN	207	дрозд	thrush (bird)	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	208	скворец	starling	animals, biology	inherited_from_category	medium	WDH inherited from category A42
 A42	NOUN	209	грач	rook	animals, biology	inherited_from_category	medium	WDH inherited from category A42
 A42	NOUN	210	галка	jackdaw	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	211	кукушка	cuckoo	animals, biology	inherited_from_category	medium	WDH inherited from category A42
 A42	NOUN	212	дятел	woodpecker	animals, biology	inherited_from_category	medium	WDH inherited from category A42
 A42	NOUN	213	жаворонок	lark, skylark	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	214	куропатка (белая)	ptarmigan	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	215	ласточка	swallow (bird)	animals, biology	inherited_from_category	medium	WDH inherited from category A42
 A42	NOUN	216	голубь	dove, pigeon	animals, biology	inherited_from_category	medium	WDH inherited from category A42
 A42	NOUN	217	воробей	sparrow	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	218	утка	duck	animals, biology	inherited_from_category	medium	WDH inherited from category A42
 A42	NOUN	219	гусь	goose	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	220	чирок	teal	animals, biology	inherited_from_category	medium	WDH inherited from category A42
 A42	NOUN	221	гагара	loon	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	222	чайка	seagull	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	223	лебедь	swan	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	224	кулик	sandpiper, snipe	animals, biology	inherited_from_category	medium	WDH inherited from category A42
 A42	NOUN	225	журавль	crane	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	VERB	226	курлыкать	to crane-call	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	227	рябчик	hazel grouse	animals, biology	inherited_from_category	medium	WDH inherited from category A42
 A42	NOUN	228	глухарь	wood grouse	animals, biology	inherited_from_category	medium	WDH inherited from category A42
 A42	NOUN	229	глухарка	wood grouse (female)	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	230	тетерев	black grouse	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	231	сорока	magpie	animals, biology	inherited_from_category	medium	WDH inherited from category A42
 A42	NOUN	232	ворона	crow	animals, biology	inherited_from_category	medium	WDH inherited from category A42
 A42	NOUN	233	ворон	raven	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	234	ястреб	hawk (a predatory bird)	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	235	орёл	eagle	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A42	NOUN	236	сова	owl	animals, biology	inherited_from_category	medium	WDH inherited from category A42
+A43	NOUN	237	рыба	fish	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	238	чешуя	scales (of fish, reptiles, etc.)	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	239	плавник	fin	animals, biology	inherited_from_category	medium	WDH inherited from category A43
 A43	NOUN	240	жабры	gill	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	241	икра (рыбья)	roe, spawn (of fish)	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	VERB	242	метать икру	to spawn	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	243	молоки	milt	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	244	молодь рыбы	fry, juvenile fish, fingerlings, juvenile fish	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	245	лосось	salmon	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	246	сёмга	Atlantic salmon	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	247	сиг	whitefish, cisco	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	248	щука	pike	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	249	окунь	perch	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	250	налим	burbot	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	251	язь	ide	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	252	лещ	bream	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	253	плотва	roach	animals, biology	inherited_from_category	medium	WDH inherited from category A43
 A43	NOUN	254	ёрш	ruffe	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	255	ряпушка	Coregonus albula, vendace, European cisco	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	256	корюшка	smelt	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	257	судак	zander	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	258	хариус	grayling	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A43	NOUN	259	угорь	eel	animals, biology	inherited_from_category	medium	WDH inherited from category A43
+A44	NOUN	260	муравей	ant	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
 A44	NOUN	261	бабочка	butterfly	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
 A44	NOUN	262	жук	beetle	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
+A44	NOUN	263	клещ	tick	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
+A44	NOUN	264	личинка (под корой дерева)	larva	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
+A44	NOUN	265	клоп	bedbug	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
+A44	NOUN	266	таракан	cockroach	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
+A44	NOUN	267	паук	spider	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
 A44	NOUN	268	гнида	nit	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
 A44	NOUN	269	блоха	flea	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
+A44	NOUN	270	ящерица	lizard	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
 A44	NOUN	271	змея	snake	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
+A44	NOUN	272	лягушка	frog	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
 A44	NOUN	273	жаба	toad	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
+A44	NOUN	274	улитка	snail	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
+A44	NOUN	275	червяк	worm	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
+A44	NOUN	276	муха	fly	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
+A44	NOUN	277	овод	botfly	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
+A44	NOUN	278	комар	mosquito	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
+A44	NOUN	279	мошка	midge	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
+A44	NOUN	280	оса	wasp	animals, biology, entomology	inherited_from_category	medium	WDH inherited from category A44
+B11	NOUN	281	человек	human	person	inherited_from_category	medium	WDH inherited from category B11
+B11	NOUN	282	имя	name	person	inherited_from_category	medium	WDH inherited from category B11
+B11	NOUN	283	мужчина	man	person	inherited_from_category	medium	WDH inherited from category B11
+B11	NOUN	284	мальчик	boy	person	inherited_from_category	medium	WDH inherited from category B11
+B11	NOUN	285	парень	guy	person	inherited_from_category	medium	WDH inherited from category B11
 B11	NOUN	286	девушка	girl	person	inherited_from_category	medium	WDH inherited from category B11
-B11	NOUN	287	женщина	woman	person	inherited_from_category	medium	WDH inherited from category B11
+B11	NOUN	287	женщина	woman; female (adult human)	person	inherited_from_category	medium	WDH inherited from category B11
+B11	NOUN	288	народ, люди	people	person	inherited_from_category	medium	WDH inherited from category B11
+B11	ADJ	289	тихий, спокойный (о человеке)	quiet	person	inherited_from_category	medium	WDH inherited from category B11
 B11	ADJ	290	взрослый	adult	person	inherited_from_category	medium	WDH inherited from category B11
 B11	ADJ	291	высокий	tall	person	inherited_from_category	medium	WDH inherited from category B11
+B11	ADJ	292	маленький	little (of a person)	person	inherited_from_category	medium	WDH inherited from category B11
+B11	ADJ	293	красивый	beautiful, handsome, pretty	person	inherited_from_category	medium	WDH inherited from category B11
+B11	ADJ	294	лучший, самый хороший	best, finest (of a person)	person	inherited_from_category	medium	WDH inherited from category B11
+B11	VERB	295	сметь	to dare	person	inherited_from_category	medium	WDH inherited from category B11
+B11	ADJ	296	смелый	brave	person	inherited_from_category	medium	WDH inherited from category B11
+B11	ADJ	297	хитрый	cunning	person	inherited_from_category	medium	WDH inherited from category B11
+B11	ADJ	298	чужой	strange, foreign, alien	person	inherited_from_category	medium	WDH inherited from category B11
+B11	NOUN	299	сила	strength, power, force	person	inherited_from_category	medium	WDH inherited from category B11
+B11	NOUN	300	счастье	happiness	person	inherited_from_category	medium	WDH inherited from category B11
+B11	NOUN	301	характер	character; temper	person	inherited_from_category	medium	WDH inherited from category B11
+B11	VERB	302	хвалить	to praise; to commend; to extol	person	inherited_from_category	medium	WDH inherited from category B11
+B11	VERB	303	устать	to get tired; to become weary; to be exhausted	person	inherited_from_category	medium	WDH inherited from category B11
+B11	PRON	304	я	I	person	inherited_from_category	medium	WDH inherited from category B11
+B11	PRON	305	мы	we	person	inherited_from_category	medium	WDH inherited from category B11
+B11	PRON	306	ты	you (singular, informal)	person	inherited_from_category	medium	WDH inherited from category B11
 B11	PRON	307	вы	you	person	inherited_from_category	medium	WDH inherited from category B11
+B11	PRON	308	тот	that	person	inherited_from_category	medium	WDH inherited from category B11
+B11	PRON	309	те	those	person	inherited_from_category	medium	WDH inherited from category B11
+B11	PRON	310	он	he	person	inherited_from_category	medium	WDH inherited from category B11
+B11	PRON	311	они	they	person	inherited_from_category	medium	WDH inherited from category B11
+B11	PRON	312	сам (сама, само)	self, oneself	person	inherited_from_category	medium	WDH inherited from category B11
+B11	PRON	313	свой	one's own	person	inherited_from_category	medium	WDH inherited from category B11
+B11	PRON	314	этот	this	person	inherited_from_category	medium	WDH inherited from category B11
+B11	PRON	315	кто	who	person	inherited_from_category	medium	WDH inherited from category B11
+B11	PRON	316	какой	what, which, what kind of	person	inherited_from_category	medium	WDH inherited from category B11
+B11	PRON	317	что	what	person	inherited_from_category	medium	WDH inherited from category B11
+B11	PRON	318	иной, некий, некоторый	another, some, certain, other	person	inherited_from_category	medium	WDH inherited from category B11
+B11	PRON	319	каждый	each, every	person	inherited_from_category	medium	WDH inherited from category B11
+B11	ADV	320	как	how	person	inherited_from_category	medium	WDH inherited from category B11
+B12	NOUN	321	тело	body	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	322	туловище	torso, trunk	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	ADJ	323	большой	big	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	ADJ	324	толстый, полный (о человеке)	fat, overweight, stout	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	ADJ	325	тонкий	thin, slender, slim	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	ADJ	326	худой, тощий	thin, skinny, emaciated, lean	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	ADJ	327	слабый (о человеке)	weak, feeble	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	ADJ	328	сильный	strong, powerful	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	329	кожа (человека)	skin	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	VERB	330	потеть	to sweat, to perspire	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	331	голова	head	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	332	затылок	nape	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	333	волосы (на голове)	hair	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	334	кудри	curls, curly hair	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	335	коса (заплетенные волосы)	braid, plait	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	336	перхоть	dandruff	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	VERB	337	чесать, расчесывать (волосы)	to comb, to brush (hair)	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	VERB	338	зудеть, чесаться	to itch	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	339	череп	skull	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	ADJ	340	лысый	bald	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	341	борода	beard	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	342	усы	mustache	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	343	висок	temple	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	344	лицо	face	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	345	лоб	forehead, brow	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	346	щека	cheek	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	347	подбородок	chin	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	348	рот	mouth	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	349	десны	gums	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	350	язык	tongue	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	VERB	351	глотать	to swallow	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	VERB	352	лизать	to lick	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	VERB	353	плевать	to spit	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	VERB	354	дуть	to blow	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	355	губа	lip	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	356	зуб (у человека)	tooth	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	357	слюна	saliva, spit	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	358	голос	voice	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	VERB	359	кричать	to shout, to scream, to yell	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	VERB	360	шептать	to whisper	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	VERB	361	замолчать	to become silent	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	362	шея	neck	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	363	плечо	shoulder	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	364	подмышки	armpits, underarms	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	365	грудь	chest	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	366	грудь (женская)	breast	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	367	бок	side	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	368	рука	arm, hand	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	369	ладонь	palm (of the hand)	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	370	локоть	elbow	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	371	кулак	fist	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	372	кукиш	fig sign, thumb between fingers gesture	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	373	палец руки	finger	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	374	палец ноги	toe	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	375	ноготь	nail	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	376	запястье	wrist	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	377	нога	leg	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	378	пятка	heel	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	379	колено	knee	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	380	икра ноги	calf (of leg)	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	381	подъем ноги	instep; arch of foot	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	382	голень	shin	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	383	бедро	hip	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	384	спина	back	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	385	поясница	lower back; loins	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	386	зад (у человека)	buttocks; rear end	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	ADJ	387	голый, нагой	nude	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	388	сустав	joint	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	389	скелет	skeleton	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	390	позвоночник	spine; backbone	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	391	таз (у человека)	pelvis	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	392	лёгкие	lungs	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	393	горло	throat	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	VERB	394	дышать	to breathe	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	395	живот	belly	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	396	пуп	navel; belly button	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	397	кишки	intestines; bowels	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	VERB	398	рвать, тошнить	to vomit	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	399	сердце	heart	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	400	кровь	blood	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	401	жила (кровеносный сосуд)	vein	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	402	печень	liver	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	403	почки	kidneys	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	VERB	404	мочиться	to urinate; to pee	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	405	глаз	eye	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	406	слеза	tear	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	407	бровь	eyebrow	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	408	веко	eyelid	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	VERB	409	видеть	to see	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	VERB	410	смотреть	to look; to watch	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	ADJ	411	слепой	blind	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	412	ухо	ear	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	VERB	413	слышать	to hear	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	ADJ	414	глухой	deaf	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	415	нос	nose	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	416	ноздря	nostril	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	417	сопли	nasal mucus; runny nose discharge; snot	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	VERB	418	нюхать	to smell; to sniff	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	VERB	419	пахнуть	to smell; to have a scent	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
 B12	NOUN	420	дерьмо	crap	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B12	NOUN	421	нерв	nerve	anatomy, physiology	inherited_from_category	medium	WDH inherited from category B12
+B15	VERB	422	терять	to lose	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	423	искать	to search; to look for; to seek	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	424	найти	to find	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	425	поймать	to catch	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	426	догонять	to catch up	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	427	охранять, сторожить	to guard; to watch over	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	428	попадать, оказаться, очутиться	to end up; to find oneself	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	429	прятать	to hide; to conceal	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	430	совать	to thrust; to stick in	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	431	просовывать, вдевать	to insert; to thread	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	432	заталкивать, запихивать (во что-либо)	to shove; to cram (into)	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	433	держать	to hold	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	434	отбирать, отнимать	to take away	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	435	бросать, кидать	to throw	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	436	класть	to put; to lay	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	437	укладывать, складывать в определенном порядке	to arrange; to stack in order	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	438	переламывать	to break to pieces	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	439	ломать, разбивать	to break; to smash	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	440	ломать, разбирать (печь, дом)	to dismantle; to take apart (a stove, house)	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	441	давить, придавливать	to press	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	442	махать, взмахивать, размахивать	to wave; to swing	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	443	махать, указывать, показывать	to wave, to point, to show	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	444	оставлять	to leave; to let stay	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	445	схватить	to grab; to seize	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	446	толкать	to push; to shove	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	447	поднять	to raise, to elevate, to lift up	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	448	летать	to fly	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	449	вешать	to hang up	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	450	ложиться	to lie down	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	451	лежать	to lie; to be lying	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	452	проснуться	to wake up	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	453	стоять	to stand	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	454	наступать (ногой)	to step on; to tread on	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	455	пинать	to kick; to strike with foot	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	456	скакать, прыгать	to jump; to leap; to hop	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	457	сидеть	to sit	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	458	бежать	to be running	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	459	ползать	to crawl; to creep	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	460	падать	to fall; to drop	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	461	выпадать	to fall out	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	462	брать	to take	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	463	давать	to give	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	464	добавлять	to add	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	465	начинать	to begin; to start	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	466	кончать	to finish; to end; to complete	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	467	портить	to spoil, to ruin, to mar, to damage	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	468	рубить	to chop; to hew; to cut with an axe	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	469	ударять	to hit; to strike; to beat	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	470	выбирать	to choose	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	471	делить	to divide	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	472	лить	to pour; to flow	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	473	липнуть, прилипать	to stick; to adhere; to cling	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	474	опрокидывать	to overturn; to tip over; to knock down	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	475	обрывать (листья)	to pluck (leaves); to pick off	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	476	рвать	to tear; to rip; to pull apart	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	477	мешать, размешивать	to stir; to mix; to agitate	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	478	мешать (быть помехой)	to hinder; to obstruct; to interfere	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	479	показывать	to show; to point out; to display	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	480	сжимать, сдавливать, стискивать	to squeeze; to compress; to press together	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	481	собирать	to gather; to collect; to put together	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	482	посылать	to send; to dispatch; to direct	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	483	пускать	to let go; to allow; to release	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	484	доставать, приобретать	to acquire	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	485	трогать, прикасаться	to touch; to feel; to make contact	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	486	возвратиться	to come back	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	487	опаздывать	to be late; to lag behind	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	488	гнать, выгонять	to oust	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	489	двигаться	to move	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	490	ходить	to walk; to go (on foot); to move about	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	491	шагать	to step; to stride; to march	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	NOUN	492	шаг	step	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	493	уходить, идти	to leave; to go; to depart	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	494	пойти, отправиться	to set off; to go; to start a journey	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	495	приходить	to come; to arrive; to reach	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	496	плавать	to swim; to float	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	497	тонуть	to sink; to drown	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	498	возить	to carry	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	499	нести	to carry; to bear; to transport	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	500	останавливать	to stop; to halt; to bring to a standstill	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	501	поворачивать, изменять направление	to turn; to change direction; to veer	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	502	править, управлять	to manage; to control; to handle; to govern	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	503	щекотать	to tickle	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	504	пугать	to frighten; to scare; to startle	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	505	успевать	to have time (+ to)	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	506	помогать	to help; to assist; to aid	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
 B15	VERB	507	велеть	to order	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	508	обещать	to promise; to assure; to pledge	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	509	кланяться	to bow; to greet with a bow	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	510	звать	to call; to summon; to invite	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B15	VERB	511	называть	to name; to call; to designate	factotum, transport	inherited_from_category	medium	WDH inherited from category B15
+B16	ADJ	512	здоровый	healthy; sound; in good health	health, medicine	inherited_from_category	medium	WDH inherited from category B16
 B16	ADJ	513	больной	ill	health, medicine	inherited_from_category	medium	WDH inherited from category B16
 B16	ADJ	514	бледный (о человеке)	pale	health, medicine	inherited_from_category	medium	WDH inherited from category B16
 B16	NOUN	515	бедняга	wretch	health, medicine	inherited_from_category	medium	WDH inherited from category B16
@@ -217,202 +521,925 @@ B16	NOUN	517	болезнь, недуг	illness, sickness	health, medicine	inher
 B16	VERB	518	болеть	to be sick	health, medicine	inherited_from_category	medium	WDH inherited from category B16
 B16	VERB	519	болеть (ощущать боль)	to pain	health, medicine	inherited_from_category	medium	WDH inherited from category B16
 B16	NOUN	520	желтуха	jaundice	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	NOUN	521	корь	measles	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	NOUN	522	оспа	smallpox; pox	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	NOUN	523	серная пробка в ухе	earwax buildup; cerumen impaction	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	VERB	524	ушибить	to bruise; to contuse; to injure by impact	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	NOUN	525	синяк	bruise; contusion; black-and-blue mark	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	NOUN	526	шишка, нарост на теле	lump; bump; growth on the body	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	VERB	527	пухнуть	to swell; to become swollen	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	NOUN	528	чесотка	scabies	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	VERB	529	кашлять	to cough	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	NOUN	530	колики	colic; abdominal cramps	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	NOUN	531	нарыв	abscess; boil; suppuration	health, medicine	inherited_from_category	medium	WDH inherited from category B16
 B16	NOUN	532	гной	pus	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	VERB	533	терпеть	to endure; to tolerate; to bear	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	VERB	534	угореть	to be poisoned by fumes	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	NOUN	535	угар	carbon monoxide poisoning; fume intoxication	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	VERB	536	неметь, терять чувствительность	to become numb; to lose sensation	health, medicine	inherited_from_category	medium	WDH inherited from category B16
 B16	VERB	537	вылечить	to cure (of)	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	VERB	538	замерзать	to freeze; to get cold; to become numb with cold	health, medicine	inherited_from_category	medium	WDH inherited from category B16
 B16	VERB	539	дрожать	to shiver	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	VERB	540	простужаться	to catch a cold; to get chilled	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	NOUN	541	насморк	runny nose; rhinitis; nasal discharge	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	VERB	542	чихать	to sneeze	health, medicine	inherited_from_category	medium	WDH inherited from category B16
 B16	NOUN	543	горб	hump	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	ADJ	544	хромой	lame; limping; having a limp	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B16	ADJ	545	немой	mute; dumb; unable to speak	health, medicine	inherited_from_category	medium	WDH inherited from category B16
+B17	ADJ	546	старый (о человеке)	old; elderly; aged	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	NOUN	547	старик	old man; elder; aged man	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	NOUN	548	старуха	old woman; elderly woman; aged woman	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	NOUN	549	морщина	wrinkle; line; crease	factotum, person	inherited_from_category	medium	WDH inherited from category B17
 B17	ADJ	550	живой	alive	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	VERB	551	умирать	to die	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	NOUN	552	смерть	death	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	NOUN	553	покойник	deceased; the departed; dead person	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	VERB	554	хоронить	to bury; to inter; to lay to rest	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	NOUN	555	плакальщица	mourner; professional wailer; lamenting woman	factotum, person	inherited_from_category	medium	WDH inherited from category B17
 B17	NOUN	556	гроб	coffin	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	NOUN	557	могила	grave; tomb; burial place	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	NOUN	558	место	place; location; spot	factotum, person	inherited_from_category	medium	WDH inherited from category B17
 B17	NOUN	559	душа	soul	factotum, person	inherited_from_category	medium	WDH inherited from category B17
 B17	VERB	560	дремать	to doze	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	VERB	561	спать	to sleep; to be asleep	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	VERB	562	заснуть	to fall asleep; to doze off	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	VERB	563	храпеть (о человеке)	to snore	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	NOUN	564	сон	sleep; slumber; dreaming state	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	VERB	566	успокаивать (о человеке)	to calm	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	VERB	567	спорить	to argue	factotum, person	inherited_from_category	medium	WDH inherited from category B17
 B17	VERB	568	видеть	to see	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	VERB	569	замечать (обнаруживать что-либо и уделять этому внимание)	to detect, to notice	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	NOUN	570	забота	care	factotum, person	inherited_from_category	medium	WDH inherited from category B17
 B17	VERB	571	быть	to be	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	AUX	572	не (отрицательный глагол, 3-е л. ед. ч.)	is not; does not (3rd person singular)	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	VERB	573	мочь	can; to be able	factotum, person	inherited_from_category	medium	WDH inherited from category B17
 B17	VERB	574	ждать	to wait	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	VERB	575	намереваться	to intend; to plan	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	VERB	576	отгадывать	to guess	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	VERB	577	провожать	to see off; to accompany; to escort	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	VERB	578	заблудиться	to get lost; to lose one's way	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	VERB	579	торопиться	to hurry; to rush; to hasten	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	NOUN	580	привычка	habit	factotum, person	inherited_from_category	medium	WDH inherited from category B17
 B17	NOUN	581	возраст	age	factotum, person	inherited_from_category	medium	WDH inherited from category B17
 B17	NOUN	582	жребий	lot	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	VERB	583	надо	must; need to; should	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	VERB	584	отвечать	to answer; to reply; to respond	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	NOUN	585	спасибо	thank you; thanks	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	NOUN	586	ссора	quarrel; dispute; argument	factotum, person	inherited_from_category	medium	WDH inherited from category B17
 B17	VERB	587	драться	to fight	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	ADJ	588	знакомый	acquaintance; familiar	factotum, person	inherited_from_category	medium	WDH inherited from category B17
+B17	ADJ	589	трусливый	cowardly	factotum, person	inherited_from_category	medium	WDH inherited from category B17
 B181	ADJ	565	вкусный	tasty	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	590	пища	food	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
 B181	VERB	591	есть	to eat	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	VERB	592	пить	to drink	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	VERB	593	хлебать	to sup	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	VERB	594	сосать	to suck	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	595	прием пищи	meal	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	596	завтрак	breakfast	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	597	обед	lunch, dinner	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	598	ужин	supper, dinner (evening meal)	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
 B181	VERB	599	варить	to boil	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	VERB	600	парить	to steam	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	ADJ	601	сладкий	sweet	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	ADJ	602	пресный (о тесте, хлебе, лепешках)	unleavened (of dough, bread)	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	ADJ	603	холодный	cold	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	ADJ	604	тёплый	warm	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
 B181	ADJ	605	горячий	hot	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	VERB	606	кипеть	to boil	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	607	чай	tea	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
 B181	NOUN	608	блин	pancake	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	609	сканец	skanetс; rye flatbread	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	610	пирог	pie	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	611	рыбник (пирог)	fish pie	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	612	каша из муки, загуста	thick flour porridge; zagusta	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
 B181	ADJ	613	густой	dense	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
 B181	ADJ	614	жидкий	liquid	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	615	крошево	kroshevo; chopped cabbage dish	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
 B181	NOUN	616	бульон	bouillon	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	617	суп	soup	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	VERB	618	кусать	to bite	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	VERB	619	пробовать (на вкус)	to taste	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	VERB	620	размельчать	to crush	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	VERB	621	отжимать, выжимать, пропуская через сито	to strain	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
 B181	VERB	622	вскрыть	to unseal	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	623	потроха рыбы	fish entrails, fish guts	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	624	очистки	peelings	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	625	отжимки	residue after pressing	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	626	раствор для киселя или блинов	batter (for pancakes)	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	627	пена	foam, froth, scum	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	628	пивная гуща, барда	beer lees, beer sediment	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
 B181	ADJ	629	горький	bitter	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	ADJ	630	кислый	sour	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	631	плесень	mold	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	632	соль	salt	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	633	сахар	sugar	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	634	толокно	oat flour; tolokno	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	635	солод	malt	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	636	рассол	brine	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	637	крупа	groats	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	ADJ	638	крупный (о муке грубого помола)	coarse (of flour), roughly ground	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	640	кисель	kissel	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	641	квас	kvass	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	642	пиво	beer	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
 B181	NOUN	643	вино	wine	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	ADJ	644	сытый	full, well-fed	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
 B181	NOUN	645	голод	hunger	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	VERB	646	хотеть пить, испытывать жажду	to thirst	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	VERB	647	курить	to smoke	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	648	табак	tobacco	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	NOUN	649	трубка	pipe (for smoking)	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B181	VERB	1429	проколоть, проткнуть	to pierce, to prick, to puncture	body_care, food, gastronomy	inherited_from_category	medium	WDH inherited from category B181
+B182	NOUN	650	одежда	clothing	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	651	рубашка (мужская)	shirt (men's)	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	652	рубашка (женская)	blouse, shirt (women's)	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	653	штаны	trousers; pants	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	654	кальсоны	long underwear; longjohns	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	655	юбка	skirt	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	656	сарафан	sarafan	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	657	чулок	stocking	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	658	портянки	footwraps, legwraps	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	659	платок	headscarf; shawl	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	660	кафтан	kaftan	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	661	платье	dress	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	662	шуба	fur coat	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	663	пазуха	bosom (of clothing); chest fold (of garment)	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	664	шапка	hat	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	665	рукавица	mitten	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	VERB	666	раздеть, снять	to undress; to take off (clothing)	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	667	пояс	belt	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	668	ремень	strap; belt (leather)	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	669	пряжка	buckle; clasp	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	670	подол	hem; skirt-bottom	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	671	пуговица	button	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	672	рукав	sleeve	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	673	карман	pocket	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	VERB	674	кроить	to cut out (fabric); to cut a pattern	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	VERB	675	шить	to sew	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	VERB	676	пороть	to unpick; to rip (a seam)	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	VERB	677	подрубать	to hem; to overcast (an edge)	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	VERB	678	чинить белье	to mend linen; to repair clothing	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
 B182	NOUN	679	дыра	hole	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	ADJ	680	старый, изношенный (об одежде)	worn, old, shabby (of clothing)	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	ADJ	681	новый	new	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	ADJ	682	тесный	tight; close-fitting; narrow; constricting	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
 B182	NOUN	683	бусы	beads	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	684	кольцо, перстень	ring	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	685	серьги	earrings	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	686	наперсток	thimble	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	VERB	687	мыть	to wash	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	688	мыло	soap	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	689	пар (в бане)	steam (in the bathhouse)	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	VERB	690	париться (в бане)	to steam oneself (in the bathhouse)	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	ADJ	691	чистый	clean	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
 B182	VERB	692	вытирать	to wipe	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	693	полотенце	towel	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	694	простыня	bed sheet	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	695	скатерть	tablecloth	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	696	щёлок	lye; alkaline solution	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	697	одеяло	blanket	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	698	подушка	pillow	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	699	постель	bed	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
 B182	NOUN	700	гребень (для волос)	comb	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B182	NOUN	701	зеркало	mirror	body_care, fashion	inherited_from_category	medium	WDH inherited from category B182
+B21	VERB	702	понимать	to understand	psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B21
 B21	VERB	703	думать	to think	psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B21
+B21	VERB	704	помнить	to remember	psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B21
+B21	VERB	705	упоминать	to mention	psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B21
+B21	VERB	706	знать	to know	psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B21
+B21	VERB	707	узнавать	to find out	psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B21
+B21	VERB	708	забывать	to forget; to fail to remember	psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B21
+B21	NOUN	709	ум	mind; intellect	psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B21
+B21	ADJ	710	умный	smart; intelligent	psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B21
+B21	VERB	711	уметь	to be able to; to have the skill	psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B21
+B21	NOUN	712	мозг	brain	psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B21
+B21	NOUN	713	слово	word	psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B21
+B21	ADJ	714	скупой	stingy; miserly; tight-fisted	psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B21
 B22	VERB	715	бояться	to fear	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
+B22	VERB	716	хотеть	to want; to wish	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
+B22	ADJ	717	милый	dear; darling; kind	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
+B22	VERB	718	обрадоваться	to rejoice; to be glad	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
+B22	VERB	719	нравиться	to like; to please	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
+B22	VERB	720	смеяться	to laugh	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
+B22	VERB	721	сердиться	to be angry; to get angry	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
+B22	NOUN	722	обида	offence; grievance	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
 B22	ADV	723	жаль	pity	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
+B22	NOUN	724	печаль, тоска	sadness; longing; grief	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
+B22	VERB	725	мучить	to torment; to cause suffering	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
+B22	VERB	726	плакать	to cry	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
+B22	VERB	727	любить	to love	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
+B22	VERB	728	обнимать	to hug; to embrace	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
+B22	VERB	729	целовать	to kiss	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
 B22	NOUN	730	беда	misfortune	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
 B22	VERB	1166	гладить, поглаживать	to stroke	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
 B22	NOUN	1450	доверие	trust	physiology, psychological_features, psychology	inherited_from_category	medium	WDH inherited from category B22
+B23	VERB	731	лгать, обманывать	to lie; to deceive	philosophy, sociology	inherited_from_category	medium	WDH inherited from category B23
 B23	VERB	732	воровать	to steal	philosophy, sociology	inherited_from_category	medium	WDH inherited from category B23
 B23	ADJ	733	виноватый	guilty	philosophy, sociology	inherited_from_category	medium	WDH inherited from category B23
 B23	VERB	734	бранить, ругать	to scold	philosophy, sociology	inherited_from_category	medium	WDH inherited from category B23
+B23	VERB	735	хаять	to disparage; to badmouth	philosophy, sociology	inherited_from_category	medium	WDH inherited from category B23
 B23	VERB	736	дразнить	to tease	philosophy, sociology	inherited_from_category	medium	WDH inherited from category B23
+B23	ADJ	737	хороший	good	philosophy, sociology	inherited_from_category	medium	WDH inherited from category B23
+B23	ADJ	738	злой	evil, wicked	philosophy, sociology	inherited_from_category	medium	WDH inherited from category B23
+B23	ADJ	739	плохой	bad; poor	philosophy, sociology	inherited_from_category	medium	WDH inherited from category B23
+B23	ADJ	740	ленивый	lazy; idle	philosophy, sociology	inherited_from_category	medium	WDH inherited from category B23
+B23	VERB	741	завидовать	to envy	philosophy, sociology	inherited_from_category	medium	WDH inherited from category B23
+B23	NOUN	742	стыд	shame	philosophy, sociology	inherited_from_category	medium	WDH inherited from category B23
+B23	NOUN	743	правда	truth	philosophy, sociology	inherited_from_category	medium	WDH inherited from category B23
+B23	NOUN	744	честь	honour; dignity	philosophy, sociology	inherited_from_category	medium	WDH inherited from category B23
+B23	NOUN	745	милость	mercy; grace; favour	philosophy, sociology	inherited_from_category	medium	WDH inherited from category B23
+B31	VERB	746	работать	to work; to labour	artisanship, enterprise, person	inherited_from_category	medium	WDH inherited from category B31
+B31	NOUN	747	работа	work; labour	artisanship, enterprise, person	inherited_from_category	medium	WDH inherited from category B31
+B31	VERB	748	нанимать	to hire; to employ	artisanship, enterprise, person	inherited_from_category	medium	WDH inherited from category B31
 B31	VERB	749	делать	to make	artisanship, enterprise, person	inherited_from_category	medium	WDH inherited from category B31
 B31	NOUN	750	дело	business	artisanship, enterprise, person	inherited_from_category	medium	WDH inherited from category B31
+B31	NOUN	751	подряд	contract; job contract	artisanship, enterprise, person	inherited_from_category	medium	WDH inherited from category B31
+B31	NOUN	752	ноша	load; burden (carried)	artisanship, enterprise, person	inherited_from_category	medium	WDH inherited from category B31
+B31	VERB	753	тереть	to rub	artisanship, enterprise, person	inherited_from_category	medium	WDH inherited from category B31
+B31	VERB	754	прибирать (в квартире)	to tidy up; to clean (a room)	artisanship, enterprise, person	inherited_from_category	medium	WDH inherited from category B31
 B31	VERB	755	вить, свивать	to twist	artisanship, enterprise, person	inherited_from_category	medium	WDH inherited from category B31
+B31	VERB	756	сучить (пряжу)	to twist (yarn); to spin	artisanship, enterprise, person	inherited_from_category	medium	WDH inherited from category B31
+B31	VERB	757	облить	to pour over; to spill over	artisanship, enterprise, person	inherited_from_category	medium	WDH inherited from category B31
+B31	VERB	758	связывать	to tie; to bind	artisanship, enterprise, person	inherited_from_category	medium	WDH inherited from category B31
+B31	VERB	759	отломить, отколоть	to break off; to chip off	artisanship, enterprise, person	inherited_from_category	medium	WDH inherited from category B31
+B31	NOUN	760	узел	knot	artisanship, enterprise, person	inherited_from_category	medium	WDH inherited from category B31
+B31	NOUN	1436	помощник	helper, aide	artisanship, enterprise, person	inherited_from_category	medium	WDH inherited from category B31
+B321	NOUN	761	подсека	slash-and-burn plot; podséka	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	VERB	762	палить подсеку	to burn the slash-and-burn plot	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	VERB	763	расчищать, раскорчевывать (под пашню, луг)	to clear; to grub up (for a field or meadow)	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	NOUN	764	пожог, выженное место	burnt clearing; burn site	agriculture	inherited_from_category	medium	WDH inherited from category B321
 B321	NOUN	765	груда (камней)	heap	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	NOUN	766	поле	field	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	NOUN	767	почва	soil	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	ADJ	768	твердый	hard; firm	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	VERB	769	набухать	to swell; to expand	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	VERB	770	обрабатывать (землю)	to till; to cultivate (land)	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	NOUN	771	полоса (земли)	strip (of land)	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	NOUN	772	пар (в севообороте)	fallow (in crop rotation)	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	NOUN	773	подсека заросшая	overgrown slash-and-burn plot	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	NOUN	774	навоз	manure; dung	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	NOUN	775	навозная куча	manure heap; dunghill	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	VERB	776	копать	to dig	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	NOUN	777	мотыга	hoe; mattock	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	NOUN	778	соха	sokha (wooden plough)	agriculture	inherited_from_category	medium	WDH inherited from category B321
 B321	NOUN	779	борона	harrow	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	NOUN	780	изгородь	fence; enclosure	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	NOUN	781	кол	stake; pole	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	VERB	782	сеять	to sow	agriculture	inherited_from_category	medium	WDH inherited from category B321
 B321	NOUN	783	всходы	young growth	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	NOUN	784	росток	sprout; seedling	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	NOUN	785	отросток, побег	shoot; offshoot	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	VERB	786	полоть	to weed	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	ADJ	787	спелый, зрелый	ripe; mature	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	NOUN	788	полеглость	lodging; crop lodging	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	NOUN	789	лемех	ploughshare; lemech	agriculture	inherited_from_category	medium	WDH inherited from category B321
+B321	VERB	790	пахать	to plough	agriculture	inherited_from_category	medium	WDH inherited from category B321
 B321	NOUN	791	борозда	furrow	agriculture	inherited_from_category	medium	WDH inherited from category B321
 B321	NOUN	1437	жердь	pole	agriculture	inherited_from_category	medium	WDH inherited from category B321
 B322	VERB	792	жать	to reap	agriculture	inherited_from_category	medium	WDH inherited from category B322
+B322	NOUN	793	серп	sickle	agriculture	inherited_from_category	medium	WDH inherited from category B322
+B322	NOUN	794	сноп	sheaf	agriculture	inherited_from_category	medium	WDH inherited from category B322
+B322	NOUN	795	перевясло	straw band; sheaf binder	agriculture	inherited_from_category	medium	WDH inherited from category B322
+B322	NOUN	796	суслон, бабка	stook; shook (of sheaves)	agriculture	inherited_from_category	medium	WDH inherited from category B322
+B322	NOUN	797	зарод	hay stack; zarod (oblong stack)	agriculture	inherited_from_category	medium	WDH inherited from category B322
+B322	NOUN	798	стерня	stubble	agriculture	inherited_from_category	medium	WDH inherited from category B322
+B322	NOUN	799	яровые злаки	spring cereals	agriculture	inherited_from_category	medium	WDH inherited from category B322
+B323	NOUN	800	рига	riga (threshing barn)	agriculture	inherited_from_category	medium	WDH inherited from category B323
+B323	VERB	801	насаживать снопы (в ригу)	to stack sheaves (in the riga)	agriculture	inherited_from_category	medium	WDH inherited from category B323
+B323	VERB	802	молотить	to thresh	agriculture	inherited_from_category	medium	WDH inherited from category B323
+B323	NOUN	803	зерно	grain; kernel	agriculture	inherited_from_category	medium	WDH inherited from category B323
 B323	VERB	804	веять	to winnow	agriculture	inherited_from_category	medium	WDH inherited from category B323
+B323	NOUN	805	солома	straw	agriculture	inherited_from_category	medium	WDH inherited from category B323
+B323	NOUN	806	пучок, связка (соломы)	bundle; bunch (of straw)	agriculture	inherited_from_category	medium	WDH inherited from category B323
+B323	NOUN	807	полова, мякина	chaff; winnowings	agriculture	inherited_from_category	medium	WDH inherited from category B323
+B324	NOUN	808	коса	scythe	agriculture	inherited_from_category	medium	WDH inherited from category B324
+B324	VERB	809	косить	to mow; to scythe	agriculture	inherited_from_category	medium	WDH inherited from category B324
+B324	NOUN	810	сено	hay	agriculture	inherited_from_category	medium	WDH inherited from category B324
+B324	NOUN	811	луг, лужайка	meadow; lawn	agriculture	inherited_from_category	medium	WDH inherited from category B324
+B324	VERB	812	точить на точильном камне	to sharpen on a whetstone	agriculture	inherited_from_category	medium	WDH inherited from category B324
+B324	VERB	813	точить бруском	to sharpen with a honing stick	agriculture	inherited_from_category	medium	WDH inherited from category B324
 B324	NOUN	814	грабли	rake	agriculture	inherited_from_category	medium	WDH inherited from category B324
+B324	NOUN	815	зуб (граблей)	tooth (of a rake)	agriculture	inherited_from_category	medium	WDH inherited from category B324
 B324	NOUN	816	валок (сена)	windrow (of hay)	agriculture	inherited_from_category	medium	WDH inherited from category B324
+B324	NOUN	817	куча	pile; heap	agriculture	inherited_from_category	medium	WDH inherited from category B324
+B324	NOUN	818	копна (сена)	hay cock	agriculture	inherited_from_category	medium	WDH inherited from category B324
+B324	VERB	819	разбрасывать, расстилать (копны сена)	to spread out (hay); to scatter hay	agriculture	inherited_from_category	medium	WDH inherited from category B324
+B324	NOUN	820	носилки для подноски сена	hay-litter; hay-carrying frame	agriculture	inherited_from_category	medium	WDH inherited from category B324
+B324	NOUN	821	прясло	hay-drying rack; praslo	agriculture	inherited_from_category	medium	WDH inherited from category B324
+B324	NOUN	822	стог	haystack	agriculture	inherited_from_category	medium	WDH inherited from category B324
+B324	NOUN	823	стожар	haystack pole; stojar	agriculture	inherited_from_category	medium	WDH inherited from category B324
 B331	NOUN	824	двор для скота	barnyard	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	825	хлев	cowshed; byre	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	VERB	826	привязать	to tie up; to tether	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	827	скот	livestock; cattle	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	VERB	828	кормить	to feed (animals)	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	829	ясли	manger; feeding trough	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	830	лошадь	horse	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
 B331	NOUN	831	жеребец	stallion	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	832	самец	male; masculine	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
 B331	NOUN	833	грива (лошади)	mane	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	834	мерин	gelding	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	835	кобыла	mare	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
 B331	NOUN	836	жеребенок	colt	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	837	сбруя, упряжь	harness; tackle	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	838	узда	bridle	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	839	седло	saddle	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	840	удила	bit (of a bridle)	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	841	хомут	horse collar	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
 B331	NOUN	842	дуга (упряжь)	shaft bow	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
 B331	NOUN	843	вожжи	rein	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
 B331	NOUN	844	гуж	tug	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	845	супонь	supon (collar strap)	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	VERB	846	ржать	to neigh; to whinny	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	847	корова	cow	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	848	рог	horn	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
 B331	ADJ	849	комолый	hornless	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	ADJ	850	яловый	barren; yeld (of a cow)	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
 B331	NOUN	851	бык	bull	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	VERB	852	кастрировать	to castrate; to geld	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
 B331	ADJ	853	беременный (о животных)	pregnant (animal)	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	854	нетель	heifer	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
 B331	NOUN	855	вымя	udder	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	VERB	856	мычать	to moo; to low	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
 B331	VERB	857	жевать жвачку	chewing	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	858	копыто	hoof	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	859	хвост	tail	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
 B331	NOUN	860	баран	ram	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
 B331	NOUN	861	овца	sheep	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	862	овечья шкура	sheepskin	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	863	шкура	hide; skin	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	864	ягненок	lamb	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	865	ярка	ewe lamb; young ewe	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	866	овца (самка)	ewe	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
 B331	VERB	867	бодать	to butt	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	868	шерсть	wool	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	VERB	869	стричь (овец)	to shear (sheep)	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	870	свинья	pig	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	871	поросенок	piglet	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B331	NOUN	1449	самка	female	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B331
+B332	VERB	872	курятник	henhouse; chicken coop	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B332
+B332	NOUN	873	петух	rooster; cock	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B332
+B332	VERB	874	петь (о петухе)	to crow	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B332
+B332	NOUN	875	курица	hen; chicken	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B332
+B332	VERB	876	нестись, класть яйца (о птицах)	to lay eggs; to oviposit (of birds)	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B332
+B332	NOUN	878	зоб	crop; craw	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B332
+B332	NOUN	879	яйцо	egg	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B332
+B333	NOUN	880	молоко	milk	agriculture, food	inherited_from_category	medium	WDH inherited from category B333
+B333	VERB	881	цедить (молоко)	to strain (milk)	agriculture, food	inherited_from_category	medium	WDH inherited from category B333
+B333	ADJ	882	свежий	fresh	agriculture, food	inherited_from_category	medium	WDH inherited from category B333
+B333	NOUN	883	запеченное молозиво	baked colostrum; baked beestings	agriculture, food	inherited_from_category	medium	WDH inherited from category B333
+B333	NOUN	884	сметана	sour cream; smetana	agriculture, food	inherited_from_category	medium	WDH inherited from category B333
+B333	VERB	885	сбивать (масло)	to churn (butter)	agriculture, food	inherited_from_category	medium	WDH inherited from category B333
+B333	NOUN	886	масло	butter	agriculture, food	inherited_from_category	medium	WDH inherited from category B333
+B333	VERB	887	растопить (масло)	to melt (butter); to clarify (butter)	agriculture, food	inherited_from_category	medium	WDH inherited from category B333
+B333	NOUN	888	творог	cottage cheese; curd	agriculture, food	inherited_from_category	medium	WDH inherited from category B333
+B333	NOUN	889	сыворотка	whey	agriculture, food	inherited_from_category	medium	WDH inherited from category B333
+B334	NOUN	890	пастбище	pasture	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B334
+B334	NOUN	891	пастух	shepherd; herdsman	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B334
+B334	NOUN	892	пастуший рожок	shepherd's horn; pastoral horn; herding horn	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B334
+B334	NOUN	893	плеть	whip; lash	agriculture, animal_husbandry	inherited_from_category	medium	WDH inherited from category B334
+B34	NOUN	894	картофель	potato	agriculture, artisanship	inherited_from_category	medium	WDH inherited from category B34
+B34	NOUN	895	ботва	leaves of root vegetables	agriculture, artisanship	inherited_from_category	medium	WDH inherited from category B34
+B34	NOUN	896	пчела	bee	agriculture, artisanship	inherited_from_category	medium	WDH inherited from category B34
+B34	NOUN	897	мед	honey	agriculture, artisanship	inherited_from_category	medium	WDH inherited from category B34
 B34	NOUN	898	воск	wax	agriculture, artisanship	inherited_from_category	medium	WDH inherited from category B34
+B34	NOUN	899	семя	seed	agriculture, artisanship	inherited_from_category	medium	WDH inherited from category B34
+B34	NOUN	900	рассада	seedling; transplant	agriculture, artisanship	inherited_from_category	medium	WDH inherited from category B34
+B34	NOUN	901	лён	flax; linen	agriculture, artisanship	inherited_from_category	medium	WDH inherited from category B34
+B34	VERB	902	трепать (лен)	to scutch (flax); to process (flax)	agriculture, artisanship	inherited_from_category	medium	WDH inherited from category B34
+B34	NOUN	903	конопля	hemp	agriculture, artisanship	inherited_from_category	medium	WDH inherited from category B34
+B34	VERB	904	мочить	to ret; to soak	agriculture, artisanship	inherited_from_category	medium	WDH inherited from category B34
+B34	NOUN	905	лыко	bast; linden bark	agriculture, artisanship	inherited_from_category	medium	WDH inherited from category B34
+B34	NOUN	906	чесалки для шерсти	wool cards; carding combs	agriculture, artisanship	inherited_from_category	medium	WDH inherited from category B34
+B34	NOUN	907	смола перегнанная	tar; distilled tar	agriculture, artisanship	inherited_from_category	medium	WDH inherited from category B34
 B34	VERB	908	дубить	to tan (leather)	agriculture, artisanship	inherited_from_category	medium	WDH inherited from category B34
+B351	NOUN	909	молоток	hammer	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
 B351	NOUN	910	гвоздь	nail (fastener)	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
+B351	NOUN	911	клин (деревянный)	wooden wedge	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
 B351	NOUN	912	веретено	spindle	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
+B351	NOUN	913	точило	whetstone; grindstone	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
 B351	NOUN	914	долото	chisel	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
+B351	NOUN	915	подмостки для вытаскивания лодки на берег	boat-hauling skids; boat rollers	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
+B351	NOUN	916	топор	axe	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
+B351	NOUN	917	пятка топора	butt of the axe; axe heel	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
+B351	NOUN	918	обух топора	poll of the axe; axe butt	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
 B351	NOUN	919	вилы	pitchfork	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
+B351	NOUN	920	острие	point; tip; edge	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
+B351	ADJ	921	острый	sharp	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
+B351	NOUN	922	нож	knife	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
+B351	NOUN	923	ножны	sheath; scabbard	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
 B351	NOUN	924	брусок	bar	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
+B351	NOUN	925	сверло	drill; auger; bit	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
+B351	NOUN	926	портной	tailor	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
+B351	NOUN	927	прялка	spinning wheel; distaff	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
+B351	NOUN	928	метла	broom; besom	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
+B351	NOUN	929	лопата	spade; shovel	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
+B351	NOUN	930	пешня	ice pick; ice chisel	artisanship, person	inherited_from_category	medium	WDH inherited from category B351
+B352	NOUN	931	хлеб	bread	food, gastronomy	inherited_from_category	medium	WDH inherited from category B352
+B352	ADJ	932	мягкий (о хлебе)	soft (of bread)	food, gastronomy	inherited_from_category	medium	WDH inherited from category B352
+B352	NOUN	933	ломтик (хлеба)	slice (of bread)	food, gastronomy	inherited_from_category	medium	WDH inherited from category B352
+B352	NOUN	934	кусок (хлеба)	piece; chunk (of bread)	food, gastronomy	inherited_from_category	medium	WDH inherited from category B352
+B352	NOUN	935	крошка (хлеба)	breadcrumb; crumb	food, gastronomy	inherited_from_category	medium	WDH inherited from category B352
+B352	NOUN	936	краюха (хлеба)	heel of bread; crust end	food, gastronomy	inherited_from_category	medium	WDH inherited from category B352
+B352	NOUN	937	каравай (круглый хлеб)	round loaf; karavai	food, gastronomy	inherited_from_category	medium	WDH inherited from category B352
+B352	VERB	938	молоть	to grind; to mill	food, gastronomy	inherited_from_category	medium	WDH inherited from category B352
+B352	NOUN	939	мука	flour	food, gastronomy	inherited_from_category	medium	WDH inherited from category B352
 B352	NOUN	941	высевки	bran	food, gastronomy	inherited_from_category	medium	WDH inherited from category B352
+B352	NOUN	942	закваска (для теста)	sourdough starter; leaven	food, gastronomy	inherited_from_category	medium	WDH inherited from category B352
 B352	NOUN	943	дрожжи	yeast	food, gastronomy	inherited_from_category	medium	WDH inherited from category B352
+B352	NOUN	944	тесто	dough	food, gastronomy	inherited_from_category	medium	WDH inherited from category B352
+B352	NOUN	945	помело	oven brush; oven mop; pomelo broom	food, gastronomy	inherited_from_category	medium	WDH inherited from category B352
+B352	VERB	946	печь, испечь	to bake	food, gastronomy	inherited_from_category	medium	WDH inherited from category B352
+B352	VERB	947	резать	to cut; to slice	food, gastronomy	inherited_from_category	medium	WDH inherited from category B352
+B353	NOUN	948	ружье	gun; rifle	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	949	лук (оружие)	bow (weapon)	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	950	стрела	arrow	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	VERB	951	стрелять	to shoot	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	VERB	952	попадать в цель	to hit the target	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	953	лабаз	cache platform; hunting platform	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	954	силок (для птиц)	snare (for birds)	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	955	ловушка	trap	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	956	ток пернатой дичи	lekking ground; lek	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
 B353	NOUN	957	добыча	prey	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	VERB	958	ловить, промышлять рыбу	to fish; to catch fish	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	959	крючок рыболовный	fishhook	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	960	удилище	fishing rod	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	961	леска	fishing line	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	VERB	962	лучить рыбу	to spear fish by torchlight; to fish by lamplight	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	963	приспособление для огня при лучении рыбы	torch for spearfishing; fire holder for night fishing; fish-gig torch	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	964	острога	fish spear; leister	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	965	сеть	(fishing) net	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	966	игла, иглица для вязания сетей	netting needle; net needle	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	967	планка для вязания сетей	net gauge; mesh gauge	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	968	тетива сети	headrope; top rope of a net	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	969	поплавок	float; cork float	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
 B353	NOUN	970	грузило (в сетях)	sinker	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	VERB	971	красить (сети)	to dye (nets); to tan (nets)	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
 B353	NOUN	972	вешало (для сетей, невода)	hanger (for nets)	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	973	невод	seine; dragnet	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	974	мотня невода	seine bag; cod end	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
 B353	NOUN	975	горловина мережи	neck of Fyke net	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	976	тоня (заводь)	fishing ground; landing place for nets	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	977	мережа	fish trap; fyke net	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
 B353	NOUN	978	блесна	minnow	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
 B353	VERB	979	ботать	to catch fish with a	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
 B353	VERB	980	вялить	to jerk	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	981	сушеная рыба, сущик	dried fish; sushik	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	982	кость (рыбья)	fish bone	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	VERB	983	убивать	to kill; to slaughter	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	VERB	984	сдирать шкуру (с животных)	to skin (animals); to flay	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	985	мясо	meat; flesh	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	986	кость	bone	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	987	сало, жир	lard; fat; suet	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B353	NOUN	988	шкварки	cracklings; greaves; pork scratchings	fishing, food, hunting	inherited_from_category	medium	WDH inherited from category B353
+B354	VERB	989	раскалывать, колоть (дрова)	to split; to cleave; to chop (firewood)	artisanship, buildings	inherited_from_category	medium	WDH inherited from category B354
+B354	NOUN	990	колотушка (для колки дров)	wooden mallet; maul; cleaving mallet	artisanship, buildings	inherited_from_category	medium	WDH inherited from category B354
+B354	VERB	991	тесать	to hew; to adze	artisanship, buildings	inherited_from_category	medium	WDH inherited from category B354
+B354	NOUN	992	чурбак	log; block; chunk of wood	artisanship, buildings	inherited_from_category	medium	WDH inherited from category B354
+B354	VERB	993	щепать (лучину)	to split (kindling); to whittle splints	artisanship, buildings	inherited_from_category	medium	WDH inherited from category B354
+B354	NOUN	994	щепка	wood chip; splint	artisanship, buildings	inherited_from_category	medium	WDH inherited from category B354
 B354	VERB	995	долбить	to gouge	artisanship, buildings	inherited_from_category	medium	WDH inherited from category B354
 B354	NOUN	996	доска	board	artisanship, buildings	inherited_from_category	medium	WDH inherited from category B354
+B354	NOUN	997	половица	floorboard	artisanship, buildings	inherited_from_category	medium	WDH inherited from category B354
+B354	NOUN	998	палка	stick; rod; pole	artisanship, buildings	inherited_from_category	medium	WDH inherited from category B354
+B354	NOUN	999	обруч (у бочки)	hoop (of a barrel)	artisanship, buildings	inherited_from_category	medium	WDH inherited from category B354
+B355	NOUN	1000	кузнец	blacksmith; smith	artisanship, industry	inherited_from_category	medium	WDH inherited from category B355
+B355	NOUN	1001	наковальня	anvil	artisanship, industry	inherited_from_category	medium	WDH inherited from category B355
+B355	NOUN	1002	кузнечные мехи	bellows (forge bellows)	artisanship, industry	inherited_from_category	medium	WDH inherited from category B355
+B355	VERB	1003	раздувать (горн)	to blow (the forge); to fan the forge	artisanship, industry	inherited_from_category	medium	WDH inherited from category B355
+B355	VERB	1004	ковать (железо)	to forge (iron); to smith	artisanship, industry	inherited_from_category	medium	WDH inherited from category B355
+B355	NOUN	1005	колесо	wheel	artisanship, industry	inherited_from_category	medium	WDH inherited from category B355
+B355	NOUN	1006	клещи	tongs; pincers	artisanship, industry	inherited_from_category	medium	WDH inherited from category B355
+B355	NOUN	1007	сталь	steel	artisanship, industry	inherited_from_category	medium	WDH inherited from category B355
+B355	VERB	1008	калить	to heat; to harden (metal); to temper	artisanship, industry	inherited_from_category	medium	WDH inherited from category B355
+B355	VERB	1009	паять	to solder; to braze	artisanship, industry	inherited_from_category	medium	WDH inherited from category B355
+B355	NOUN	1010	ржавчина (на металле)	rust (on metal)	artisanship, industry	inherited_from_category	medium	WDH inherited from category B355
+B355	NOUN	1011	крюк	hook	artisanship, industry	inherited_from_category	medium	WDH inherited from category B355
 B356	NOUN	1012	домотканая материя, ткань	fabric	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	VERB	1013	прясть	to spin	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1014	кудель	distaff fibre; flax tow; prepared flax	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
 B356	NOUN	1015	веретено, полное пряжи	spindle full of yarn	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	VERB	1016	мотать нитки на клубок	to wind yarn into a ball	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1017	клубок	ball (of yarn)	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	VERB	1018	мотать нитки на мотовило	to wind yarn onto a reel	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	VERB	1019	ткать	to weave	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1020	кросна, стан	loom	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	VERB	1021	основать	to warp (a loom); to set up the warp	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1022	основа ткани	warp	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
 B356	NOUN	1023	бёрдо	reed (in a loom)	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1024	конец нитчёнок	heddle end; heald end	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1025	уток	weft; woof	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1026	челнок	shuttle	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
 B356	VERB	1027	вязать	to knit	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1028	узор	pattern; design	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1029	сукно	broadcloth; woollen cloth	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1030	полотно	linen cloth; homespun linen	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1031	ширина полотна	cloth width; width of the web	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1032	лоскут	piece of cloth; scrap; remnant	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
 B356	VERB	1033	выделывать (кожу)	to curry (leather)	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1034	обувь	shoes	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
 B356	NOUN	1035	дратва	shoe-thread	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
 B356	NOUN	1036	вар (смола)	brew	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1037	шило	awl	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1038	колодка для обуви	shoe last; cobbler's last	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
 B356	NOUN	1039	голенище	bootleg	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1040	каблук	heel (of a shoe)	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1041	подошва	sole (of a shoe)	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1042	лапти берестяные	birch-bark shoes; bast shoes (birch-bark)	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1043	оборы (у лаптей)	bast shoe ties; leg ties	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B356	NOUN	1044	паголенки	boot shaft; leg of boot; leg wrappings	artisanship, fashion	inherited_from_category	medium	WDH inherited from category B356
+B36	VERB	1045	продавать	to sell	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B36	VERB	1046	торговать	to trade; to do business	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B36	NOUN	1047	клад, сокровище	treasure; hoard	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B36	NOUN	1048	магазин	shop; store	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B36	NOUN	1049	товар	goods; merchandise; wares	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B36	VERB	1050	покупать	to buy; to purchase	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B36	VERB	1051	мерить	to measure	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
 B36	NOUN	1052	безмен	steelyard	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B36	NOUN	1053	фунт	pound (unit of weight)	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
 B36	NOUN	1054	деньги	money	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B36	VERB	1055	считать	to count; to calculate	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B36	VERB	1056	платить	to pay	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B36	NOUN	1057	копейка	kopek; copeck	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B36	NOUN	1058	рубль	rouble; ruble	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
 B36	ADJ	1059	дорогой	expensive	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
 B36	ADJ	1060	дешевый	cheap	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
 B36	NOUN	1061	долг	debt	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B36	VERB	1062	менять	to exchange; to swap; to change	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B36	VERB	1063	зарабатывать	to earn	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
 B36	ADJ	1064	бедный, неимущий	poor	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
 B36	ADJ	1065	богатый	rich	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
 B36	VERB	1066	беречь, хранить	to keep safe	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B36	NOUN	1067	кошелек для денег	purse; money bag	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B36	NOUN	1068	запас	stock; supply; store	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
 B36	VERB	1069	арендовать	to rent	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
 B36	VERB	1070	выкупить	to ransom	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B36	NOUN	1071	заработок, оплата	earnings, payment	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
 B36	ADV	1072	даром, бесплатно	free of charge	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B36	NOUN	1073	прибавка	supplement; pay raise	commerce, economy, finance, money	inherited_from_category	medium	WDH inherited from category B36
+B371	NOUN	1074	изба, дом	izba; peasant house; cottage	buildings, home	inherited_from_category	medium	WDH inherited from category B371
 B371	NOUN	1075	жилище	dwelling	buildings, home	inherited_from_category	medium	WDH inherited from category B371
 B371	VERB	1076	жить, проживать	to live	buildings, home	inherited_from_category	medium	WDH inherited from category B371
+B371	NOUN	1077	хозяйство со всеми постройками, усадьба	farmstead; homestead	buildings, home	inherited_from_category	medium	WDH inherited from category B371
 B371	NOUN	1078	двор (при доме)	yard	buildings, home	inherited_from_category	medium	WDH inherited from category B371
+B371	NOUN	1079	колодец	well	buildings, home	inherited_from_category	medium	WDH inherited from category B371
+B371	NOUN	1080	сусек, закром	grain bin; storage bin	buildings, home	inherited_from_category	medium	WDH inherited from category B371
+B371	NOUN	1081	яма для хранения овощей	vegetable storage pit; root cellar	buildings, home	inherited_from_category	medium	WDH inherited from category B371
+B371	NOUN	1082	лавка	bench (in a house); small shop (archaic)	buildings, home	inherited_from_category	medium	WDH inherited from category B371
+B371	NOUN	1083	сор, мусор	rubbish; litter; sweepings	buildings, home	inherited_from_category	medium	WDH inherited from category B371
+B372	VERB	1084	рубить, делать сруб	to build a log cabin; to hew logs; to notch logs	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1085	знак, метка	mark; notch; sign	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	VERB	1086	строить (отделывать) дом	to build (to finish) a house	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
 B372	NOUN	1087	бревно	log	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1088	столб	post; pillar; pole	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	VERB	1089	конопатить	to caulk; to chink	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1090	конек крыши	roof ridge; ridgepole	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1091	этаж	floor; storey	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1092	угол дома (внутренний)	interior corner (of a house)	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1093	угол дома (внешний)	exterior corner (of a house)	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1094	полог	bed curtain; canopy	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1095	подполье (в избе)	underfloor space; cellar under house	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1096	пол	floor	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1097	щель	crack; gap	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1098	завалина	earthen bank; draught excluder (earthen wall)	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1099	стена	wall	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1100	потолок	ceiling	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1101	порог	threshold; doorstep	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1102	петля двери	door hinge	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1103	ручка двери	door handle	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1104	задвижка дверная, засов	door bolt; door latch	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1105	замок	lock	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1106	крыльцо	porch; stoop	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
 B372	NOUN	1107	ворота	gate	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	ADJ	1108	плотный, тесно и прочно соединенный	tight; snug; closely and firmly fitted	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
 B372	NOUN	1109	баня	bath (steam)	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
 B372	NOUN	1110	амбар	barn	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1111	окно	window	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
 B372	NOUN	1112	дверь	door	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	VERB	1113	открывать	to open	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	VERB	1114	закрывать, затворять	to close; to shut	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1115	крыша	roof	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1116	навес крыши, стреха	eaves; roof overhang	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1117	лестница	staircase; stairs; ladder	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B372	NOUN	1118	поперечная полка во всю ширину избы, воронец	crossbeam shelf; wide wall shelf	architecture, buildings	inherited_from_category	medium	WDH inherited from category B372
+B373	NOUN	1119	посуда	dishes; kitchenware	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	ADJ	1120	полный	full; filled	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1121	миска деревянная	wooden bowl; wooden dish	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1122	сковорода	frying pan	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1123	ложка	spoon	furniture, home	inherited_from_category	medium	WDH inherited from category B373
 B373	VERB	1124	блестеть	to shine	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1125	ковш	scoop, dipper	furniture, home	inherited_from_category	medium	WDH inherited from category B373
 B373	NOUN	1126	ведро	pail	furniture, home	inherited_from_category	medium	WDH inherited from category B373
 B373	NOUN	1127	горшок	pot	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1128	котел	cauldron	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1129	кадка	wooden barrel; cask	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1130	ушат	two-handled wooden bucket	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1131	решето	sieve	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1132	мутовка	mixing paddle; whisk	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1133	пест	pestle	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1134	ступа	mortar	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1135	квашня	dough trough; kneading tub	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1136	сундук	chest	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1137	корзина	basket; wicker container	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1138	мешок	bag; sack	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1139	кошель	purse; small bag; pouch	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1140	лямка (кошеля, котомки)	strap; shoulder strap; carrying loop	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1141	цепь, крюк для подвешивания котелка над жаратком	chain and hook for hanging a pot over fire	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1142	кочерга	poker	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1143	корыто	trough; wooden tub	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B373	NOUN	1144	мочалка для мытья пола	floor scrubber	furniture, home	inherited_from_category	medium	WDH inherited from category B373
+B374	NOUN	1145	печь (в избе)	stove; masonry heater	electricity, home	inherited_from_category	medium	WDH inherited from category B374
+B374	NOUN	1146	загнетка	ash pit; firebox area	electricity, home	inherited_from_category	medium	WDH inherited from category B374
+B374	VERB	1147	зажигать, разжигать	to light; to kindle	electricity, home	inherited_from_category	medium	WDH inherited from category B374
+B374	NOUN	1148	принадлежности для высекания огня (огниво и кремень)	fire-starting kit; fire-making tools	electricity, home	inherited_from_category	medium	WDH inherited from category B374
+B374	NOUN	1149	кремень	flint; chert	electricity, home	inherited_from_category	medium	WDH inherited from category B374
+B374	NOUN	1150	кресало, огниво	flint	electricity, home	inherited_from_category	medium	WDH inherited from category B374
+B374	NOUN	1151	огонь	fire	electricity, home	inherited_from_category	medium	WDH inherited from category B374
+B374	NOUN	1152	костёр	campfire	electricity, home	inherited_from_category	medium	WDH inherited from category B374
 B374	VERB	1153	гореть	to burn	electricity, home	inherited_from_category	medium	WDH inherited from category B374
+B374	NOUN	1154	нодья	nodia	electricity, home	inherited_from_category	medium	WDH inherited from category B374
+B374	NOUN	1155	лучина	splinter, chip	electricity, home	inherited_from_category	medium	WDH inherited from category B374
 B374	NOUN	1156	дрова	firewood	electricity, home	inherited_from_category	medium	WDH inherited from category B374
+B374	NOUN	1157	поленница	woodpile	electricity, home	inherited_from_category	medium	WDH inherited from category B374
 B374	NOUN	1158	головешка	ember	electricity, home	inherited_from_category	medium	WDH inherited from category B374
 B374	VERB	1159	гасить, тушить	extinguish	electricity, home	inherited_from_category	medium	WDH inherited from category B374
 B374	NOUN	1160	жар (от печи)	heat	electricity, home	inherited_from_category	medium	WDH inherited from category B374
 B374	VERB	1161	жечь	to burn	electricity, home	inherited_from_category	medium	WDH inherited from category B374
+B374	NOUN	1162	сажа	soot	electricity, home	inherited_from_category	medium	WDH inherited from category B374
+B374	NOUN	1163	зола	ash	electricity, home	inherited_from_category	medium	WDH inherited from category B374
 B374	NOUN	1164	дым	smoke	electricity, home	inherited_from_category	medium	WDH inherited from category B374
+B374	NOUN	1165	свеча	candle	electricity, home	inherited_from_category	medium	WDH inherited from category B374
+B375	VERB	1167	мести	to sweep; to clean with a broom	home	inherited_from_category	medium	WDH inherited from category B375
 B375	NOUN	1168	веник	broom	home	inherited_from_category	medium	WDH inherited from category B375
+B375	NOUN	1169	игла	needle	home	inherited_from_category	medium	WDH inherited from category B375
+B375	NOUN	1170	нить, нитка	thread	home	inherited_from_category	medium	WDH inherited from category B375
+B375	NOUN	1171	ножницы для стрижки овец	sheep shears; fleece shears	home	inherited_from_category	medium	WDH inherited from category B375
+B375	VERB	1172	убирать (в доме)	to clean; to tidy up; to put in order	home	inherited_from_category	medium	WDH inherited from category B375
+B375	VERB	1174	замачивать	to soak; to immerse in water	home	inherited_from_category	medium	WDH inherited from category B375
+B375	VERB	1175	полоскать	to rinse	home	inherited_from_category	medium	WDH inherited from category B375
+B375	NOUN	1176	половик	floor mat	home	inherited_from_category	medium	WDH inherited from category B375
+B375	NOUN	1177	пятно (на одежде)	stain; spot	home	inherited_from_category	medium	WDH inherited from category B375
+B375	NOUN	1178	пыль	dust	home	inherited_from_category	medium	WDH inherited from category B375
 B375	VERB	1451	гладить, утюжить	to iron	home	inherited_from_category	medium	WDH inherited from category B375
 B38	NOUN	1179	дорога	road	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
 B38	ADJ	1180	грязный	dirty	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	ADJ	1181	скользкий	slippery	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1182	перевозка	transportation; carriage	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1183	путь, расстояние	path; route; distance	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1184	райда, олений обоз	reindeer sled train; deer-drawn convoy	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
 B38	VERB	1185	ехать	to ride, to drive	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1186	телега	cart; wagon; horse-drawn vehicle	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1187	сани	sled; sledge; sleigh	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1188	саамские сани, кережа	Saami sled; reindeer sled	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1189	передок саней	front part of sled	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1190	копыл	upright support; sled post; vertical brace	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1191	оглобля	shaft	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
 B38	NOUN	1192	веревка	rope	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
 B38	NOUN	1193	веха	landmark	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1194	зарубка	incision, notch	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1195	колея	rut; track	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1196	лодка	boat	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
 B38	NOUN	1197	борт лодки	board	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1198	черпак (в лодке)	bailer; scoop (for boats)	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
 B38	NOUN	1199	весло	oar	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1200	уключина весла	oarlock	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
 B38	VERB	1201	грести	to row	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1202	парус	sail; canvas; wind-catching fabric	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	VERB	1203	идти на лыжах	to ski	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1204	лыжи	skis	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1205	котомка	backpack; knapsack	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1206	провизия в дорогу	provisions for travel; road food	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1207	мост	bridge	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B38	NOUN	1208	плот	log raft	nautical, tourism, transport, vehicles	inherited_from_category	medium	WDH inherited from category B38
+B411	ADJ	1209	молодой	young	person, sociology	inherited_from_category	medium	WDH inherited from category B411
 B411	NOUN	1210	жених	bridegroom	person, sociology	inherited_from_category	medium	WDH inherited from category B411
+B411	NOUN	1211	невеста	bride; fiancée	person, sociology	inherited_from_category	medium	WDH inherited from category B411
+B411	VERB	1212	свататься	to propose marriage	person, sociology	inherited_from_category	medium	WDH inherited from category B411
+B411	NOUN	1213	свадьба	wedding	person, sociology	inherited_from_category	medium	WDH inherited from category B411
 B411	VERB	1214	жениться	to marry	person, sociology	inherited_from_category	medium	WDH inherited from category B411
+B411	NOUN	1215	муж	husband	person, sociology	inherited_from_category	medium	WDH inherited from category B411
 B411	NOUN	1216	жена	wife	person, sociology	inherited_from_category	medium	WDH inherited from category B411
 B411	NOUN	1446	друг	friend	person, sociology	inherited_from_category	medium	WDH inherited from category B411
 B412	NOUN	1217	вдова	widow	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1218	семья	family	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1219	родители	parents	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1220	отец	father	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1221	крестный отец	godfather	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1222	мать	mother	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1223	мачеха	stepmother	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1224	отчим	stepfather	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1225	сирота	orphan	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	VERB	1226	рожать	to give birth	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	VERB	1230	качать, укачивать (ребенка в колыбели)	to rock; to sway (a baby in a cradle)	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1231	сын	son	person, sociology	inherited_from_category	medium	WDH inherited from category B412
 B412	NOUN	1232	дочь	daughter	person, sociology	inherited_from_category	medium	WDH inherited from category B412
 B412	NOUN	1233	внук	grandson	person, sociology	inherited_from_category	medium	WDH inherited from category B412
 B412	NOUN	1234	брат	brother	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1235	сестра	sister	person, sociology	inherited_from_category	medium	WDH inherited from category B412
 B412	NOUN	1236	дед, дедушка	grandfather	person, sociology	inherited_from_category	medium	WDH inherited from category B412
 B412	NOUN	1237	бабушка	grandmother	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1238	зять	son-in-law	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1239	невестка	daughter-in-law	person, sociology	inherited_from_category	medium	WDH inherited from category B412
 B412	NOUN	1240	дядя	uncle	person, sociology	inherited_from_category	medium	WDH inherited from category B412
 B412	NOUN	1241	двоюродный брат	cousine	person, sociology	inherited_from_category	medium	WDH inherited from category B412
 B412	NOUN	1242	двоюродная сестра	cousin (female)	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1243	золовка, сестра мужа	husband's sister; spouse's sister	person, sociology	inherited_from_category	medium	WDH inherited from category B412
 B412	NOUN	1244	деверь	brother-in-law (husband's side)	person, sociology	inherited_from_category	medium	WDH inherited from category B412
 B412	NOUN	1245	шурин	brother-in-law (wife's side)	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1246	кум	godfather (in mutual ritual kinship); co-parent by baptism; spiritual kin	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1247	тесть	father-in-law (wife's father)	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1248	теща	mother-in-law (wife's mother)	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1249	хозяйка	hostess	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1250	хозяин	host; master of house; male head of household	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B412	NOUN	1251	тезка	namesake	person, sociology	inherited_from_category	medium	WDH inherited from category B412
+B413	NOUN	1227	ребенок	child	person	inherited_from_category	medium	WDH inherited from category B413
+B413	VERB	1228	пеленать	to swaddle	person	inherited_from_category	medium	WDH inherited from category B413
+B413	NOUN	1229	колыбель, зыбка	cradle	person	inherited_from_category	medium	WDH inherited from category B413
 B42	VERB	1252	говорить	to say	grammar, linguistics	inherited_from_category	medium	WDH inherited from category B42
+B42	VERB	1253	сказать	to say	grammar, linguistics	inherited_from_category	medium	WDH inherited from category B42
+B42	NOUN	1254	сказка	fairy tale	grammar, linguistics	inherited_from_category	medium	WDH inherited from category B42
+B42	NOUN	1255	загадка	riddle	grammar, linguistics	inherited_from_category	medium	WDH inherited from category B42
+B42	VERB	1256	спрашивать	to ask	grammar, linguistics	inherited_from_category	medium	WDH inherited from category B42
+B42	VERB	1257	просить	to ask; to request; to beg	grammar, linguistics	inherited_from_category	medium	WDH inherited from category B42
+B42	NOUN	1258	русские	Russians	grammar, linguistics	inherited_from_category	medium	WDH inherited from category B42
+B42	NOUN	1259	финны	Finns	grammar, linguistics	inherited_from_category	medium	WDH inherited from category B42
+B42	NOUN	1260	саамы	Saami	grammar, linguistics	inherited_from_category	medium	WDH inherited from category B42
+B42	NOUN	1261	карелы	Karelians	grammar, linguistics	inherited_from_category	medium	WDH inherited from category B42
 B42	NOUN	1262	вепсы	Vepses	grammar, linguistics	inherited_from_category	medium	WDH inherited from category B42
+B42	NOUN	1263	шведы	Swedes	grammar, linguistics	inherited_from_category	medium	WDH inherited from category B42
+B42	NOUN	1264	немцы	Germans	grammar, linguistics	inherited_from_category	medium	WDH inherited from category B42
+B42	NOUN	1431	карельский язык	Karelian language	grammar, linguistics	inherited_from_category	medium	WDH inherited from category B42
+B42	NOUN	1432	русский язык	Russian language	grammar, linguistics	inherited_from_category	medium	WDH inherited from category B42
+B42	NOUN	1433	карел, карелка	Karelian person	grammar, linguistics	inherited_from_category	medium	WDH inherited from category B42
+B42	NOUN	1443	разговор	conversation	grammar, linguistics	inherited_from_category	medium	WDH inherited from category B42
+B43	NOUN	1265	праздник	holiday; festival; celebration	dance, folklore, free_time, music	inherited_from_category	medium	WDH inherited from category B43
 B43	NOUN	1266	гость	guest	dance, folklore, free_time, music	inherited_from_category	medium	WDH inherited from category B43
 B43	NOUN	1267	гостинец	present	dance, folklore, free_time, music	inherited_from_category	medium	WDH inherited from category B43
 B43	VERB	1268	дарить	to gift	dance, folklore, free_time, music	inherited_from_category	medium	WDH inherited from category B43
+B43	VERB	1269	танцевать, плясать	to dance	dance, folklore, free_time, music	inherited_from_category	medium	WDH inherited from category B43
+B43	VERB	1270	петь	to sing	dance, folklore, free_time, music	inherited_from_category	medium	WDH inherited from category B43
+B43	NOUN	1271	песня	song	dance, folklore, free_time, music	inherited_from_category	medium	WDH inherited from category B43
+B43	VERB	1272	играть, забавляться, развлекаться	to play; to amuse oneself	dance, folklore, free_time, music	inherited_from_category	medium	WDH inherited from category B43
+B43	NOUN	1273	кантеле	kantele	dance, folklore, free_time, music	inherited_from_category	medium	WDH inherited from category B43
+B43	VERB	1274	свистеть	to whistle	dance, folklore, free_time, music	inherited_from_category	medium	WDH inherited from category B43
+B43	VERB	1275	звенеть	to jingle	dance, folklore, free_time, music	inherited_from_category	medium	WDH inherited from category B43
+B43	VERB	1276	играть (на гармони)	to play (the accordion)	dance, folklore, free_time, music	inherited_from_category	medium	WDH inherited from category B43
 B43	NOUN	1277	веселье	fun	dance, folklore, free_time, music	inherited_from_category	medium	WDH inherited from category B43
+B43	VERB	1278	отдыхать	to rest	dance, folklore, free_time, music	inherited_from_category	medium	WDH inherited from category B43
+B43	NOUN	1279	кукла	doll	dance, folklore, free_time, music	inherited_from_category	medium	WDH inherited from category B43
+B43	NOUN	1280	мяч	ball	dance, folklore, free_time, music	inherited_from_category	medium	WDH inherited from category B43
 B43	NOUN	1441	артист	actor	dance, folklore, free_time, music	inherited_from_category	medium	WDH inherited from category B43
 B51	NOUN	1281	деревня, село	village	administration, politics, sociology	inherited_from_category	medium	WDH inherited from category B51
+B51	NOUN	1282	собрание	meeting	administration, politics, sociology	inherited_from_category	medium	WDH inherited from category B51
+B51	NOUN	1283	мир	peace	administration, politics, sociology	inherited_from_category	medium	WDH inherited from category B51
 B51	NOUN	1284	артель	artel	administration, politics, sociology	inherited_from_category	medium	WDH inherited from category B51
+B51	NOUN	1285	род	kin; clan	administration, politics, sociology	inherited_from_category	medium	WDH inherited from category B51
+B51	NOUN	1286	племя	tribe	administration, politics, sociology	inherited_from_category	medium	WDH inherited from category B51
 B51	NOUN	1287	город	city	administration, politics, sociology	inherited_from_category	medium	WDH inherited from category B51
+B51	NOUN	1288	закон	low	administration, politics, sociology	inherited_from_category	medium	WDH inherited from category B51
+B51	NOUN	1289	сосед	neighbor	administration, politics, sociology	inherited_from_category	medium	WDH inherited from category B51
 B51	NOUN	1297	война	war	administration, politics, sociology	inherited_from_category	medium	WDH inherited from category B51
 B51	NOUN	1298	весть	news	administration, politics, sociology	inherited_from_category	medium	WDH inherited from category B51
+B51	NOUN	1299	пари	bet; wager	administration, politics, sociology	inherited_from_category	medium	WDH inherited from category B51
+B51	VERB	1300	ладить, жить в согласии, мире	to get along; to be at peace	administration, politics, sociology	inherited_from_category	medium	WDH inherited from category B51
 B51	NOUN	1301	воля	freedom	administration, politics, sociology	inherited_from_category	medium	WDH inherited from category B51
 B51	VERB	1302	встречать	to meet	administration, politics, sociology	inherited_from_category	medium	WDH inherited from category B51
+B51	NOUN	1430	помощь	help	administration, politics, sociology	inherited_from_category	medium	WDH inherited from category B51
 B51	NOUN	1440	армия	army	administration, politics, sociology	inherited_from_category	medium	WDH inherited from category B51
+B511	NOUN	1290	школа	school	pedagogy, school, university	inherited_from_category	medium	WDH inherited from category B511
+B511	VERB	1291	учить	to teach	pedagogy, school, university	inherited_from_category	medium	WDH inherited from category B511
+B511	VERB	1292	читать	to read	pedagogy, school, university	inherited_from_category	medium	WDH inherited from category B511
 B511	NOUN	1293	бумага	paper	pedagogy, school, university	inherited_from_category	medium	WDH inherited from category B511
+B511	NOUN	1294	карандаш	pencil	pedagogy, school, university	inherited_from_category	medium	WDH inherited from category B511
+B511	VERB	1295	писать	to write	pedagogy, school, university	inherited_from_category	medium	WDH inherited from category B511
+B511	NOUN	1296	письмо	writing	pedagogy, school, university	inherited_from_category	medium	WDH inherited from category B511
 B52	NOUN	1303	бог	god	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	NOUN	1304	церковь	church	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	NOUN	1305	часовня	chapel	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	NOUN	1306	крест	cross	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	ADJ	1307	святой	holy; saint	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	NOUN	1308	поп	priest; Orthodox clergyman	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
 B52	NOUN	1309	вера	faith	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	ADJ	1310	поганый	pagan; heathen; ritually impure	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
 B52	NOUN	1311	грех	sin	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
 B52	VERB	1312	благословлять	to bless	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	VERB	1313	прощать	to forgive (sins); to grant absolution; to show mercy	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	NOUN	1314	рождество	Christmas	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	NOUN	1315	святки	Christmastide	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	NOUN	1316	Троица	Trinity	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	NOUN	1317	пост	fasting	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	NOUN	1318	Пасха	Easter	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	NOUN	1319	крещение	christening, baptising	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	NOUN	1320	мясоед (скоромное время)	meat-eating period; non-fasting time	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	NOUN	1321	колокол	bell	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
 B52	VERB	1322	гадать	to tell fortunes	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	NOUN	1323	колдун	sorcerer; wizard	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	NOUN	1324	порча (в поверьях)	hex; curse; evil spell (folk belief)	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	NOUN	1325	черт	devil; demon	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
+B52	NOUN	1326	леший	forest spirit; Slavic forest guardian	mythology, religion, theology	inherited_from_category	medium	WDH inherited from category B52
 B53	NOUN	1445	документ	document	administration, law, politics	inherited_from_category	medium	WDH inherited from category B53
+C1	ADJ	1327	пустой, порожний	empty	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	ADJ	1328	легкий (по весу)	lightweight; not heavy	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	ADJ	1329	тяжелый (по весу)	heavy; weighty	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	NOUN	1330	количество	quantity	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	NOUN	1331	охапка	armful	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	NOUN	1332	пядь	hand span	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	NOUN	1333	сажень	sazhen	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
 C1	NOUN	1334	аршин	arshin	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
 C1	NOUN	1335	верста	verst	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
 C1	NOUN	1336	горсть	handful	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	NOUN	1337	щепоть, щепотка	pinch	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
 C1	ADV	1338	еще	more	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
 C1	SCONJ	1339	если	if	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	ADV	1340	совсем	completely; entirely; altogether	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
 C1	ADJ	1341	единственный	the only one	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	ADJ	1342	последний	last; final	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
 C1	PRON	1343	весь	the whole	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	ADJ	1344	многочисленный	numerous	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	ADJ	1345	малочисленный	few; scarce; limited in number	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	ADV	1346	изрядно, порядочно, довольно	fairly, pretty well	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	ADJ	1347	лишний	extra	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	NOUN	1348	раз	time	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	PRON	1349	оба, обе	both	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	NUM	1350	один	one	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
 C1	NUM	1351	два	two	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	NUM	1352	три	three	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	NUM	1353	четыре	four	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	NUM	1354	пять	five	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	NUM	1355	шесть	six	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	NUM	1356	семь	seven	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
 C1	NUM	1357	восемь	eight	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
 C1	NUM	1358	девять	nine	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
 C1	NUM	1359	десять	ten	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	NUM	1360	сто	hundred	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	NUM	1361	тысяча	thousand	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	NOUN	1362	половина	half	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C1	NUM	1363	полтора	one and a half	mathematics, metrology, number	inherited_from_category	medium	WDH inherited from category C1
+C2	ADJ	1364	прямой	straight; direct	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	ADJ	1365	правый	right	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	ADJ	1366	левый	left	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
 C2	ADJ	1367	близкий	close	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
 C2	ADJ	1368	далёкий	far	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	ADJ	1369	задний	located behind, behind the rest	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
 C2	ADV	1370	вниз	down	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
 C2	ADV	1371	вверх	upwards	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	ADV	1372	сквозь, насквозь	through; across	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	ADJ	1373	передний	front	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	ADJ	1374	средний	middle; average	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
 C2	ADJ	1375	длинный	long	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	ADJ	1376	узкий	narrow	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	ADJ	1377	широкий	wide	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	ADJ	1378	редкий	sparse	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	ADJ	1379	частый	dense; closely spaced	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	ADJ	1380	короткий	short	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	ADJ	1381	круглый	round	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
 C2	ADJ	1382	гладкий, ровный	smooth	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	ADJ	1383	кривой (о предмете)	crooked; curved	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	NOUN	1384	сторона	side	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	NOUN	1385	край	edge	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	NOUN	1386	север	north	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	NOUN	1387	юг	south	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	NOUN	1388	запад	west	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
 C2	NOUN	1389	восток	east	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
 C2	ADV	1390	где	where	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	ADV	1391	куда	where to; whither; to what place	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	ADV	1392	там	there; in that place; at that location	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	ADV	1393	туда	there; to that place; thither	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	ADV	1394	сюда	here; to this place; hither	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	NOUN	1435	конец	end, ending	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	NOUN	1438	пространство	space	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
+C2	NOUN	1439	начало	beginning; start	factotum, geometry, topography	inherited_from_category	medium	WDH inherited from category C2
 C3	NOUN	1395	время	time	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	NOUN	1396	час	hour	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	NOUN	1397	часы	clock; watch	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	NOUN	1398	утро	morning	time_period	inherited_from_category	medium	WDH inherited from category C3
 C3	NOUN	1399	день	day	time_period	inherited_from_category	medium	WDH inherited from category C3
 C3	NOUN	1400	вечер	evening	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	NOUN	1401	ночь	night	time_period	inherited_from_category	medium	WDH inherited from category C3
 C3	ADV	1402	вчера	yesterday	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	ADV	1403	сегодня	today	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	ADV	1404	завтра	tomorrow	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	ADV	1405	прежде, раньше	before; earlier; previously	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	ADV	1406	поздно	late	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	ADV	1407	когда	when; at what time	time_period	inherited_from_category	medium	WDH inherited from category C3
 C3	ADV	1408	всегда	always	time_period	inherited_from_category	medium	WDH inherited from category C3
 C3	ADV	1409	быстро	fast	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	NOUN	1410	неделя	week	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	NOUN	1411	месяц (календарный)	month	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	NOUN	1412	понедельник	Monday	time_period	inherited_from_category	medium	WDH inherited from category C3
 C3	NOUN	1413	вторник	Tuesday	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	NOUN	1414	среда	Wednesday	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	NOUN	1415	четверг	Thursday	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	NOUN	1416	пятница	Friday	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	NOUN	1417	суббота	Saturday	time_period	inherited_from_category	medium	WDH inherited from category C3
 C3	NOUN	1418	воскресенье	Sunday	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	NOUN	1419	период	period; interval	time_period	inherited_from_category	medium	WDH inherited from category C3
 C3	ADV	1420	давно	long ago	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	ADV	1421	теперь	now	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	ADV	1422	тогда	then; at that time; in those days	time_period	inherited_from_category	medium	WDH inherited from category C3
 C3	NOUN	1423	год	year	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	ADV	1424	в прошлом году	last year	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	NOUN	1425	зима	winter	time_period	inherited_from_category	medium	WDH inherited from category C3
 C3	NOUN	1426	весна	spring	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	NOUN	1427	лето	summer	time_period	inherited_from_category	medium	WDH inherited from category C3
+C3	NOUN	1428	осень	autumn; fall	time_period	inherited_from_category	medium	WDH inherited from category C3

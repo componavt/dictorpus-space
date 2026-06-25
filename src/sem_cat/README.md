@@ -513,12 +513,12 @@ concept_id ───► inherited domain
 python3 -m src.sem_cat.06_concepts_wdh
 ```
 
-By default, this reads from `src/sem_cat/sem_cat_paths.toml`. Override examples:
+By default, this reads canonical paths from `src/sem_cat/sem_cat_paths.toml`. Override examples:
 
 ```bash
 python3 -m src.sem_cat.06_concepts_wdh \
-  --concepts /tmp/concepts_experiment.csv \
-  --out-file /tmp/concepts_wdh_experiment.tsv
+  --concepts data/sem_cat/concepts/concepts_with_english_experiment.csv \
+  --out-file data/sem_cat/concepts/concepts_wdh_experiment.tsv
 ```
 
 **Output**
