@@ -2,15 +2,77 @@
 
 Reads concept_categories_wdh.tsv and the current concept catalog
 (concepts_with_english_1445.csv by default), produces a per-concept WDH
-assignment with source, confidence, and notes.
+assignment.
 
-Output schema:
-    category_id, pos, concept_id, concept_ru, concept_en,
-    wdh, wdh_source, wdh_confidence, wdh_note
+Output schema (flat concept-level lookup):
+    category_id, pos, concept_id, concept_ru, concept_en, wdh
+
+Provenance (source/confidence/note) is implicit in the step-06 logic and
+in the category mapping input, not duplicated per output row.
 """
 
 import pandas as pd
 from pathlib import Path
+from collections import Counter
+
+
+STEP06_OUTPUT_COLUMNS = [
+    "category_id",
+    "pos",
+    "concept_id",
+    "concept_ru",
+    "concept_en",
+    "wdh",
+]
+
+
+def _explode_wdh_labels(wdh_series) -> list[str]:
+    """Extract atomic WDH labels from a pandas Series.
+
+    Splits comma-separated values, strips whitespace, ignores empty parts,
+    and returns a flat list of atomic labels (duplicates within a row are
+    counted only once per row). Case preserved for counting but normalization
+    uses lowercase.
+
+    Args:
+        wdh_series: Pandas Series with WDH values (may contain None, NaN,
+            blank strings, or comma-separated labels).
+
+    Returns:
+        List of atomic WDH labels (strings) after splitting and deduplication
+        within each row. Labels are returned as-is (case preserved).
+    """
+    labels = []
+    for raw in wdh_series:
+        if pd.isna(raw):
+            continue
+        text = str(raw).strip()
+        if not text:
+            continue
+        parts = [p.strip() for p in text.split(",") if p.strip()]
+        labels.extend(sorted(set(parts)))
+    return labels
+
+
+def collect_wdh_label_stats(wdh_series) -> tuple[int, list[tuple[str, int]]]:
+    """Collect statistics on atomic WDH labels.
+
+    Splits each WDH value by comma, counts frequencies of individual labels
+    across all concepts, and returns summary stats.
+
+    Args:
+        wdh_series: Pandas Series with WDH values.
+
+    Returns:
+        Tuple of (unique_label_count, top_labels_list).
+        - unique_label_count: number of distinct atomic labels
+        - top_labels_list: list of (label, count) tuples, sorted by count
+          descending, then label ascending for ties
+    """
+    labels = _explode_wdh_labels(wdh_series)
+    counter = Counter(labels)
+    top = sorted(counter.items(), key=lambda x: (-x[1], x[0]))
+    return len(counter), top
 
 
 def load_category_wdh(filepath: str) -> pd.DataFrame:
@@ -40,7 +102,10 @@ def load_concepts(filepath: str) -> pd.DataFrame:
 
 
 def _normalize_wdh(value: str) -> str:
-    """Normalize a WDH string: strip, lowercase, sort comma-separated values."""
+    """Normalize a WDH string: strip, lowercase, sort comma-separated values.
+
+    Deduplicates labels within a single row.
+    """
     if pd.isna(value) or not value.strip():
         return ""
     parts = [p.strip().lower() for p in value.split(",") if p.strip()]
@@ -56,55 +121,23 @@ def build_concepts_wdh(
     Strategy:
     1. Join concepts with category WDH on category_id.
     2. Inherit wdh from category.
-    3. Assign source, confidence, and note.
 
     All concepts should have a category_id that exists in cat_wdh_df.
-    If a category is missing from WDH, wdh is set to empty with low confidence.
+    If a category is missing from WDH, wdh is set to empty.
     """
-    # Join concepts with category WDH
     merged = concepts_df.merge(
         cat_wdh_df[["category_id", "wdh"]],
         on="category_id",
         how="left",
     )
 
-    # Normalize WDH values
     merged["wdh"] = merged["wdh"].apply(_normalize_wdh)
 
-    # Determine source, confidence, and note
-    def _assign_metadata(row: pd.Series) -> tuple[str, str, str]:
-        wdh_val = row.get("wdh", "")
-        if wdh_val:
-            return (
-                "inherited_from_category",
-                "medium",
-                f"WDH inherited from category {row['category_id']}",
-            )
-        else:
-            return (
-                "",
-                "low",
-                f"No WDH defined for category {row['category_id']}",
-            )
+    for col in STEP06_OUTPUT_COLUMNS:
+        if col not in merged.columns:
+            merged[col] = ""
 
-    meta = merged.apply(_assign_metadata, axis=1, result_type="expand")
-    merged["wdh_source"] = meta[0]
-    merged["wdh_confidence"] = meta[1]
-    merged["wdh_note"] = meta[2]
-
-    # Select output columns in a stable order
-    out_cols = [
-        "category_id",
-        "pos",
-        "concept_id",
-        "concept_ru",
-        "concept_en",
-        "wdh",
-        "wdh_source",
-        "wdh_confidence",
-        "wdh_note",
-    ]
-    return merged[out_cols].copy()
+    return merged[STEP06_OUTPUT_COLUMNS].copy()
 
 
 def save_concepts_wdh(
@@ -114,8 +147,10 @@ def save_concepts_wdh(
     """Save concepts_wdh DataFrame to TSV."""
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    concepts_wdh_df.to_csv(out, sep="\t", index=False, encoding="utf-8")
-    print(f"Saved {len(concepts_wdh_df)} concept WDH rows to {out}")
+    out_df = concepts_wdh_df.copy()
+    out_df = out_df[STEP06_OUTPUT_COLUMNS]
+    out_df.to_csv(out, sep="\t", index=False, encoding="utf-8")
+    print(f"Saved {len(out_df)} concept WDH rows to {out}")
 
 
 def run_concepts_wdh(
@@ -135,8 +170,20 @@ def run_concepts_wdh(
     print("Building concept-level WDH...")
     concepts_wdh = build_concepts_wdh(cat_wdh, concepts)
 
-    print(f"  WDH assigned: {concepts_wdh['wdh'].notna().sum() & (concepts_wdh['wdh'] != '')}")
-    print(f"  WDH missing:  {(concepts_wdh['wdh'].isna()) | (concepts_wdh['wdh'] == '')}")
+    wdh_assigned = (concepts_wdh["wdh"].fillna("") != "")
+    wdh_missing = ~wdh_assigned
+    print(f"  WDH assigned: {wdh_assigned.sum()}")
+    print(f"  WDH missing:  {wdh_missing.sum()}")
+
+    unique_count, top_labels = collect_wdh_label_stats(
+        concepts_wdh.loc[wdh_assigned, "wdh"]
+    )
+    print(f"  Unique WDH labels: {unique_count}")
+
+    if top_labels:
+        print("  Top WDH labels:")
+        for label, count in top_labels[:10]:
+            print(f"    {label}: {count}")
 
     save_concepts_wdh(concepts_wdh, output_path)
     return concepts_wdh

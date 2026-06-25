@@ -482,15 +482,15 @@ Panic is reserved for silent schema drift, corrupted joins, and cheerful lies to
 
 ```text
 category WDH + concept catalog
-           │
-           ▼
-   Step 06: concepts_wdh.tsv
-           │
-           ▼
-   Step 07: meanings_*_concept_wdh.csv
-           │
-           ▼
-   Step 08: audit_*.csv
+            │
+            ▼
+    Step 06: concept-level WDH (concepts_wdh.tsv)
+            │
+            ▼
+    Step 07: propagate WDH to meanings (meanings_*_concept_wdh.csv)
+            │
+            ▼
+    Step 08: audit_*.csv
 ```
 
 ### Step 06 — Build concept-level WDH
@@ -525,6 +525,12 @@ python3 -m src.sem_cat.06_concepts_wdh \
 
 ```text
 data/sem_cat/concepts/concepts_wdh.tsv
+```
+
+**Schema**
+
+```text
+category_id, pos, concept_id, concept_ru, concept_en, wdh
 ```
 
 ### Step 07 — Propagate WDH to meanings
@@ -697,10 +703,10 @@ Useful questions:
 Start with:
 
 - `concepts_wdh.tsv`
-- `wdh_conflicts.csv`
+- `wdh_conflicts.csv` (from step 07)
 - `audit_concept_ids_outside_catalog.csv`
 - `audit_meanings_without_concept.csv`
-- `audit_wdh_disagreement.csv`
+- `audit_wdh_disagreement.csv` (from step 08)
 - `audit_meaning_ru_clusters.csv`
 
 Useful questions:

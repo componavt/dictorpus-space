@@ -307,6 +307,13 @@ if __name__ == "__main__":
         test_paths_config_loads_default,
         test_paths_config_resolves_repo_relative_paths,
         test_paths_config_raises_on_missing_key,
+        test_build_concepts_wdh_returns_flat_lookup_schema,
+        test_build_concepts_wdh_handles_missing_category_wdh,
+        test_save_and_load_concepts_wdh_flat_schema,
+        test_load_concepts_wdh_accepts_legacy_extra_columns,
+        test_load_concepts_wdh_requires_minimum_columns,
+        test_normalize_wdh_strips_and_sorts,
+        test_concepts_wdh_wdh_normalization_on_build,
     ]
 
     passed = 0
@@ -388,8 +395,313 @@ concepts_catalog = "data/sem_cat/test.csv"
             assert "concept_categories_wdh" in str(e) or "concepts_wdh" in str(e)
 
 
+def test_build_concepts_wdh_returns_flat_lookup_schema():
+    """build_concepts_wdh should return only the new flat schema."""
+    import pandas as pd
+    from src.sem_cat.utils.concept_wdh import build_concepts_wdh
+
+    cat = pd.DataFrame(
+        {
+            "category_id": ["A11", "B355"],
+            "wdh": ["astronomy", "industry"],
+        }
+    )
+    concepts = pd.DataFrame(
+        {
+            "category_id": ["A11", "B355"],
+            "pos": ["NOUN", "VERB"],
+            "concept_id": ["1", "1004"],
+            "concept_ru": ["небо", "ковать (железо)"],
+            "concept_en": ["sky", "to forge (iron)"],
+        }
+    )
+
+    out = build_concepts_wdh(cat, concepts)
+
+    assert list(out.columns) == [
+        "category_id",
+        "pos",
+        "concept_id",
+        "concept_ru",
+        "concept_en",
+        "wdh",
+    ]
+    assert out["wdh"].tolist() == ["astronomy", "industry"]
+    assert "wdh_source" not in out.columns
+    assert "wdh_confidence" not in out.columns
+    assert "wdh_note" not in out.columns
+
+
+def test_build_concepts_wdh_handles_missing_category_wdh():
+    """Missing WDH for a category should result in empty wdh."""
+    import pandas as pd
+    from src.sem_cat.utils.concept_wdh import build_concepts_wdh
+
+    cat = pd.DataFrame(
+        {
+            "category_id": ["A11"],
+            "wdh": ["astronomy"],
+        }
+    )
+    concepts = pd.DataFrame(
+        {
+            "category_id": ["A11", "B999"],
+            "pos": ["NOUN", "NOUN"],
+            "concept_id": ["1", "2"],
+            "concept_ru": ["небо", "пустота"],
+            "concept_en": ["sky", "emptiness"],
+        }
+    )
+
+    out = build_concepts_wdh(cat, concepts)
+
+    assert out.loc[0, "wdh"] == "astronomy"
+    assert out.loc[1, "wdh"] == ""
+    assert out["concept_id"].tolist() == ["1", "2"]
+
+
+def test_save_and_load_concepts_wdh_flat_schema(tmp_path):
+    """Save/load roundtrip should preserve the flat schema."""
+    import pandas as pd
+    from src.sem_cat.utils.concept_wdh import save_concepts_wdh
+    from src.sem_cat.utils.meaning_propagation import load_concepts_wdh
+
+    df = pd.DataFrame(
+        {
+            "category_id": ["A11"],
+            "pos": ["NOUN"],
+            "concept_id": ["1"],
+            "concept_ru": ["небо"],
+            "concept_en": ["sky"],
+            "wdh": ["astronomy"],
+        }
+    )
+    path = tmp_path / "concepts_wdh.tsv"
+    save_concepts_wdh(df, str(path))
+    loaded = load_concepts_wdh(str(path))
+
+    assert list(loaded.columns) == list(df.columns)
+    assert loaded.iloc[0]["concept_id"] == "1"
+    assert loaded.iloc[0]["wdh"] == "astronomy"
+
+
+def test_load_concepts_wdh_accepts_legacy_extra_columns(tmp_path):
+    """Loader should tolerate older files with extra provenance columns."""
+    import pandas as pd
+
+    from src.sem_cat.utils.meaning_propagation import load_concepts_wdh
+
+    df = pd.DataFrame(
+        {
+            "category_id": ["A11"],
+            "pos": ["NOUN"],
+            "concept_id": ["1"],
+            "concept_ru": ["небо"],
+            "concept_en": ["sky"],
+            "wdh": ["astronomy"],
+            "wdh_source": ["inherited_from_category"],
+            "wdh_confidence": ["medium"],
+            "wdh_note": ["WDH inherited from category A11"],
+        }
+    )
+    path = tmp_path / "legacy.tsv"
+    df.to_csv(path, sep="\t", index=False)
+    loaded = load_concepts_wdh(str(path))
+
+    assert loaded.iloc[0]["concept_id"] == "1"
+    assert loaded.iloc[0]["wdh"] == "astronomy"
+
+
+def test_load_concepts_wdh_requires_minimum_columns(tmp_path):
+    """Loader should reject files missing required columns."""
+    import pandas as pd
+    from src.sem_cat.utils.meaning_propagation import load_concepts_wdh
+
+    df = pd.DataFrame(
+        {
+            "category_id": ["A11"],
+            "pos": ["NOUN"],
+            "concept_id": ["1"],
+            "concept_ru": ["небо"],
+            "concept_en": ["sky"],
+        }
+    )
+    path = tmp_path / "incomplete.tsv"
+    df.to_csv(path, sep="\t", index=False)
+
+    try:
+        load_concepts_wdh(str(path))
+        assert False, "Expected ValueError for missing wdh column"
+    except ValueError as e:
+        assert "wdh" in str(e)
+
+
+def test_normalize_wdh_strips_and_sorts():
+    """Normalize WDH should strip, lowercase, and sort comma-separated values."""
+    from src.sem_cat.utils.concept_wdh import _normalize_wdh
+
+    assert _normalize_wdh("astronomy, physics") == "astronomy, physics"
+    assert _normalize_wdh("  PHYSICS  ,   ASTRONOMY  ") == "astronomy, physics"
+    assert _normalize_wdh("") == ""
+    assert _normalize_wdh("astronomy") == "astronomy"
+    assert _normalize_wdh(None) == ""
+
+
+def test_concepts_wdh_wdh_normalization_on_build():
+    """WDH normalization should happen during build_concepts_wdh."""
+    import pandas as pd
+    from src.sem_cat.utils.concept_wdh import build_concepts_wdh
+
+    cat = pd.DataFrame(
+        {
+            "category_id": ["A11"],
+            "wdh": "  PHYSICS,   ASTRONOMY  ",
+        }
+    )
+    concepts = pd.DataFrame(
+        {
+            "category_id": ["A11"],
+            "pos": ["NOUN"],
+            "concept_id": ["1"],
+            "concept_ru": ["небо"],
+            "concept_en": ["sky"],
+        }
+    )
+
+    out = build_concepts_wdh(cat, concepts)
+
+    assert out.iloc[0]["wdh"] == "astronomy, physics"
+
+
 # ---------------------------------------------------------------------------
-# 22. Step-06 path resolution tests
+# 22. WDH label statistics tests (atomic-label counting)
+# ---------------------------------------------------------------------------
+
+
+def test_explode_wdh_labels_basic_splitting():
+    """Split comma-separated labels and return flat list."""
+    from src.sem_cat.utils.concept_wdh import _explode_wdh_labels
+    import pandas as pd
+
+    s = pd.Series([
+        "person",
+        "factotum, person",
+        "physiology, psychological_features, psychology",
+    ])
+    labels = _explode_wdh_labels(s)
+    assert sorted(labels) == [
+        "factotum",
+        "person",
+        "person",
+        "physiology",
+        "psychological_features",
+        "psychology",
+    ]
+
+
+def test_explode_wdh_labels_ignores_blank_and_none():
+    """None, empty and whitespace-only values are ignored."""
+    from src.sem_cat.utils.concept_wdh import _explode_wdh_labels
+    import pandas as pd
+
+    s = pd.Series([None, "", "  ", "person, factotum"])
+    labels = _explode_wdh_labels(s)
+    assert sorted(labels) == ["factotum", "person"]
+
+
+def test_explode_wdh_labels_deduplicates_within_row():
+    """Duplicate labels in same row are deduplicated."""
+    from src.sem_cat.utils.concept_wdh import _explode_wdh_labels
+    import pandas as pd
+
+    s = pd.Series(["person, person, factotum"])
+    labels = _explode_wdh_labels(s)
+    assert sorted(labels) == ["factotum", "person"]
+
+
+def test_collect_wdh_label_stats_counts_atomic_labels():
+    """collect_wdh_label_stats counts atomic labels, not combinations."""
+    from src.sem_cat.utils.concept_wdh import collect_wdh_label_stats
+    import pandas as pd
+
+    s = pd.Series([
+        "person",
+        "factotum, person",
+        "physiology, psychological_features, psychology",
+    ])
+    unique_count, top = collect_wdh_label_stats(s)
+    assert unique_count == 5
+    assert top[:5] == [
+        ("person", 2),
+        ("factotum", 1),
+        ("physiology", 1),
+        ("psychological_features", 1),
+        ("psychology", 1),
+    ]
+
+
+def test_collect_wdh_label_stats_ignores_blank_and_duplicates():
+    """Blank values ignored, duplicates within row counted once."""
+    from src.sem_cat.utils.concept_wdh import collect_wdh_label_stats
+    import pandas as pd
+
+    s = pd.Series([None, "", "  ", "person, person, factotum"])
+    unique_count, top = collect_wdh_label_stats(s)
+    assert unique_count == 2
+    # Alphabetical order for ties: factotum < person
+    assert top == [("factotum", 1), ("person", 1)]
+
+
+def test_collect_wdh_label_stats_deterministic_tie_ordering():
+    """Same counts are sorted alphabetically for stability."""
+    from src.sem_cat.utils.concept_wdh import collect_wdh_label_stats
+    import pandas as pd
+
+    s = pd.Series(["zebra", "apple", "charlie", "banana"])
+    unique_count, top = collect_wdh_label_stats(s)
+    assert unique_count == 4
+    assert top == [
+        ("apple", 1),
+        ("banana", 1),
+        ("charlie", 1),
+        ("zebra", 1),
+    ]
+
+
+def test_collect_wdh_label_stats_case_preserved():
+    """Atomic label counting preserves original case."""
+    from src.sem_cat.utils.concept_wdh import collect_wdh_label_stats
+    import pandas as pd
+
+    s = pd.Series(["Person", "PERSON, factotum"])
+    unique_count, top = collect_wdh_label_stats(s)
+    assert unique_count == 3
+    assert top[0] == ("PERSON", 1)
+    assert top[1] == ("Person", 1)
+    assert top[2] == ("factotum", 1)
+
+
+def test_collect_wdh_label_stats_combined_case():
+    """Real-world mix of cases."""
+    from src.sem_cat.utils.concept_wdh import collect_wdh_label_stats
+    import pandas as pd
+
+    s = pd.Series([
+        "person",
+        "factotum, person",
+        "",
+        "astronomy, physics",
+    ])
+    unique_count, top = collect_wdh_label_stats(s)
+    assert unique_count == 4
+    assert top[0] == ("person", 2)
+    assert top[1] == ("astronomy", 1)
+    assert top[2] == ("factotum", 1)
+    assert top[3] == ("physics", 1)
+
+
+# ---------------------------------------------------------------------------
+# 23. Step-06 path resolution tests
 # ---------------------------------------------------------------------------
 
 

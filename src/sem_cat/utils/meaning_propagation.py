@@ -16,14 +16,27 @@ from collections import Counter
 def load_concepts_wdh(filepath: str) -> pd.DataFrame:
     """Load concepts_wdh.tsv produced by step 06.
 
-    Returns DataFrame with columns:
-        category_id, pos, concept_id, concept_ru, concept_en,
-        wdh, wdh_source, wdh_confidence, wdh_note
+    Required columns:
+        concept_id, wdh
+    Optional context columns:
+        category_id, pos, concept_ru, concept_en
+    Extra columns (e.g., legacy provenance) are accepted but ignored.
+
+    Returns DataFrame with columns: concept_id, wdh, and optional context columns.
     """
     df = pd.read_csv(filepath, sep="\t", dtype=str)
     for col in df.columns:
         if df[col].dtype == "object":
             df[col] = df[col].str.strip()
+
+    required = {"concept_id", "wdh"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(
+            f"concepts_wdh file missing required columns: {sorted(missing)}. "
+            f"Found: {list(df.columns)}"
+        )
+
     return df
 
 
@@ -50,10 +63,8 @@ def propagate_wdh_to_meanings(
     """
     df = meanings_df.copy()
 
-    # Ensure concept_id is string (not float NaN)
     df["concept_id"] = df["concept_id"].astype(str).replace("nan", "")
 
-    # Build concept_id -> wdh lookup
     concept_wdh_map = {}
     for _, row in concepts_wdh_df.iterrows():
         cid = str(row["concept_id"]).strip()
@@ -61,10 +72,8 @@ def propagate_wdh_to_meanings(
         if cid and wdh:
             concept_wdh_map[cid] = wdh
 
-    # Propagate concept WDH
     df["concept_wdh"] = df["concept_id"].map(concept_wdh_map).fillna("")
 
-    # If gloss-based WDH is available, join and compare
     if gloss_wdh_df is not None:
         gloss_map = {}
         gloss_status_map = {}
@@ -92,7 +101,6 @@ def propagate_wdh_to_meanings(
         df["gloss_wdh"] = ""
         df["gloss_lookup_status"] = ""
 
-    # Determine final WDH: tiered resolution
     def _resolve_wdh(row: pd.Series) -> tuple[str, str, str, str]:
         concept_wdh = str(row.get("concept_wdh", "")).strip()
         gloss_wdh = str(row.get("gloss_wdh", "")).strip()
@@ -105,7 +113,6 @@ def propagate_wdh_to_meanings(
         )
 
         if gloss_is_meaningful:
-            # Gloss-based WDH is a real signal
             is_conflict = bool(concept_wdh and concept_wdh != gloss_wdh)
             if is_conflict:
                 note = (
@@ -116,10 +123,8 @@ def propagate_wdh_to_meanings(
             else:
                 return (gloss_wdh, "gloss_based", "no", "")
         elif concept_wdh:
-            # Concept WDH wins: gloss was factotum, not found, or empty
             return (concept_wdh, "concept_based", "no", "")
         elif gloss_wdh:
-            # Only gloss is available but status is not "found"
             return (gloss_wdh, "gloss_based_fallback", "no", "")
         else:
             return ("", "none", "no", "")
@@ -130,7 +135,6 @@ def propagate_wdh_to_meanings(
     df["wdh_conflict"] = resolved[2]
     df["wdh_conflict_note"] = resolved[3]
 
-    # Extract conflicts
     conflicts_df = df[df["wdh_conflict"] == "yes"].copy()
 
     return df, conflicts_df
@@ -177,7 +181,6 @@ def print_propagation_summary(enriched_df: pd.DataFrame) -> None:
     print(f"  WDH conflicts: {with_conflict}")
     print(f"  Final WDH assigned: {wdh_assigned}")
 
-    # Source distribution
     src_counts = enriched_df["wdh_source"].value_counts()
     for src, cnt in src_counts.items():
         print(f"  wdh_source={src}: {cnt}")

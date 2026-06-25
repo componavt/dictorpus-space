@@ -95,7 +95,7 @@ def analyze_concept_usage(
 
     Schema for in_catalog:
         concept_id, category_id, concept_ru, concept_en, meaning_count,
-        langs, wdh, wdh_source, wdh_confidence
+        langs, wdh
     Schema for out_of_catalog:
         concept_id, meaning_count, langs
     """
@@ -120,8 +120,7 @@ def analyze_concept_usage(
         if in_catalog_ids:
             in_catalog = usage[usage["concept_id"].isin(in_catalog_ids)].copy()
             concept_info = concepts_wdh_df[
-                ["concept_id", "category_id", "concept_ru", "concept_en",
-                 "wdh", "wdh_source", "wdh_confidence"]
+                ["concept_id", "category_id", "concept_ru", "concept_en", "wdh"]
             ].copy()
             concept_info["concept_id"] = concept_info["concept_id"].astype(str).str.strip()
             in_catalog["concept_id"] = in_catalog["concept_id"].astype(str).str.strip()
@@ -130,7 +129,7 @@ def analyze_concept_usage(
         else:
             in_catalog = pd.DataFrame(
                 columns=["concept_id", "meaning_count", "langs", "category_id",
-                         "concept_ru", "concept_en", "wdh", "wdh_source", "wdh_confidence"]
+                         "concept_ru", "concept_en", "wdh"]
             )
 
         # Out-of-catalog observed IDs

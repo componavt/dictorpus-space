@@ -27,6 +27,7 @@ from src.sem_cat.utils.concept_wdh import (
     load_concepts,
     build_concepts_wdh,
     save_concepts_wdh,
+    collect_wdh_label_stats,
 )
 
 
@@ -51,7 +52,7 @@ def resolve_step06_paths(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Build concept-level WDH table from category inheritance"
+        description="Build concept-level WDH table from category inheritance (flat lookup)"
     )
     parser.add_argument(
         "--paths-config",
@@ -96,18 +97,20 @@ def main():
 
     concepts_wdh = build_concepts_wdh(cat_wdh, concepts)
 
-    wdh_assigned = (concepts_wdh["wdh"].notna()) & (concepts_wdh["wdh"] != "")
+    wdh_assigned = (concepts_wdh["wdh"].fillna("").astype(str).str.strip() != "")
     wdh_missing = ~wdh_assigned
-    print(f"  WDH assigned: {wdh_assigned.sum()}")
-    print(f"  WDH missing:  {wdh_missing.sum()}")
+    print(f"  WDH assigned: {int(wdh_assigned.sum())}")
+    print(f"  WDH missing:  {int(wdh_missing.sum())}")
 
-    src_counts = concepts_wdh["wdh_source"].value_counts()
-    for src, cnt in src_counts.items():
-        print(f"  {src}: {cnt}")
+    unique_count, top_labels = collect_wdh_label_stats(
+        concepts_wdh.loc[wdh_assigned, "wdh"]
+    )
+    print(f"  Unique WDH labels: {unique_count}")
 
-    conf_counts = concepts_wdh["wdh_confidence"].value_counts()
-    for conf, cnt in conf_counts.items():
-        print(f"  confidence={conf}: {cnt}")
+    if top_labels:
+        print("  Top WDH labels:")
+        for label, count in top_labels[:10]:
+            print(f"    {label}: {count}")
 
     save_concepts_wdh(concepts_wdh, str(out_file_path))
 
