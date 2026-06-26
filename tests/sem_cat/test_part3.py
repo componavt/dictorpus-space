@@ -426,6 +426,193 @@ def test_include_low_risk_flag():
 
 
 # ---------------------------------------------------------------------------
+# 15. Output table schema (no model_name, conditional roundtrip_distance)
+# ---------------------------------------------------------------------------
+
+def test_full_comparison_omits_model_name_columns():
+    """Per-model __model_name columns should NOT be in exported tables."""
+    import importlib
+    import pandas as pd
+    mod = importlib.import_module("src.sem_cat.compare.output_tables")
+    build_full = mod.build_full_comparison_df
+    from src.sem_cat.compare.data_structures import ComparisonResult, ModelOutput
+
+    # Create a simple result with two models
+    outputs = [
+        ModelOutput("model_a", "A Model", "house", True, 0.9),
+        ModelOutput("model_b", "B Model", "home", True, 0.8),
+    ]
+    result = ComparisonResult(
+        gloss_ru="дом",
+        proposed_gloss_en="house",
+        preferred_source="model_a",
+        chosen_from_model_key="model_a",
+        decision_reason="strong_consensus",
+        total_risk=0.1,
+        risk_level="low",
+    )
+    result._outputs = outputs  # type: ignore[attr-defined]
+
+    df = build_full([result], model_keys=["model_a", "model_b"])
+
+    assert "model_a__model_name" not in df.columns
+    assert "model_b__model_name" not in df.columns
+
+
+def test_full_comparison_only_include_roundtrip_with_data():
+    """__roundtrip_distance column should only be present if model has non-null values."""
+    import importlib
+    import pandas as pd
+    mod = importlib.import_module("src.sem_cat.compare.output_tables")
+    build_full = mod.build_full_comparison_df
+    from src.sem_cat.compare.data_structures import ComparisonResult, ModelOutput
+
+    # Model A has roundtrip data, Model B does not
+    outputs = [
+        ModelOutput("model_a", "A", "house", True, 0.9, roundtrip_distance=0.5),
+        ModelOutput("model_b", "B", "home", True, 0.8, roundtrip_distance=None),
+    ]
+    result = ComparisonResult(
+        gloss_ru="дом",
+        proposed_gloss_en="house",
+        preferred_source="model_a",
+        chosen_from_model_key="model_a",
+        decision_reason="strong_consensus",
+        total_risk=0.1,
+        risk_level="low",
+    )
+    result._outputs = outputs  # type: ignore[attr-defined]
+
+    df = build_full([result], model_keys=["model_a", "model_b"])
+
+    assert "model_a__roundtrip_distance" in df.columns, "model_a has roundtrip data, column should exist"
+    assert "model_b__roundtrip_distance" not in df.columns, "model_b has no roundtrip data, column should be omitted"
+
+
+def test_full_comparison_includes_roundtrip_when_any_has_data():
+    """__roundtrip_distance column should be present per-model based on whether that model has data."""
+    import importlib
+    import pandas as pd
+    mod = importlib.import_module("src.sem_cat.compare.output_tables")
+    build_full = mod.build_full_comparison_df
+    from src.sem_cat.compare.data_structures import ComparisonResult, ModelOutput
+
+    # Model A has NO roundtrip data (None), Model B HAS roundtrip data (0.3)
+    # Per the schema policy, only models with actual data should have their columns
+    outputs = [
+        ModelOutput("model_a", "A", "house", True, 0.9, roundtrip_distance=None),
+        ModelOutput("model_b", "B", "home", True, 0.8, roundtrip_distance=0.3),
+    ]
+    result = ComparisonResult(
+        gloss_ru="дом",
+        proposed_gloss_en="house",
+        preferred_source="model_b",
+        chosen_from_model_key="model_b",
+        decision_reason="strong_consensus",
+        total_risk=0.1,
+        risk_level="low",
+    )
+    result._outputs = outputs  # type: ignore[attr-defined]
+
+    df = build_full([result], model_keys=["model_a", "model_b"])
+
+    # Only model_b should have roundtrip_distance since only model_b has data
+    # model_a has no data (None), so its roundtrip_distance column should be omitted
+    assert "model_a__roundtrip_distance" not in df.columns, "model_a has no roundtrip data, column should be omitted"
+    assert "model_b__roundtrip_distance" in df.columns, "model_b has roundtrip data, column should exist"
+
+
+def test_gold_template_only_has_gloss_en_per_model():
+    """Gold template should NOT include per-model model_name or roundtrip_distance."""
+    import importlib
+    import pandas as pd
+    mod = importlib.import_module("src.sem_cat.compare.output_tables")
+    build_gold = mod.build_gold_template_df
+
+    # Full review df with per-model columns including model_name and roundtrip_distance
+    df = pd.DataFrame([
+        {
+            "gloss_ru": "дом",
+            "model_a__gloss_en": "house",
+            "model_a__qa_keep": True,
+            "model_a__qa_score": 0.9,
+            "model_a__qa_flags": "",
+            "model_a__roundtrip_distance": "0.5",
+            "model_a__model_name": "A Model",
+            "model_b__gloss_en": "home",
+            "model_b__qa_keep": True,
+            "model_b__qa_score": 0.8,
+            "model_b__qa_flags": "",
+            "model_b__roundtrip_distance": "",
+            "model_b__model_name": "B Model",
+            "total_risk": 0.1,
+            "consensus_ratio": 0.8,
+            "disagreement_score": 0.2,
+        }
+    ])
+
+    gold = build_gold(df)
+
+    assert "model_a__model_name" not in gold.columns
+    assert "model_b__model_name" not in gold.columns
+    assert "model_a__roundtrip_distance" not in gold.columns
+    assert "model_b__roundtrip_distance" not in gold.columns
+    assert "model_a__gloss_en" in gold.columns
+    assert "model_b__gloss_en" in gold.columns
+
+
+def test_review_queue_only_has_relevant_columns():
+    """Review queue should be narrower than full comparison (only needed columns)."""
+    import importlib
+    import pandas as pd
+    mod = importlib.import_module("src.sem_cat.compare.output_tables")
+    build_review = mod.build_review_queue_df
+
+    df = pd.DataFrame([
+        {
+            "gloss_ru": "дом",
+            "is_singleword": True,
+            "proposed_gloss_en": "house",
+            "preferred_source": "model_a",
+            "total_risk": 0.8,
+            "risk_level": "high",
+            "needs_expert_review": True,
+            "model_a__gloss_en": "house",
+            "model_a__qa_keep": True,
+            "model_a__qa_score": 0.9,
+            "model_a__qa_flags": "",
+            "model_a__roundtrip_distance": "0.5",
+            "model_a__model_name": "A Model",
+            "model_b__gloss_en": "home",
+            "model_b__qa_keep": True,
+            "model_b__qa_score": 0.8,
+            "model_b__qa_flags": "",
+            "model_b__roundtrip_distance": "",
+            "model_b__model_name": "B Model",
+        }
+    ])
+
+    review = build_review(df, include_low_risk=False)
+
+    # Should have core review columns
+    assert "gloss_ru" in review.columns
+    assert "total_risk" in review.columns
+    # needs_expert_review is used for filtering, not included in output
+
+    # Per-model: only gloss_en, qa_keep, qa_score, qa_flags (no model_name, roundtrip only if exists)
+    assert "model_a__gloss_en" in review.columns
+    assert "model_a__qa_keep" in review.columns
+    assert "model_a__qa_score" in review.columns
+    assert "model_a__qa_flags" in review.columns
+    assert "model_a__model_name" not in review.columns
+
+    assert "model_b__gloss_en" in review.columns
+    assert "model_b__qa_keep" in review.columns
+    assert "model_b__qa_score" in review.columns
+    assert "model_b__qa_flags" in review.columns
+
+
+# ---------------------------------------------------------------------------
 # Run all tests
 # ---------------------------------------------------------------------------
 
@@ -461,6 +648,11 @@ if __name__ == "__main__":
         test_low_risk_consensus_no_review,
         test_qa_keep_false_triggers_review,
         test_include_low_risk_flag,
+        test_full_comparison_omits_model_name_columns,
+        test_full_comparison_only_include_roundtrip_with_data,
+        test_full_comparison_includes_roundtrip_when_any_has_data,
+        test_gold_template_only_has_gloss_en_per_model,
+        test_review_queue_only_has_relevant_columns,
     ]
 
     passed = 0

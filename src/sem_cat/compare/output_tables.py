@@ -7,6 +7,16 @@ import pandas as pd
 from src.sem_cat.compare.data_structures import ComparisonResult, ModelOutput
 
 
+def _model_has_roundtrip_data(results: list[ComparisonResult], model_key: str) -> bool:
+    """Check if any result has non-null roundtrip_distance for the given model."""
+    for r in results:
+        for o in getattr(r, "_outputs", []):
+            if o.model_key == model_key:
+                if o.roundtrip_distance is not None:
+                    return True
+    return False
+
+
 def build_full_comparison_df(
     results: list[ComparisonResult],
     model_keys: list[str],
@@ -18,7 +28,20 @@ def build_full_comparison_df(
     2. Risk and consensus metrics
     3. Proposal fields
     4. Per-model columns (model_key__field convention)
+
+    Schema policy:
+    - Always include: __gloss_en, __qa_keep, __qa_score, __qa_flags
+    - Include __roundtrip_distance only if any model has non-null values
+    - Never include: __model_name (redundant per-row constant)
     """
+    if not model_keys or not results:
+        return pd.DataFrame()
+
+    include_roundtrip = {
+        mk: _model_has_roundtrip_data(results, mk)
+        for mk in model_keys
+    }
+
     rows = []
     for r in results:
         row = {
@@ -44,26 +67,22 @@ def build_full_comparison_df(
 
         # Per-model columns
         for mk in model_keys:
-            model_out = next((o for o in r._outputs if o.model_key == mk), None)  # type: ignore[attr-defined]
+            model_out = next((o for o in getattr(r, "_outputs", []) if o.model_key == mk), None)
             prefix = f"{mk}__"
             if model_out:
                 row[f"{prefix}gloss_en"] = model_out.gloss_en
                 row[f"{prefix}qa_keep"] = model_out.qa_keep
                 row[f"{prefix}qa_score"] = model_out.qa_score
                 row[f"{prefix}qa_flags"] = ";".join(sorted(model_out.qa_flags)) if model_out.qa_flags else ""
-                row[f"{prefix}roundtrip_distance"] = (
-                    round(model_out.roundtrip_distance, 3)
-                    if model_out.roundtrip_distance is not None
-                    else ""
-                )
-                row[f"{prefix}model_name"] = model_out.model_name
+                if include_roundtrip[mk]:
+                    row[f"{prefix}roundtrip_distance"] = round(model_out.roundtrip_distance, 3) if model_out.roundtrip_distance is not None else ""
             else:
                 row[f"{prefix}gloss_en"] = ""
                 row[f"{prefix}qa_keep"] = ""
                 row[f"{prefix}qa_score"] = ""
                 row[f"{prefix}qa_flags"] = ""
-                row[f"{prefix}roundtrip_distance"] = ""
-                row[f"{prefix}model_name"] = ""
+                if include_roundtrip[mk]:
+                    row[f"{prefix}roundtrip_distance"] = ""
 
         rows.append(row)
 
@@ -78,6 +97,10 @@ def build_review_queue_df(
     Args:
         full_df: Full comparison DataFrame
         include_low_risk: If True, include rows with risk_level='low' in review queue
+    
+    Review queue columns:
+    - Core identifiers and risk metrics
+    - Per-model: __gloss_en, __qa_keep, __qa_score, __qa_flags, __roundtrip_distance (if data exists)
     """
     if include_low_risk:
         review = full_df[
@@ -101,9 +124,16 @@ def build_review_queue_df(
         "disagreement_score",
         "gloss_complexity_reasons",
     ]
-    # Add all per-model columns
+    # Add per-model columns: always include gloss_en, qa_keep, qa_score, qa_flags
+    # roundtrip_distance is only present if model has data
     for col in full_df.columns:
-        if "__" in col:
+        if "__" in col and (
+            col.endswith("__gloss_en") or 
+            col.endswith("__qa_keep") or 
+            col.endswith("__qa_score") or 
+            col.endswith("__qa_flags") or
+            col.endswith("__roundtrip_distance")
+        ):
             review_cols.append(col)
 
     available = [c for c in review_cols if c in review.columns]
@@ -111,7 +141,12 @@ def build_review_queue_df(
 
 
 def build_gold_template_df(review_df: pd.DataFrame) -> pd.DataFrame:
-    """Build the gold template from the review queue."""
+    """Build the gold template from the review queue.
+    
+    Gold template columns:
+    - Adjudication fields and lightweight comparison metrics
+    - Per-model: __gloss_en only (no model_name, no roundtrip)
+    """
     gold = review_df.copy()
     gold["expert_gloss_en"] = ""
     gold["expert_notes"] = ""
@@ -132,7 +167,7 @@ def build_gold_template_df(review_df: pd.DataFrame) -> pd.DataFrame:
         "consensus_ratio",
         "disagreement_score",
     ]
-    # Add per-model gloss_en columns
+    # Add per-model gloss_en columns only (no model_name, no roundtrip_distance)
     for col in gold.columns:
         if col.endswith("__gloss_en"):
             gold_cols.append(col)

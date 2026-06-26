@@ -339,7 +339,9 @@ class HFCausalTranslator(Translator):
                 if value not in (None, "cpu", "disk"):
                     return self.torch.device(value) if isinstance(value, str) else value
 
-        return self.torch.device(self.device) if isinstance(self.device, str) else self.device
+        if isinstance(self.device, str):
+            return getattr(self.torch, "device", lambda x: x)(self.device)
+        return self.device
 
     def translate(self, text: str) -> str | None:
         try:

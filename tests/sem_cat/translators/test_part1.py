@@ -756,8 +756,16 @@ class TestHFCausalPromptBuilding:
 class TestHFCausalContinuationSlicing:
     def test_generated_continuation_is_token_based(self, monkeypatch):
         import types
+
+        class FakeDevice:
+            def __init__(self, value):
+                self.value = value
+            def __str__(self):
+                return str(self.value)
+
         fake_torch = types.ModuleType("torch")
         fake_torch.no_grad = lambda: type("ctx", (), {"__enter__": lambda s: None, "__exit__": lambda s, *a: None})()
+        fake_torch.device = lambda value: FakeDevice(value)
 
         class FakeTensor:
             def __init__(self, data):

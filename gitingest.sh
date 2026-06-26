@@ -7,4 +7,4 @@ gitingest src \
   --exclude-pattern "src/notebooks" \
   --exclude-pattern "*/__pycache__/*" \
   --exclude-pattern "*.ipynb" \
-  --output out/ai_concat/digest_git_ingest_24_Step6_only3columns.txt
+  --output out/ai_concat/digest_git_ingest_27.txt
