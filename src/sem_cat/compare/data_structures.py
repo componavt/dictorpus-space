@@ -28,7 +28,7 @@ class ConsensusCluster:
 
 @dataclass
 class ComparisonResult:
-    """Final comparison result for one gloss_ru."""
+    """Final comparison result for one translation task (task_key or gloss_ru)."""
     gloss_ru: str
     proposed_gloss_en: str
     preferred_source: str
@@ -46,3 +46,6 @@ class ComparisonResult:
     gloss_complexity_score: float = 0.0
     gloss_complexity_reasons: list[str] = field(default_factory=list)
     needs_expert_review: bool = False
+    # Task-level metadata (VepKar-aware)
+    task_key: str | None = None
+    task_pos: str | None = None

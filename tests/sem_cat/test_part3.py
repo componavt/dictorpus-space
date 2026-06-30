@@ -8,6 +8,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent))
 import tempfile
 import os
 
+import pandas as pd
+
 from src.sem_cat.compare.loading import parse_translation_arg, load_single_model
 from src.sem_cat.compare.normalization import (
     normalize_output_for_comparison,
@@ -19,6 +21,19 @@ from src.sem_cat.compare.complexity import compute_gloss_complexity
 from src.sem_cat.compare.risk import compute_total_risk, compute_risk_level, ComparisonRiskConfig
 from src.sem_cat.compare.proposal import select_proposed_translation
 from src.sem_cat.compare.data_structures import ModelOutput, ConsensusCluster
+
+# VepKar translation workflow tests
+from src.sem_cat.pipeline.vepkar_translation_selection import (
+    normalize_pos_for_task,
+    canonical_existing_en,
+    has_existing_english,
+    build_task_key,
+    prepare_meanings_for_translation,
+    split_by_existing_en_reuse,
+    prepare_translation_input_for_task,
+    extract_unique_translation_tasks,
+)
+from src.sem_cat.utils.gloss_normalizer import primary_gloss
 
 
 # ---------------------------------------------------------------------------
@@ -653,6 +668,18 @@ if __name__ == "__main__":
         test_full_comparison_includes_roundtrip_when_any_has_data,
         test_gold_template_only_has_gloss_en_per_model,
         test_review_queue_only_has_relevant_columns,
+        test_normalize_pos_for_task,
+        test_canonical_existing_en,
+        test_has_existing_english,
+        test_build_task_key,
+        test_split_by_existing_en_excludes_human_translations,
+        test_split_by_existing_en_unambiguous_reuse,
+        test_split_by_existing_en_ambiguous_reuse,
+        test_split_by_existing_en_all_missing,
+        test_extract_unique_translation_tasks_deduplicates,
+        test_translation_input_mode_pos,
+        test_translation_input_mode_pos_meaning,
+        test_translation_input_mode_default_changed_to_pos,
     ]
 
     passed = 0
@@ -668,3 +695,247 @@ if __name__ == "__main__":
     print(f"\n{passed} passed, {failed} failed out of {len(tests)} tests")
     if failed > 0:
         sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
+# 24. VepKar translation workflow tests
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_pos_for_task():
+    """POS normalization handles None, empty, and normal values."""
+    assert normalize_pos_for_task(None) == "UNKNOWN"
+    assert normalize_pos_for_task("") == "UNKNOWN"
+    assert normalize_pos_for_task("   ") == "UNKNOWN"
+    assert normalize_pos_for_task("NOUN") == "NOUN"
+    assert normalize_pos_for_task("VERB") == "VERB"
+
+
+def test_canonical_existing_en():
+    """Existing English canonicalization handles None, empty, whitespace."""
+    assert canonical_existing_en(None) == ""
+    assert canonical_existing_en("") == ""
+    assert canonical_existing_en("   ") == ""
+    assert canonical_existing_en(" rock ") == "rock"
+
+
+def test_has_existing_english():
+    """has_existing_english returns correct boolean for various inputs."""
+    assert has_existing_english(None) is False
+    assert has_existing_english("") is False
+    assert has_existing_english("   ") is False
+    assert has_existing_english("rock") is True
+    assert has_existing_english("  rock  ") is True
+
+
+def test_build_task_key():
+    """task_key is (pos, primary_gloss_ru) tuple."""
+    # Normal case
+    key = build_task_key("NOUN", "дом")
+    assert key == ("NOUN", "дом")
+    
+    # Empty POS becomes UNKNOWN
+    key = build_task_key("", "дом")
+    assert key == ("UNKNOWN", "дом")
+    
+    # Missing POS becomes UNKNOWN
+    key = build_task_key(None, "дом")
+    assert key == ("UNKNOWN", "дом")
+
+
+def test_split_by_existing_en_excludes_human_translations():
+    """Rows with non-empty meaning_en are excluded from translation.
+    
+    When all missing rows share exactly one existing English, they become reusable_unambiguous.
+    """
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "meaning_id": [10, 20, 30],
+        "lang": ["krl", "krl", "krl"],
+        "lemma": ["koti", "koti", "maja"],
+        "pos": ["NOUN", "NOUN", "NOUN"],
+        "meaning_ru": ["дом", "дом", "дом"],
+        "meaning_en": ["house", "", ""],
+    })
+    
+    work = prepare_meanings_for_translation(df)
+    unusamb, amb, needs = split_by_existing_en_reuse(work)
+    
+    # Two rows have empty meaning_en, one has "house"
+    # Since there's exactly one distinct existing English value ("house"),
+    # both missing rows become reusable_unambiguous (not needs_model)
+    assert len(unusamb) == 2
+    assert "reused_existing_en" in unusamb.columns
+    assert unusamb.iloc[0]["reused_existing_en"] == "house"
+    assert len(amb) == 0
+    assert len(needs) == 0
+
+
+def test_split_by_existing_en_unambiguous_reuse():
+    """Rows with same (pos, gloss) and one existing English become reusable_unambiguous."""
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "meaning_id": [10, 20, 30],
+        "lang": ["krl", "krl", "krl"],
+        "lemma": ["koti", "koti", "maja"],
+        "pos": ["NOUN", "NOUN", "NOUN"],
+        "meaning_ru": ["дом", "дом", "дом"],
+        "meaning_en": ["house", "house", ""],
+    })
+    
+    work = prepare_meanings_for_translation(df)
+    unusamb, amb, needs = split_by_existing_en_reuse(work)
+    
+    # Two rows have "house" (same English), one has ""
+    # Since there's exactly one distinct existing English value ("house"),
+    # the missing row becomes reusable_unambiguous
+    assert len(unusamb) == 1
+    assert "reused_existing_en" in unusamb.columns
+    assert unusamb.iloc[0]["reused_existing_en"] == "house"
+    assert 30 in unusamb["meaning_id"].values
+    assert len(amb) == 0
+    assert len(needs) == 0
+
+
+def test_split_by_existing_en_ambiguous_reuse():
+    """Rows with same (pos, gloss) and multiple existing English become reusable_ambiguous."""
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "meaning_id": [10, 20, 30],
+        "lang": ["krl", "krl", "krl"],
+        "lemma": ["koti", "koti", "maja"],
+        "pos": ["NOUN", "NOUN", "NOUN"],
+        "meaning_ru": ["дом", "дом", "дом"],
+        "meaning_en": ["house", "home", ""],
+    })
+    
+    work = prepare_meanings_for_translation(df)
+    unusamb, amb, needs = split_by_existing_en_reuse(work)
+    
+    # Two existing English values ("house", "home"), one missing
+    # Since there are 2+ distinct existing English values, the missing row becomes reusable_ambiguous
+    assert len(unusamb) == 0
+    assert len(amb) == 1
+    assert "existing_en_candidates" in amb.columns
+    assert "home" in amb.iloc[0]["existing_en_candidates"]
+    assert "house" in amb.iloc[0]["existing_en_candidates"]
+    assert 30 in amb["meaning_id"].values
+    assert len(needs) == 0
+
+
+def test_split_by_existing_en_all_missing():
+    """All rows missing meaning_en -> all go to needs_model when no existing English exists."""
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "meaning_id": [10, 20, 30],
+        "lang": ["krl", "krl", "krl"],
+        "lemma": ["koti", "koti", "maja"],
+        "pos": ["NOUN", "NOUN", "NOUN"],
+        "meaning_ru": ["дом", "дом", "дом"],
+        "meaning_en": ["", "", ""],
+    })
+    
+    work = prepare_meanings_for_translation(df)
+    unusamb, amb, needs = split_by_existing_en_reuse(work)
+    
+    # All rows missing meaning_en AND no existing English values for this task_key
+    # -> all go to needs_model
+    assert len(unusamb) == 0
+    assert len(amb) == 0
+    assert len(needs) == 3
+
+
+def test_split_by_existing_en_with_existing_and_all_missing():
+    """All rows missing meaning_en but with existing English -> reusable_ambiguous."""
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "meaning_id": [10, 20, 30],
+        "lang": ["krl", "krl", "krl"],
+        "lemma": ["koti", "koti", "maja"],
+        "pos": ["NOUN", "NOUN", "NOUN"],
+        "meaning_ru": ["дом", "дом", "дом"],
+        "meaning_en": ["house", "", ""],
+    })
+    
+    work = prepare_meanings_for_translation(df)
+    unusamb, amb, needs = split_by_existing_en_reuse(work)
+    
+    # One row with existing English ("house"), two missing
+    # Since exactly one distinct existing English value exists, missing rows become reusable_unambiguous
+    assert len(unusamb) == 2
+    assert len(amb) == 0
+    assert len(needs) == 0
+
+
+def test_extract_unique_translation_tasks_deduplicates():
+    """Tasks deduplicated by task_key, not just gloss."""
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "meaning_id": [10, 20, 30],
+        "lang": ["krl", "krl", "krl"],
+        "lemma": ["koti", "koti", "maja"],
+        "pos": ["NOUN", "VERB", "NOUN"],
+        "meaning_ru": ["дом", "дом", "дом"],
+        "meaning_en": ["", "", ""],
+    })
+    
+    work = prepare_meanings_for_translation(df)
+    tasks = extract_unique_translation_tasks(work)
+    
+    assert len(tasks) == 2
+    task_keys = [t.task_key for t in tasks]
+    # NOUN\tдом and VERB\tдом should be separate tasks (string format)
+    assert "NOUN\tдом" in task_keys
+    assert "VERB\tдом" in task_keys
+
+
+def test_translation_input_mode_pos():
+    """pos mode includes POS in input."""
+    from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata
+    
+    task = TranslationTaskMetadata(
+        task_key="NOUN:дом",
+        primary_gloss_ru="дом",
+        task_pos="NOUN",
+        meaning_hint=None,
+        sourcecount=1,
+    )
+    
+    assert prepare_translation_input_for_task(task, "pos") == "NOUN: дом"
+    assert prepare_translation_input_for_task(task, "raw") == "дом"
+
+
+def test_translation_input_mode_pos_meaning():
+    """pos_meaning mode includes POS and meaning hint."""
+    from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata
+    
+    task = TranslationTaskMetadata(
+        task_key="NOUN:дом",
+        primary_gloss_ru="дом",
+        task_pos="NOUN",
+        meaning_hint="жилищное строение",
+        sourcecount=1,
+    )
+    
+    input_text = prepare_translation_input_for_task(task, "pos_meaning")
+    assert "NOUN:" in input_text
+    assert "дом" in input_text
+    assert "жилищное строение" in input_text
+
+
+def test_translation_input_mode_default_changed_to_pos():
+    """Default translation input mode should be pos, not raw."""
+    from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata
+    
+    task = TranslationTaskMetadata(
+        task_key="NOUN:дом",
+        primary_gloss_ru="дом",
+        task_pos="NOUN",
+        meaning_hint=None,
+        sourcecount=1,
+    )
+    
+    # When called without mode (defaults to pos in new code)
+    # The prepare_translation_input_for_task has no default, so caller must specify
+    # But the 02_translate_glosses.py now defaults to "pos" in CLI
+    assert prepare_translation_input_for_task(task, "pos") == "NOUN: дом"

@@ -7,7 +7,8 @@ from typing import List
 
 LANGS = ["vep", "olo", "lud", "krl"]
 MEANINGS_COLS = ["id", "lemma_id", "meaning_id", "meaning_num",
-                 "lemma", "lang", "pos", "meaning_ru"]
+                 "lemma", "lang", "pos", "meaning_ru", "meaning_en",
+                 "concept_id", "category_id"]
 
 
 def load_meanings(data_dir: str) -> pd.DataFrame:

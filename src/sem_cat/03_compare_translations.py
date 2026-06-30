@@ -166,9 +166,25 @@ def process_gloss_row(
     risk_threshold: float = 0.35,
     risk_config: ComparisonRiskConfig | None = None,
 ) -> ComparisonResult:
-    """Process a single gloss_ru row into a ComparisonResult."""
+    """Process a single gloss_ru row into a ComparisonResult.
+    
+    Supports both legacy gloss-only and task_key-based workflows.
+    """
     gloss_ru = str(row.get("gloss_ru", "")).strip()
     outputs = _collect_model_outputs(row, model_keys)
+
+    # Extract task metadata if available
+    task_key = row.get("task_key") if not pd.isna(row.get("task_key")) else None
+    if task_key and str(task_key).strip():
+        task_key = str(task_key).strip()
+    else:
+        task_key = None
+        
+    task_pos = row.get("task_pos") if not pd.isna(row.get("task_pos")) else None
+    if task_pos and str(task_pos).strip():
+        task_pos = str(task_pos).strip()
+    else:
+        task_pos = None
 
     # Complexity
     complexity_score, complexity_reasons = compute_gloss_complexity(gloss_ru)
@@ -237,6 +253,8 @@ def process_gloss_row(
         gloss_complexity_score=complexity_score,
         gloss_complexity_reasons=complexity_reasons,
         needs_expert_review=needs_review,
+        task_key=task_key,
+        task_pos=task_pos,
     )
     # Attach outputs for output table building (not in dataclass)
     result._outputs = outputs  # type: ignore[attr-defined]

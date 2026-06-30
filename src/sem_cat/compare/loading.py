@@ -27,6 +27,8 @@ OPTIONAL_COLUMNS = [
     "source_count",
     "qa_version",
     "is_singleword_ru",
+    "task_key",
+    "task_pos",
 ]
 
 
@@ -98,8 +100,9 @@ def load_single_model(path: Path, model_key: str) -> pd.DataFrame:
     }
 
     available = {k: v for k, v in rename_map.items() if k in df.columns}
-    keep_cols = ["gloss_ru"] + list(available.keys())
-    result = df[keep_cols].rename(columns=available)
+    keep_cols = ["gloss_ru", "task_key", "task_pos"] + list(available.keys())
+    present_cols = [c for c in keep_cols if c in df.columns]
+    result = df[present_cols].rename(columns=available)
     result[f"{model_key}__model_key"] = model_key
 
     return result
@@ -109,14 +112,14 @@ def merge_all_models(
     model_dfs: dict[str, pd.DataFrame],
     verbose: bool = False,
 ) -> pd.DataFrame:
-    """Merge all model DataFrames on gloss_ru using outer join.
+    """Merge all model DataFrames on task_key (or gloss_ru for legacy files).
 
     Args:
         model_dfs: Mapping of model_key -> prefixed DataFrame.
         verbose: If True, print loading progress.
 
     Returns:
-        Merged DataFrame with one row per gloss_ru.
+        Merged DataFrame with one row per unique translation task.
     """
     dfs = list(model_dfs.values())
     if not dfs:
@@ -124,9 +127,11 @@ def merge_all_models(
 
     merged = dfs[0]
     for df in dfs[1:]:
-        merged = pd.merge(merged, df, on="gloss_ru", how="outer").reset_index(drop=True)
+        merge_on = "task_key" if "task_key" in merged.columns and "task_key" in df.columns else "gloss_ru"
+        merged = pd.merge(merged, df, on=merge_on, how="outer").reset_index(drop=True)
 
     if verbose:
-        print(f"Merged {len(model_dfs)} models, {len(merged)} unique gloss_ru rows")
+        has_task_key = "task_key" in merged.columns
+        print(f"Merged {len(model_dfs)} models, {len(merged)} unique {'task_key' if has_task_key else 'gloss_ru'} rows")
 
     return merged

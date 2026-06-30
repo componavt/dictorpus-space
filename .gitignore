@@ -7,6 +7,7 @@ __pycache__/
 *.so
 
 out
+out_gitingest
 old
 results
 data/sem_cat/02_glosses_translated_*.csv

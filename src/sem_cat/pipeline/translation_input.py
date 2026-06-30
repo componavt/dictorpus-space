@@ -1,4 +1,8 @@
-"""Gloss metadata extraction and translation input preparation."""
+"""Gloss metadata extraction and translation input preparation.
+
+This module provides both legacy gloss-based helpers and task-based helpers
+for VepKar-aware translation.
+"""
 
 from __future__ import annotations
 
@@ -74,6 +78,8 @@ def prepare_translation_input(
     metadata: GlossMetadata | None = None,
 ) -> str:
     """Prepare the input string for translation based on the mode.
+
+    Legacy gloss-based helper. Use prepare_translation_input_for_task for task-based workflow.
 
     Args:
         gloss_ru: The Russian gloss

@@ -179,33 +179,48 @@ In short: use the canonical key shown above, and prefer `--model-key` over legac
 
 ---
 
-## Step 02 — Translate glosses
+## Step 02 — VepKar-aware translation
 
 ```text
-RU glosses
-   │
-   ├─ "дом"
-   ├─ "кошка"
-   ├─ "обозначает количество чего-л."
-   ▼
-[translator backend]
-   │
-   ├─ google
-   ├─ helsinki_opus_mt_ru_en
-   ├─ nllb_3_3b
-   ├─ tower_plus_9b
-   ├─ hy_mt2_30b_a3b
-   └─ alma_7b_r
-   ▼
-EN gloss cache + QA metadata
+VepKar meanings_*.csv (RU glosses)
+    │
+    ├─ "дом"
+    ├─ "кошка"
+    ├─ "вкусная калитка"
+    ▼
+    ├─ Skip rows with meaning_en already set (human-ready)
+    ├─ For rows with empty meaning_en:
+    │   ├─ Group by (pos, primary_gloss_ru)
+    │   ├─ Detect reusable English variants
+    │   │   ├─ Exactly 1 variant → reusable_unambiguous (no translation needed)
+    │   │   └─ 2+ variants → reusable_ambiguous (export for expert review)
+    │   └─ Remaining → needs_translation
+    │
+    └─ Translate only unique tasks from needs_translation
+           │
+           ├─ google
+           ├─ helsinki_opus_mt_ru_en
+           ├─ nllb_3_3b
+           ├─ tower_plus_9b
+           ├─ hy_mt2_30b_a3b
+           └─ alma_7b_r
+           ▼
+EN gloss cache + QA metadata + task metadata
 ```
 
 **What it does**
 
-- Loads VepKar meanings.
-- Extracts unique primary Russian glosses.
-- Translates them to English with one selected registry model.
-- Runs QA checks and writes a canonical cache CSV.
+- Loads VepKar meanings files (`meanings_krl.csv`, `meanings_lud.csv`, `meanings_olo.csv`, `meanings_vep.csv`).
+- Skips rows with existing human English in `meaning_en` (non-empty after simple strip).
+- Groups remaining work by `(pos, primary_gloss_ru)`.
+- Performs reuse analysis:
+  - **reusable_unambiguous**: exactly one distinct existing English value → reuse without translation
+  - **reusable_ambiguous**: two or more distinct existing English values → export for expert review
+  - **needs_translation**: no existing English → true translation task
+- Prints per-language and overall coverage statistics.
+- Writes helper CSVs in `data/sem_cat/2translate/`.
+- Translates only unique tasks from the `needs_translation` subset.
+- `--offset` and `--limit` apply after skip/reuse/cache filtering.
 
 **Main commands**
 
@@ -229,42 +244,42 @@ python3 -m src.sem_cat.02_translate_glosses \
   --out-file data/sem_cat/02_glosses_translated_nllb_3_3b_smoke.csv
 ```
 
-```bash
-# Full runs
-python3 -m src.sem_cat.02_translate_glosses --model-key google
-python3 -m src.sem_cat.02_translate_glosses --model-key helsinki_opus_mt_ru_en --device cuda
-python3 -m src.sem_cat.02_translate_glosses --model-key nllb_3_3b --device cuda --round-trip
-python3 -m src.sem_cat.02_translate_glosses --model-key tower_plus_9b --device cuda
-python3 -m src.sem_cat.02_translate_glosses --model-key hy_mt2_30b_a3b --device cuda
-python3 -m src.sem_cat.02_translate_glosses --model-key alma_7b_r --device cuda
-```
+
 
 **Important behavior**
 
-- The step is **incremental**: cache filtering happens first, then `--offset` and `--limit` are applied to the remaining untranslated glosses.
+- The step is **VepKar-aware**: skips rows with existing human English before any model translation.
+- Reuse analysis groups by `(pos, primary_gloss_ru)` to detect exact reuse opportunities.
+- **reusable_unambiguous**: rows that can reuse a single existing English translation are NOT sent to models.
+- **reusable_ambiguous**: rows with conflicting existing English are exported for expert review.
+- Only truly unique tasks from `needs_translation` subset go to models.
+- `--offset` and `--limit` apply after skip/reuse filtering.
 - Google backend always uses effective batch size **1**.
 - The main CSV keeps **nonblank outputs even when `qa_keep=False`**; that is intentional, because raw nonblank failures are still useful for review and for step 03.
 - The sidecar file `02_glosses_translated_<model_key>.csv.blanks.csv` is for rows whose English output is actually empty or blank.
-- The summary printed by step 02 now distinguishes:
-  - ✅ kept good-quality rows,
-  - 🟡 kept but flagged rows,
-  - ❌ rejected rows,
-  - ⬜ empty-output rejected rows,
-  - 🔴 rejected-but-nonblank rows.
-
-That last category matters more than it may first appear. A blank row is merely unhelpful; a confident nonsense row is educational.
+- The summary printed by step 02 now includes per-language coverage statistics (see example below).
 
 **Typical output**
 
 ```text
 data/sem_cat/02_glosses_translated_<model_key>.csv
 data/sem_cat/02_glosses_translated_<model_key>.csv.blanks.csv
+data/sem_cat/2translate/meanings_krl_to_translate.csv
+data/sem_cat/2translate/meanings_lud_to_translate.csv
+data/sem_cat/2translate/meanings_olo_to_translate.csv
+data/sem_cat/2translate/meanings_vep_to_translate.csv
+data/sem_cat/2translate/ambiguous_existing_en_by_task.csv
+data/sem_cat/2translate/ambiguous_existing_en_by_task_summary.csv
 ```
 
 **Columns you will care about**
 
 - `gloss_ru`
 - `gloss_en`
+- `task_key`
+- `task_key_str`
+- `task_pos`
+- `primary_gloss_ru`
 - `qa_keep`
 - `qa_score`
 - `qa_flags`
@@ -274,6 +289,8 @@ data/sem_cat/02_glosses_translated_<model_key>.csv.blanks.csv
 - `translation_input_mode`
 - `gloss_ru_back`
 - `roundtrip_distance`
+
+Note: `task_key` and `task_key_str` store the task-level identity (e.g., `NOUN\tдом`), enabling cache deduplication and comparison by `(pos, gloss)` rather than gloss alone.
 
 ### hf_causal models and quantization
 
@@ -342,7 +359,7 @@ This helps debug memory issues and verify your load configuration.
 google ─────────────────┐
 helsinki_opus_mt_ru_en ┤
 nllb_3_3b ──────────────┤
-tower_plus_9b ──────────┼──► merge by gloss_ru
+tower_plus_9b ──────────┼──► merge by task_key (or gloss_ru for legacy)
 hy_mt2_30b_a3b ─────────┤
 alma_7b_r ──────────────┘
                     │
@@ -355,12 +372,13 @@ alma_7b_r ──────────────┘
           ▼                    ▼
    expert review queue    gold template
    (stricter than         (for curation /
-    “all disagreements”)   adjudication)
+    "all disagreements")   adjudication)
 ```
 
 **What it does**
 
-- Merges translation outputs from multiple models by `gloss_ru`.
+- Merges translation outputs from multiple models by `task_key` when available.
+- Falls back to `gloss_ru` for legacy files that lack `task_key`.
 - Computes comparison and risk features.
 - Produces a full comparison table, an expert review queue, and a gold template.
 

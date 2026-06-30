@@ -11,11 +11,16 @@ CANONICAL_COLUMNS = [
     # Core translation
     "gloss_ru",
     "gloss_en",
+    # Task metadata
+    "task_key",
+    "task_key_str",
+    "task_pos",
     # QA
     "qa_keep",
     "qa_score",
     "qa_flags",
     "qa_version",
+    "primary_gloss_ru",
     # Model metadata
     "model_key",
     "model_name",
@@ -50,6 +55,8 @@ def build_translation_row(
     meaning_hint: str | None = None,
     source_count: int | None = None,
     gloss_ru_back: str | None = None,
+    task_key: str | None = None,
+    task_pos: str | None = None,
 ) -> dict[str, object]:
     """Build a single canonical output row for the translation CSV.
 
@@ -61,10 +68,14 @@ def build_translation_row(
     return {
         "gloss_ru": gloss_ru,
         "gloss_en": gloss_en,
+        "task_key": task_key or "",
+        "task_key_str": task_key or "",
+        "task_pos": task_pos or "",
         "qa_keep": qa_result.qa_keep,
         "qa_score": qa_result.qa_score,
         "qa_flags": ";".join(qa_result.qa_flags) if qa_result.qa_flags else "",
         "qa_version": QA_VERSION,
+        "primary_gloss_ru": gloss_ru,
         "model_key": model_key,
         "model_name": model_name,
         "backend_family": backend_family,

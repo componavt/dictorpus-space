@@ -16,6 +16,23 @@ REQUIRED_CACHE_COLUMNS = [
     "model_key",
 ]
 
+OPTIONAL_CACHE_COLUMNS = [
+    "gloss_en_back",
+    "roundtrip_distance",
+    "translation_input_mode",
+    "pos_hint",
+    "meaning_hint",
+    "source_count",
+    "qa_version",
+    "is_singleword_ru",
+    "input_token_count",
+    "output_token_count",
+    "task_key",
+    "task_pos",
+]
+
+ALL_CACHE_COLUMNS = REQUIRED_CACHE_COLUMNS + OPTIONAL_CACHE_COLUMNS
+
 LEGACY_CACHE_COLUMNS = [
     "gloss_ru",
     "gloss_en",
@@ -37,17 +54,17 @@ def load_translation_cache(
         the file doesn't exist or is invalid.
     """
     if not out_path.exists():
-        return pd.DataFrame(columns=REQUIRED_CACHE_COLUMNS)
+        return pd.DataFrame(columns=ALL_CACHE_COLUMNS)
 
     try:
         df = pd.read_csv(out_path, encoding="utf-8", dtype=str)
     except Exception as e:
         print(f"WARNING: could not read cache file ({e}) — starting fresh.")
-        return pd.DataFrame(columns=REQUIRED_CACHE_COLUMNS)
+        return pd.DataFrame(columns=ALL_CACHE_COLUMNS)
 
     if "gloss_ru" not in df.columns:
         print("WARNING: cache file exists but has no 'gloss_ru' column — ignoring cache.")
-        return pd.DataFrame(columns=REQUIRED_CACHE_COLUMNS)
+        return pd.DataFrame(columns=ALL_CACHE_COLUMNS)
 
     # Schema upgrade: if model_key is missing, infer it
     if "model_key" not in df.columns:
@@ -66,6 +83,11 @@ def load_translation_cache(
 
     # Ensure required columns exist (fill missing with defaults)
     for col in REQUIRED_CACHE_COLUMNS:
+        if col not in df.columns:
+            df[col] = ""
+
+    # Ensure optional columns exist
+    for col in OPTIONAL_CACHE_COLUMNS:
         if col not in df.columns:
             df[col] = ""
 
@@ -91,6 +113,28 @@ def build_cached_gloss_set(cache_df: pd.DataFrame) -> set[str]:
     return set(cache_df["gloss_ru"].dropna().tolist())
 
 
+def build_cached_task_key_set(cache_df: pd.DataFrame) -> set[str]:
+    """Build a set of already-translated task_key values from a validated cache.
+    
+    If task_key column is missing, falls back to gloss_ru for backward compatibility.
+    """
+    if cache_df.empty:
+        return set()
+    
+    if "task_key" in cache_df.columns and not cache_df["task_key"].isna().all():
+        return set(cache_df["task_key"].dropna().astype(str).tolist())
+    
+    if "gloss_ru" in cache_df.columns:
+        return set(cache_df["gloss_ru"].dropna().tolist())
+    
+    return set()
+
+
 def count_cached_rows(cache_df: pd.DataFrame) -> int:
     """Return the number of unique cached gloss entries."""
     return len(build_cached_gloss_set(cache_df))
+
+
+def count_cached_tasks(cache_df: pd.DataFrame) -> int:
+    """Return the number of unique cached task keys, or gloss entries for legacy caches."""
+    return len(build_cached_task_key_set(cache_df))

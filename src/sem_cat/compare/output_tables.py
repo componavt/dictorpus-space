@@ -25,9 +25,10 @@ def build_full_comparison_df(
 
     Column order:
     1. Core identifiers
-    2. Risk and consensus metrics
-    3. Proposal fields
-    4. Per-model columns (model_key__field convention)
+    2. Task-level metadata (task_key, task_pos if available)
+    3. Risk and consensus metrics
+    4. Proposal fields
+    5. Per-model columns (model_key__field convention)
 
     Schema policy:
     - Always include: __gloss_en, __qa_keep, __qa_score, __qa_flags
@@ -42,10 +43,19 @@ def build_full_comparison_df(
         for mk in model_keys
     }
 
+    has_task_metadata = hasattr(results[0], 'task_key') and results[0].task_key is not None
+
     rows = []
     for r in results:
         row = {
             "gloss_ru": r.gloss_ru,
+        }
+        
+        if has_task_metadata:
+            row["task_key"] = r.task_key
+            row["task_pos"] = r.task_pos
+            
+        row.update({
             "is_singleword": r.gloss_ru.strip().count(" ") == 0 and len(r.gloss_ru.strip()) > 0,
             "gloss_complexity_score": r.gloss_complexity_score,
             "gloss_complexity_reasons": ";".join(r.gloss_complexity_reasons) if r.gloss_complexity_reasons else "",
@@ -63,7 +73,7 @@ def build_full_comparison_df(
             "decision_reason": r.decision_reason,
             "chosen_from_model_key": r.chosen_from_model_key or "",
             "needs_expert_review": r.needs_expert_review,
-        }
+        })
 
         # Per-model columns
         for mk in model_keys:
