@@ -154,7 +154,7 @@ The repository supports four backend families:
 - **`google`** – GoogleTranslator API service.
 - **`hf_seq2seq`** – HuggingFace encoder-decoder seq2seq models (MarianMT style). Loaded via `AutoModelForSeq2SeqLM`.
 - **`nllb`** – NLLB-200 models via HuggingFace with forced BOS language tokens.
-- **`hf_causal`** – Decoder-only causal LMs loaded via `AutoModelForCausalLM`. These use prompt templates or chat templates for translation and do not support round-trip in the current configuration.
+- **`hf_causal`** – Decoder-only causal LMs loaded via `AutoModelForCausalLM`. These use prompt/chat-style translation and often rely on quantized loading on consumer GPUs.
 
 Quantization for causal models reduces VRAM usage:
 - Full precision: ~14-26 GB for 7B-13B models (may OOM on consumer GPUs)
@@ -164,18 +164,6 @@ Quantization for causal models reduces VRAM usage:
 Many causal models have quantization enabled in the registry defaults:
 - `tower_plus_9b` loads in 4-bit quantized mode by default
 - Others can be overridden with `--quantization {none,4bit,8bit}`
-
-The causal models differ from seq2seq models in two important ways:
-1. They cannot be loaded with `AutoModelForSeq2SeqLM`; they need `AutoModelForCausalLM`.
-2. They require a prompt template or chat format to specify the translation task, rather than accepting raw source text.
-
-Legacy arguments are still supported for compatibility:
-
-- `--backend google` → `google`
-- `--backend marian` → `helsinki_opus_mt_ru_en`
-- `--backend nllb --nllb-model facebook/nllb-200-3.3B` → `nllb_3_3b`
-
-In short: use the canonical key shown above, and prefer `--model-key` over legacy `--backend` arguments.
 
 ---
 
@@ -290,14 +278,13 @@ data/sem_cat/2translate/ambiguous_existing_en_by_task_summary.csv
 - `gloss_ru_back`
 - `roundtrip_distance`
 
-Note: `task_key` and `task_key_str` store the task-level identity (e.g., `NOUN\tдом`), enabling cache deduplication and comparison by `(pos, gloss)` rather than gloss alone.
+`task_key` is the task-level identity used for cache deduplication and multi-model comparison.
+    It distinguishes tasks by `(task_pos, primary_gloss_ru)`, so identical gloss strings with different POS are not merged accidentally.
 
 ### hf_causal models and quantization
 
-The `hf_causal` backend family includes causal LMs like `tower_plus_9b`. These models differ from seq2seq models in two important ways:
-
-1. They cannot be loaded with `AutoModelForSeq2SeqLM`; they need `AutoModelForCausalLM`.
-2. They require a prompt template or chat format to specify the translation task.
+`hf_causal` models such as `tower_plus_9b` are decoder-only LMs loaded via `AutoModelForCausalLM`.
+    They use prompt/chat-style translation and often rely on quantized loading on consumer GPUs.
 
 **Quantization options**
 
