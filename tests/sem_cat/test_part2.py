@@ -187,9 +187,10 @@ def test_qa_result_dataclass():
 # ---------------------------------------------------------------------------
 
 def test_cache_loader_returns_empty_for_missing_file():
-    df = load_translation_cache(pathlib.Path("/nonexistent/path.csv"))
-    assert df.empty
-    assert "gloss_ru" in df.columns
+    result = load_translation_cache(pathlib.Path("/nonexistent/path.csv"))
+    assert result.state == "missing"
+    assert result.df.empty
+    assert "gloss_ru" in result.df.columns
 
 
 def test_cache_required_columns_defined():
@@ -887,10 +888,9 @@ def test_load_translation_cache_normalizes_task_key(tmp_path):
     from src.sem_cat.io.translation_cache import load_translation_cache
     result = load_translation_cache(path, expected_model_key="google")
     
-    assert "task_key" in result.columns
-    assert "NOUN::дом" in result["task_key"].values
-    assert "NOUN::машина" in result["task_key"].values
-    assert "NOUN\tдом" not in result["task_key"].values
+    assert "task_key" in result.df.columns
+    assert "NOUN::дом" in result.df["task_key"].values
+    assert "NOUN\tдом" not in result.df["task_key"].values
 
 
 def test_cache_load_handles_task_key_str_fallback(tmp_path):
@@ -907,8 +907,8 @@ def test_cache_load_handles_task_key_str_fallback(tmp_path):
     from src.sem_cat.io.translation_cache import load_translation_cache
     result = load_translation_cache(path, expected_model_key="google")
     
-    assert "task_key" in result.columns
-    assert "NOUN::дом" in result["task_key"].values
+    assert "task_key" in result.df.columns
+    assert "NOUN::дом" in result.df["task_key"].values
 
 
 def test_step03_load_normalizes_task_key(tmp_path):

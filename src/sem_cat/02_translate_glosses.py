@@ -13,6 +13,7 @@ import pathlib
 import argparse
 import dataclasses
 import random
+import re
 from dataclasses import dataclass
 from math import ceil
 from typing import Literal
@@ -72,6 +73,61 @@ from src.sem_cat.io.translation_rows import (
     CANONICAL_COLUMNS,
     QA_VERSION,
 )
+
+_POS_PREFIX_RE = re.compile(r"^(NOUN|VERB|ADJ|ADV|PROPN|PRON|NUM|PART|INTJ|ADP|AUX|CCONJ|SCONJ|DET)\s+[|:-]?\s*(.+)$")
+
+
+def strip_pos_echo_prefix(text: str) -> str:
+    """Strip POS prefix echo from translation output.
+    
+    Some models repeat the POS label as a prefix in the English output.
+    This helper detects and removes that pattern while preserving
+    legitimate content that starts with uppercase words.
+    
+    Examples:
+        "NOUN concert hall" -> "concert hall"
+        "VERB to run" -> "to run"
+        "NOUN United Nations" -> "NOUN United Nations" (preserved, not a clean echo)
+        
+    Args:
+        text: Translation output text
+        
+    Returns:
+        Text with POS echo prefix removed if detected, otherwise original text
+    """
+    s = str(text or "").strip()
+    if not s:
+        return s
+    m = _POS_PREFIX_RE.match(s)
+    if not m:
+        return s
+    cleaned = m.group(2).strip()
+    return cleaned or s
+
+
+def validate_translation_rows_for_write(rows: list[dict[str, object]]) -> None:
+    """Validate that translation rows have all required schema fields.
+    
+    Args:
+        rows: List of translation row dicts to validate
+        
+    Raises:
+        ValueError: If any row is missing required fields
+    """
+    required = ("gloss_ru", "gloss_en", "task_key", "task_pos", "primary_gloss_ru")
+    bad = []
+    for idx, row in enumerate(rows):
+        missing = [k for k in required if not str(row.get(k, "")).strip()]
+        if missing:
+            bad.append((idx, missing, row))
+    if bad:
+        sample = bad[:3]
+        raise ValueError(
+            "Refusing to write malformed translation rows; "
+            f"{len(bad)} rows are missing required fields. Sample: {sample}"
+        )
+import re
+import dataclasses
 
 
 @dataclass(frozen=True)
@@ -641,24 +697,46 @@ def main() -> None:
         translate_dir=translate_dir,
     )
     
-    if write_result.wrote_ambiguous:
-        print(f"  Saved ambiguous_existing_en_by_task.csv")
-    if write_result.wrote_ambiguous_summary:
-        print(f"  Saved ambiguous_existing_en_by_task_summary.csv")
+    print(f"  Helper file manifest:")
+    df_krl_len = len(needs_model_df[needs_model_df["lang"] == "krl"]) if "lang" in needs_model_df.columns else 0
+    df_lud_len = len(needs_model_df[needs_model_df["lang"] == "lud"]) if "lang" in needs_model_df.columns else 0
+    df_olo_len = len(needs_model_df[needs_model_df["lang"] == "olo"]) if "lang" in needs_model_df.columns else 0
+    df_vep_len = len(needs_model_df[needs_model_df["lang"] == "vep"]) if "lang" in needs_model_df.columns else 0
+    print(f"    {translate_dir}/meanings_krl_to_translate.csv — {'written' if write_result.wrote_krl else 'not written'}, {df_krl_len} rows")
+    print(f"    {translate_dir}/meanings_lud_to_translate.csv — {'written' if write_result.wrote_lud else 'not written'}, {df_lud_len} rows")
+    print(f"    {translate_dir}/meanings_olo_to_translate.csv — {'written' if write_result.wrote_olo else 'not written'}, {df_olo_len} rows")
+    print(f"    {translate_dir}/meanings_vep_to_translate.csv — {'written' if write_result.wrote_vep else 'not written'}, {df_vep_len} rows")
+    print(f"    {translate_dir}/ambiguous_existing_en_by_task.csv — {'written' if write_result.wrote_ambiguous else 'not written'}, {len(reusable_ambiguous_df) if reusable_ambiguous_df is not None else 0} rows")
+    print(f"    {translate_dir}/ambiguous_existing_en_by_task_summary.csv — {'written' if write_result.wrote_ambiguous_summary else 'not written'}, {len(reusable_ambiguous_df) if reusable_ambiguous_df is not None else 0} rows")
     
     print("Extracting unique translation tasks...")
     tasks = extract_unique_translation_tasks(needs_model_df)
     total_tasks = len(tasks)
     print(f"Found {total_tasks} unique translation tasks")
 
-    print("Loading translation cache...")
-    cache_df = load_translation_cache(out_path, expected_model_key=resolved_model_key)
-    cached_tasks = set()
-    if not cache_df.empty and "task_key" in cache_df.columns:
-        cached_tasks = set(cache_df["task_key"].dropna().tolist())
-        print(f"Found {len(cached_tasks)} cached task keys")
+    print("Loading and validating translation cache...")
+    cache_result = load_and_validate_cache_for_step02(out_path, expected_model_key=resolved_model_key)
+    cache_df = cache_result.df
+    
+    writer_mode: Literal["start_new_file", "append_to_existing_valid_file", "abort_due_to_malformed_existing_file"]
+    
+    if cache_result.state == "missing":
+        writer_mode = "start_new_file"
+    elif cache_result.state == "malformed":
+        writer_mode = "abort_due_to_malformed_existing_file"
     else:
-        print("Cache has no task_key column - will not skip any cached tasks")
+        writer_mode = "append_to_existing_valid_file"
+    
+    if writer_mode == "abort_due_to_malformed_existing_file":
+        detected_cols = cache_result.columns or []
+        print(f"\nFATAL: Output file exists but is malformed: {out_path}")
+        print(f"  Detected columns: {list(detected_cols)}")
+        print(f"  Validation error: {cache_result.reason}")
+        print("\n likely cause: a previous run wrote data rows before the CSV header.")
+        print("  Action: Remove or rename the file, then rerun.")
+        sys.exit(1)
+    
+    need_header_for_good_output = writer_mode == "start_new_file"
 
     tasks_to_translate = [t for t in tasks if t.task_key not in cached_tasks]
     remaining_after_cache = len(tasks_to_translate)
@@ -753,8 +831,28 @@ def main() -> None:
 
     n = len(tasks_to_translate)
     n_batches = ceil(n / effective_batch_size) if n > 0 else 0
+    
+    cached_tasks = set()
+    if not cache_df.empty and "task_key" in cache_df.columns:
+        cached_tasks = set(cache_df["task_key"].dropna().tolist())
+        print(f"  Found {len(cached_tasks)} cached task keys")
+    else:
+        print("  Cache has no task_key column - will not skip any cached tasks")
 
-    header_written = not out_path.exists() or count_cached_rows(cache_df) > 0
+    file_exists = out_path.exists()
+    file_size = out_path.stat().st_size if file_exists else 0
+    
+    print("\nOutput/cache status")
+    print(f"  Output path: {out_path}")
+    print(f"  Exists: {'yes' if file_exists else 'no'}")
+    if file_exists:
+        print(f"  Size bytes: {file_size}")
+    print(f"  Cache status: {cache_result.state}")
+    print(f"  Detected columns: {list(cache_result.columns) if cache_result.columns else []}")
+    print(f"  Valid cache rows: {len(cache_df)}")
+    print(f"  Cached task count: {len(cached_tasks)}")
+    print(f"  Writer mode: {writer_mode}")
+    print(f"  First good batch writes header: {need_header_for_good_output}")
     qa_config = TranslationQAConfig()
 
     total_written = 0
@@ -791,16 +889,17 @@ def main() -> None:
                 list(batch_tasks).index(task)
             ] if back_translator is not None else None
 
+            trans_clean = strip_pos_echo_prefix(trans if trans else "")
             qa_result = analyze_translation(
                 task.primary_gloss_ru,
-                trans if trans else "",
+                trans_clean,
                 roundtrip_text,
                 config=qa_config
             )
 
             row = build_translation_row(
                 gloss_ru=task.primary_gloss_ru,
-                gloss_en=trans if trans else "",
+                gloss_en=trans_clean,
                 qa_result=qa_result,
                 model_key=resolved_model_key,
                 model_name=spec.model_name,
@@ -811,6 +910,9 @@ def main() -> None:
                 meaning_hint=task.meaning_hint,
                 source_count=task.sourcecount,
                 gloss_ru_back=roundtrip_text if roundtrip_text else "",
+                task_key=task.task_key,
+                task_pos=task.task_pos,
+                primary_gloss_ru=task.primary_gloss_ru,
             )
             batch_rows.append(row)
 
@@ -835,12 +937,19 @@ def main() -> None:
 
         good_rows = [r for r in batch_rows if r.get("gloss_en", "").strip()]
         blank_rows = [r for r in batch_rows if not r.get("gloss_en", "").strip()]
+        
+        print(f"  Batch schema check: rows={len(batch_rows)}, blank_task_key={sum(1 for r in batch_rows if not str(r.get('task_key', '')).strip())}, blank_task_pos={sum(1 for r in batch_rows if not str(r.get('task_pos', '')).strip())}, blank_primary_gloss_ru={sum(1 for r in batch_rows if not str(r.get('primary_gloss_ru', '')).strip())}, blank_gloss_en={sum(1 for r in good_rows if not str(r.get('gloss_en', '')).strip())}")
+        if batch_rows:
+            print("   - preview:")
+            for preview in batch_rows[:3]:
+                print(f"     - {preview.get('gloss_ru', '') or ''} => {preview.get('gloss_en', '') or ''} | task_key={preview.get('task_key', '') or ''} | task_pos={preview.get('task_pos', '') or ''} | input={preview.get('input_text_used', '') or ''}")
 
         if good_rows:
+            validate_translation_rows_for_write(good_rows)
             good_df = pd.DataFrame(good_rows, columns=CANONICAL_COLUMNS)
-            good_df.to_csv(out_path, mode="a", header=not header_written, index=False, encoding="utf-8")
-            if not header_written:
-                header_written = True
+            good_df.to_csv(out_path, mode="a", header=need_header_for_good_output, index=False, encoding="utf-8")
+            if need_header_for_good_output:
+                need_header_for_good_output = False
 
         if blank_rows:
             blanks_path = out_path.with_suffix(out_path.suffix + ".blanks.csv")

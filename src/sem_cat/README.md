@@ -247,6 +247,15 @@ python3 -m src.sem_cat.02_translate_glosses \
 - The sidecar file `02_glosses_translated_<model_key>.csv.blanks.csv` is for rows whose English output is actually empty or blank.
 - The summary printed by step 02 now includes per-language coverage statistics (see example below).
 
+**Output file handling and schema**
+
+- Step 02 writes a CSV header exactly once when creating a new output file.
+- Before appending to an existing output file, Step 02 validates the file structure.
+- If the target file exists but is malformed (for example, data rows appear before the header, or required columns like `gloss_ru` are missing), Step 02 aborts with a clear error message explaining what is wrong.
+- Translated rows must include these required schema fields: `gloss_ru`, `gloss_en`, `task_key`, `task_pos`, `primary_gloss_ru`. Rows missing any of these are rejected before write.
+- Helper file generation reflects only rows that truly need translation; files are only written when there are actual rows to include.
+- POS echo prefix detection: if a model echoes the POS label into the English output (e.g., `NOUN concert hall`), Step 02 strips that prefix before QA and write.
+
 **Typical output**
 
 ```text
@@ -286,11 +295,14 @@ a 1-based pointer to the candidate that upstream review tools should show first.
 
 - `task_key` is the task-level identity used for cache deduplication and multi-model comparison.
   In CSV outputs it is serialized as `task_pos::primary_gloss_ru`, for example `NOUN::обида`.
+  It distinguishes tasks by `(task_pos, primary_gloss_ru)`, so identical gloss strings with different POS are not merged accidentally.
+
+- `task_pos` records the part of speech for the task.
 
 - `ambiguous_existing_en_by_task_summary.csv` includes `suggested_candidate_index`,
   a 1-based pointer to the candidate that downstream review tools should show first.
 
-- Current outputs write only `task_key`. Reader paths still tolerate legacy files that use
+- Current outputs write `task_key` and `task_pos` explicitly. Reader paths still tolerate legacy files that use
   tab-separated task keys or the older `task_key_str` column.
 
 ### hf_causal models and quantization
