@@ -61,6 +61,7 @@ from src.sem_cat.compare.loading import (
     parse_translation_arg,
     load_single_model,
     merge_all_models,
+    normalize_loaded_task_key,
 )
 from src.sem_cat.compare.normalization import (
     normalize_output_for_comparison,
@@ -174,7 +175,8 @@ def process_gloss_row(
     outputs = _collect_model_outputs(row, model_keys)
 
     # Extract task metadata if available
-    task_key = row.get("task_key") if not pd.isna(row.get("task_key")) else None
+    task_key_raw = row.get("task_key") if not pd.isna(row.get("task_key")) else None
+    task_key = normalize_loaded_task_key(task_key_raw) if task_key_raw else None
     if task_key and str(task_key).strip():
         task_key = str(task_key).strip()
     else:

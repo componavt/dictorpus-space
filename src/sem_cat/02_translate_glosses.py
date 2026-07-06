@@ -46,10 +46,11 @@ from src.sem_cat.pipeline.vepkar_translation_selection import (
     prepare_meanings_for_translation,
     split_by_existing_en_reuse,
     extract_unique_translation_tasks,
-    build_task_metadata_map,
     prepare_translation_input_for_task,
     TranslationTaskMetadata,
+    serialize_task_key,
 )
+
 from src.sem_cat.qa.translation_qa import (
     analyze_translation,
     TranslationQAConfig,
@@ -326,31 +327,25 @@ def save_translate_helper_files(
     translate_dir.mkdir(parents=True, exist_ok=True)
     
     if not df_krl.empty:
-        # Use task_key_str for CSV output (more stable than tuple)
-        if "task_key" in df_krl.columns and "task_key_str" in df_krl.columns:
-            df_krl = df_krl.copy()
-            df_krl["task_key"] = df_krl["task_key_str"]
+        if "task_key_str" in df_krl.columns:
+            df_krl = df_krl.drop(columns=["task_key_str"])
         df_krl.to_csv(translate_dir / "meanings_krl_to_translate.csv", index=False)
     if not df_lud.empty:
-        if "task_key" in df_lud.columns and "task_key_str" in df_lud.columns:
-            df_lud = df_lud.copy()
-            df_lud["task_key"] = df_lud["task_key_str"]
+        if "task_key_str" in df_lud.columns:
+            df_lud = df_lud.drop(columns=["task_key_str"])
         df_lud.to_csv(translate_dir / "meanings_lud_to_translate.csv", index=False)
     if not df_olo.empty:
-        if "task_key" in df_olo.columns and "task_key_str" in df_olo.columns:
-            df_olo = df_olo.copy()
-            df_olo["task_key"] = df_olo["task_key_str"]
+        if "task_key_str" in df_olo.columns:
+            df_olo = df_olo.drop(columns=["task_key_str"])
         df_olo.to_csv(translate_dir / "meanings_olo_to_translate.csv", index=False)
     if not df_vep.empty:
-        if "task_key" in df_vep.columns and "task_key_str" in df_vep.columns:
-            df_vep = df_vep.copy()
-            df_vep["task_key"] = df_vep["task_key_str"]
+        if "task_key_str" in df_vep.columns:
+            df_vep = df_vep.drop(columns=["task_key_str"])
         df_vep.to_csv(translate_dir / "meanings_vep_to_translate.csv", index=False)
     
     if not ambiguous_df.empty:
-        if "task_key" in ambiguous_df.columns and "task_key_str" in ambiguous_df.columns:
-            ambiguous_df = ambiguous_df.copy()
-            ambiguous_df["task_key"] = ambiguous_df["task_key_str"]
+        if "task_key_str" in ambiguous_df.columns:
+            ambiguous_df = ambiguous_df.drop(columns=["task_key_str"])
         ambiguous_df.to_csv(translate_dir / "ambiguous_existing_en_by_task.csv", index=False)
     
     if not ambiguous_df.empty:
@@ -364,14 +359,20 @@ def _build_ambiguous_task_summary(df: pd.DataFrame) -> pd.DataFrame:
     Returns a DataFrame with one row per unique task_key that has ambiguous existing English,
     instead of one row per missing meaning.
     """
+    from src.sem_cat.pipeline.vepkar_translation_selection import compute_suggested_candidate_index
+    
     summaryParts = []
     for _, group in df.groupby(["task_key", "task_pos", "primary_gloss_ru", "existing_en_candidates", "existing_en_candidate_count"], dropna=False, sort=False):
+        suggested_idx = compute_suggested_candidate_index(
+            str(group["existing_en_candidates"].iloc[0]) if "existing_en_candidates" in group.columns else ""
+        )
         summary = {
             "task_key": str(group["task_key"].iloc[0]) if "task_key" in group.columns else "",
             "task_pos": str(group["task_pos"].iloc[0]) if "task_pos" in group.columns else "",
             "primary_gloss_ru": str(group["primary_gloss_ru"].iloc[0]) if "primary_gloss_ru" in group.columns else "",
             "existing_en_candidates": str(group["existing_en_candidates"].iloc[0]) if "existing_en_candidates" in group.columns else "",
             "existing_en_candidate_count": int(group["existing_en_candidate_count"].iloc[0]) if "existing_en_candidate_count" in group.columns else 0,
+            "suggested_candidate_index": suggested_idx if suggested_idx is not None else "",
             "missing_row_count": len(group),
             "example_lemma": str(group["lemma"].iloc[0]) if "lemma" in group.columns and not group["lemma"].isna().any() else "",
             "langs": " || ".join(sorted(set(str(x) for x in group["lang"].dropna().tolist()))) if "lang" in group.columns else "",

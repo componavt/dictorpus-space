@@ -258,6 +258,9 @@ data/sem_cat/2translate/meanings_olo_to_translate.csv
 data/sem_cat/2translate/meanings_vep_to_translate.csv
 data/sem_cat/2translate/ambiguous_existing_en_by_task.csv
 data/sem_cat/2translate/ambiguous_existing_en_by_task_summary.csv
+
+`ambiguous_existing_en_by_task_summary.csv` includes `suggested_candidate_index`,
+a 1-based pointer to the candidate that upstream review tools should show first.
 ```
 
 **Columns you will care about**
@@ -265,7 +268,6 @@ data/sem_cat/2translate/ambiguous_existing_en_by_task_summary.csv
 - `gloss_ru`
 - `gloss_en`
 - `task_key`
-- `task_key_str`
 - `task_pos`
 - `primary_gloss_ru`
 - `qa_keep`
@@ -279,6 +281,7 @@ data/sem_cat/2translate/ambiguous_existing_en_by_task_summary.csv
 - `roundtrip_distance`
 
 `task_key` is the task-level identity used for cache deduplication and multi-model comparison.
+    In CSV outputs it is serialized as `task_pos::primary_gloss_ru`, for example `NOUN::обида`.
     It distinguishes tasks by `(task_pos, primary_gloss_ru)`, so identical gloss strings with different POS are not merged accidentally.
 
 ### hf_causal models and quantization

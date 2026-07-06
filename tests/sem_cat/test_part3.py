@@ -884,9 +884,9 @@ def test_extract_unique_translation_tasks_deduplicates():
     
     assert len(tasks) == 2
     task_keys = [t.task_key for t in tasks]
-    # NOUN\tдом and VERB\tдом should be separate tasks (string format)
-    assert "NOUN\tдом" in task_keys
-    assert "VERB\tдом" in task_keys
+    # NOUN::дом and VERB::дом should be separate tasks (:: separator)
+    assert "NOUN::дом" in task_keys
+    assert "VERB::дом" in task_keys
 
 
 def test_translation_input_mode_pos():
@@ -894,14 +894,14 @@ def test_translation_input_mode_pos():
     from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata
     
     task = TranslationTaskMetadata(
-        task_key="NOUN:дом",
+        task_key="NOUN::дом",
         primary_gloss_ru="дом",
         task_pos="NOUN",
         meaning_hint=None,
         sourcecount=1,
     )
     
-    assert prepare_translation_input_for_task(task, "pos") == "NOUN: дом"
+    assert prepare_translation_input_for_task(task, "pos") == "NOUN | дом"
     assert prepare_translation_input_for_task(task, "raw") == "дом"
 
 
@@ -910,7 +910,7 @@ def test_translation_input_mode_pos_meaning():
     from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata
     
     task = TranslationTaskMetadata(
-        task_key="NOUN:дом",
+        task_key="NOUN::дом",
         primary_gloss_ru="дом",
         task_pos="NOUN",
         meaning_hint="жилищное строение",
@@ -918,7 +918,7 @@ def test_translation_input_mode_pos_meaning():
     )
     
     input_text = prepare_translation_input_for_task(task, "pos_meaning")
-    assert "NOUN:" in input_text
+    assert "NOUN | дом" in input_text
     assert "дом" in input_text
     assert "жилищное строение" in input_text
 
@@ -928,7 +928,7 @@ def test_translation_input_mode_default_changed_to_pos():
     from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata
     
     task = TranslationTaskMetadata(
-        task_key="NOUN:дом",
+        task_key="NOUN::дом",
         primary_gloss_ru="дом",
         task_pos="NOUN",
         meaning_hint=None,
@@ -938,4 +938,4 @@ def test_translation_input_mode_default_changed_to_pos():
     # When called without mode (defaults to pos in new code)
     # The prepare_translation_input_for_task has no default, so caller must specify
     # But the 02_translate_glosses.py now defaults to "pos" in CLI
-    assert prepare_translation_input_for_task(task, "pos") == "NOUN: дом"
+    assert prepare_translation_input_for_task(task, "pos") == "NOUN | дом"

@@ -135,3 +135,53 @@ def merge_all_models(
         print(f"Merged {len(model_dfs)} models, {len(merged)} unique {'task_key' if has_task_key else 'gloss_ru'} rows")
 
     return merged
+
+
+TASK_KEY_SEP = "::"
+
+
+def parse_serialized_task_key(value: str) -> tuple[str, str] | None:
+    """Parse a serialized task key back to (pos, gloss) tuple.
+    
+    Supports both new :: format and legacy \\t format for backward compatibility.
+    """
+    if not value or not isinstance(value, str):
+        return None
+    value = value.strip()
+    if not value:
+        return None
+    if TASK_KEY_SEP in value:
+        pos, gloss = value.split(TASK_KEY_SEP, 1)
+        return pos, gloss
+    if "\t" in value:
+        pos, gloss = value.split("\t", 1)
+        return pos, gloss
+    return None
+
+
+def normalize_loaded_task_key(value: object) -> str | None:
+    """Normalize task key from legacy formats.
+    
+    Accepts:
+    - New format: "NOUN::obida"
+    - Legacy tab format: "NOUN\tobida"
+    
+    Args:
+        value: Raw task key value from CSV
+        
+    Returns:
+        Normalized task key in :: format, or None if empty/invalid
+    """
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    result = parse_serialized_task_key(s)
+    if result is None:
+        return s
+    pos, gloss = result
+    return f"{pos}{TASK_KEY_SEP}{gloss}"
+
+
+

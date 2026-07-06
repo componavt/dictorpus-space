@@ -13,7 +13,6 @@ CANONICAL_COLUMNS = [
     "gloss_en",
     # Task metadata
     "task_key",
-    "task_key_str",
     "task_pos",
     # QA
     "qa_keep",
@@ -69,7 +68,6 @@ def build_translation_row(
         "gloss_ru": gloss_ru,
         "gloss_en": gloss_en,
         "task_key": task_key or "",
-        "task_key_str": task_key or "",
         "task_pos": task_pos or "",
         "qa_keep": qa_result.qa_keep,
         "qa_score": qa_result.qa_score,
