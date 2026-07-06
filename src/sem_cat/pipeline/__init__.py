@@ -21,6 +21,13 @@ from .vepkar_translation_selection import (
     TranslationTaskMetadata,
     compute_suggested_candidate_index,
 )
+from .reuse_analysis import (
+    ReuseAnalysisResult,
+    analyze_missing_en_reuse,
+    build_reuse_summary,
+    write_reuse_outputs,
+    print_reuse_summary,
+)
 
 __all__ = [
     "GlossMetadata",
@@ -40,4 +47,9 @@ __all__ = [
     "build_task_metadata_map",
     "TranslationTaskMetadata",
     "compute_suggested_candidate_index",
+    "ReuseAnalysisResult",
+    "analyze_missing_en_reuse",
+    "build_reuse_summary",
+    "write_reuse_outputs",
+    "print_reuse_summary",
 ]

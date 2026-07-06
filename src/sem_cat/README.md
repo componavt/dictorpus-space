@@ -29,37 +29,40 @@ take noisy lexicographic data, add useful semantic structure, and keep the pipel
 
 ```text
 data/vepkar/meanings_*.csv
-         │
-         ▼
-   unique Russian glosses
-         │
-         ▼
-   Step 02: translation cache
-         │
-         ▼
-   Step 03: compare models
-         │
-         ▼
-   Step 04: WordNet lookup
-         │
-         ▼
-   Step 05: assign domains to meanings
-         │
-         ├──────────────────────────────────────────────┐
-         ▼                                              │
-   gloss-based semantic labels                          │
-                                                        │
-data/sem_cat/concept_categories/*.tsv                   │
-data/sem_cat/concepts/*.csv                             │
-         │                                              │
-         ▼                                              │
-   Step 06: concept-level WDH                           │
-         │                                              │
-         ▼                                              │
-   Step 07: propagate WDH to meanings                   │
-         │                                              │
-         ▼                                              │
-   Step 08: gap audit  ◄────────────────────────────────┘
+          │
+          ▼
+    unique Russian glosses
+          │
+          ▼
+    Step 01: reuse analysis (missing-English audit)
+          │
+          ▼
+    Step 02: translation cache
+          │
+          ▼
+    Step 03: compare models
+          │
+          ▼
+    Step 04: WordNet lookup
+          │
+          ▼
+    Step 05: assign domains to meanings
+          │
+          ├──────────────────────────────────────────────┐
+          ▼                                              │
+    gloss-based semantic labels                          │
+                                                         │
+ data/sem_cat/concept_categories/*.tsv                   │
+ data/sem_cat/concepts/*.csv                             │
+          │                                              │
+          ▼                                              │
+    Step 06: concept-level WDH                           │
+          │                                              │
+          ▼                                              │
+    Step 07: propagate WDH to meanings                   │
+          │                                              │
+          ▼                                              │
+    Step 08: gap audit  ◄────────────────────────────────┘
 ```
 
 Two semantic paths coexist:
@@ -164,6 +167,79 @@ Quantization for causal models reduces VRAM usage:
 Many causal models have quantization enabled in the registry defaults:
 - `tower_plus_9b` loads in 4-bit quantized mode by default
 - Others can be overridden with `--quantization {none,4bit,8bit}`
+
+---
+
+## Step 01 — Missing-English reuse analysis
+
+This step inspects only meanings whose English translation is missing and groups them by `(pos, primary_gloss_ru)`.
+
+It exports two row-level files and two summary files in `data/sem_cat/2translate/`:
+
+- `missing_en_reusable_unambiguous_pos_gloss_ru.csv`
+- `missing_en_reusable_ambiguous_pos_gloss_ru.csv`
+- `missing_en_reusable_unambiguous_pos_gloss_ru_summary.csv`
+- `missing_en_reusable_ambiguous_pos_gloss_ru_summary.csv`
+
+Interpretation:
+- **unambiguous**: exactly one distinct existing English value already exists in the corpus for the same `(pos, primary_gloss_ru)`
+- **ambiguous**: two or more distinct existing English values already exist in the corpus for the same `(pos, primary_gloss_ru)`
+
+This step only exports reuse evidence. It does not auto-fill meanings and does not run any MT backend.
+
+**Main command**
+
+```bash
+python3 -m src.sem_cat.01_reuse_analysis
+
+# With custom paths
+python3 -m src.sem_cat.01_reuse_analysis \
+  --data-dir data/vepkar \
+  --translate-dir data/sem_cat/2translate
+```
+
+**What it does**
+- Loads VepKar meanings files (`meanings_krl.csv`, `meanings_lud.csv`, `meanings_olo.csv`, `meanings_vep.csv`).
+- Filters to rows with non-empty `primary_gloss_ru` and missing `meaning_en`.
+- Groups by exact `(pos, primary_gloss_ru)` to identify reuse candidates.
+- Detects reuse by counting distinct existing English values per group:
+  - **1 distinct value** → reusable_unambiguous
+  - **2+ distinct values** → reusable_ambiguous
+  - **0 values** → no reusable evidence (passed to step 02 later)
+- Writes helper CSV files in `data/sem_cat/2translate/`
+- Prints summary statistics to console
+
+**Row-level output columns**
+- `pos_gloss_ru_key` - serialized `(pos, primary_gloss_ru)` key
+- `task_pos` - part of speech
+- `primary_gloss_ru` - Russian primary gloss
+- `lang` - language variety (krl, lud, olo, vep)
+- `lemma` - dictionary lemma
+- `existing_en_candidates` - top-level candidates separated by ` || `
+- `existing_en_candidate_count` - number of distinct candidates
+- `missing_row_count_for_pos_gloss_ru` - count of missing-English rows in this group
+- `existing_en_row_count_for_pos_gloss_ru` - count of existing-English rows in this group
+- `suggested_candidate_index` - 1 (for ambiguous) or 1 (for unambiguous)
+
+**Summary output columns**
+- `pos_gloss_ru_key` - serialized `(pos, primary_gloss_ru)` key
+- `task_pos` - part of speech
+- `primary_gloss_ru` - Russian primary gloss
+- `existing_en_candidates` - candidates string
+- `existing_en_candidate_count` - number of distinct candidates
+- `missing_row_count` - rows missing English in this group
+- `existing_en_row_count` - rows with English in this group
+- `langs` - language varieties separated by ` || `
+- `example_lemma` - first lemma from group
+- `suggested_candidate_index` - 1 (for ambiguous) or 1 (for unambiguous)
+
+**Important behavior**
+- Only analyzes rows where `meaning_en` is missing/blank.
+- Groups are exact by `(pos, primary_gloss_ru)`; same gloss with different POS are separate groups.
+- Whitespace in existing English is normalized (collapsed) before counting distinct values.
+- Semicolon-separated candidates are NOT split; `"offence; insult"` counts as one candidate string.
+- Groups with zero existing English values appear in `missing_en_without_reuse` (neither reuse file).
+- Empty CSVs are still written with headers to ensure predictable output.
 
 ---
 
@@ -755,43 +831,47 @@ source .venv/bin/activate
 pytest tests/sem_cat/ -q
 
 # 1. smoke tests
+python3 -m src.sem_cat.01_reuse_analysis
 python3 -m src.sem_cat.02_translate_glosses --model-key google --backend-info
 python3 -m src.sem_cat.02_translate_glosses --model-key helsinki_opus_mt_ru_en --backend-info
 python3 -m src.sem_cat.02_translate_glosses --model-key nllb_3_3b --backend-info
 
-# 2. translations
+# 2. reuse analysis
+python3 -m src.sem_cat.01_reuse_analysis
+
+# 3. translations
 python3 -m src.sem_cat.02_translate_glosses --model-key google
 python3 -m src.sem_cat.02_translate_glosses --model-key helsinki_opus_mt_ru_en --device cuda
 python3 -m src.sem_cat.02_translate_glosses --model-key nllb_3_3b --device cuda --round-trip
 
-# 3. comparison
+# 4. comparison
 python3 -m src.sem_cat.03_compare_translations \
   --translations google=data/sem_cat/02_glosses_translated_google.csv \
   --translations helsinki_opus_mt_ru_en=data/sem_cat/02_glosses_translated_helsinki_opus_mt_ru_en.csv \
   --translations nllb_3_3b=data/sem_cat/02_glosses_translated_nllb_3_3b.csv
 
-# 4. WordNet lookup
+# 5. WordNet lookup
 python3 -m src.sem_cat.04_wordnet_lookup \
   --translated-file data/sem_cat/03_translation_comparison_full.csv \
   --wn-domains-file data/sem_cat/00_wn-domains-3.2-20070223
 
-# 5. assign domains
+# 6. assign domains
 python3 -m src.sem_cat.05_assign_domains \
   --data-dir data/vepkar \
   --domains-file data/sem_cat/04_glosses_wn_domains.csv \
   --out-dir data/sem_cat/results
 
-# 6. concept-level WDH
+# 7. concept-level WDH
 python3 -m src.sem_cat.06_concepts_wdh
 
-# 7. propagate WDH
+# 8. propagate WDH
 python3 -m src.sem_cat.07_propagate_wdh \
   --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
   --data-dir data/vepkar \
   --domains-file data/sem_cat/04_glosses_wn_domains.csv \
   --out-dir data/sem_cat/results
 
-# 8. gap audit
+# 9. gap audit
 python3 -m src.sem_cat.08_gap_audit \
   --data-dir data/vepkar \
   --concepts-wdh data/sem_cat/concepts/concepts_wdh.tsv \
