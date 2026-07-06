@@ -284,6 +284,15 @@ a 1-based pointer to the candidate that upstream review tools should show first.
     In CSV outputs it is serialized as `task_pos::primary_gloss_ru`, for example `NOUN::обида`.
     It distinguishes tasks by `(task_pos, primary_gloss_ru)`, so identical gloss strings with different POS are not merged accidentally.
 
+- `task_key` is the task-level identity used for cache deduplication and multi-model comparison.
+  In CSV outputs it is serialized as `task_pos::primary_gloss_ru`, for example `NOUN::обида`.
+
+- `ambiguous_existing_en_by_task_summary.csv` includes `suggested_candidate_index`,
+  a 1-based pointer to the candidate that downstream review tools should show first.
+
+- Current outputs write only `task_key`. Reader paths still tolerate legacy files that use
+  tab-separated task keys or the older `task_key_str` column.
+
 ### hf_causal models and quantization
 
 `hf_causal` models such as `tower_plus_9b` are decoder-only LMs loaded via `AutoModelForCausalLM`.

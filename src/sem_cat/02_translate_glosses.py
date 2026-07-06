@@ -11,6 +11,7 @@ helper files in data/sem_cat/2translate/
 import sys
 import pathlib
 import argparse
+import dataclasses
 import random
 from dataclasses import dataclass
 from math import ceil
@@ -50,6 +51,10 @@ from src.sem_cat.pipeline.vepkar_translation_selection import (
     TranslationTaskMetadata,
     serialize_task_key,
 )
+from src.sem_cat.compare.loading import normalize_loaded_task_key
+from src.sem_cat.pipeline.vepkar_translation_selection import (
+    compute_suggested_candidate_index,
+)
 
 from src.sem_cat.qa.translation_qa import (
     analyze_translation,
@@ -60,12 +65,38 @@ from src.sem_cat.io.translation_cache import (
     load_translation_cache,
     build_cached_gloss_set,
     count_cached_rows,
+    TranslationCacheLoadResult,
 )
 from src.sem_cat.io.translation_rows import (
     build_translation_row,
     CANONICAL_COLUMNS,
     QA_VERSION,
 )
+
+
+@dataclass(frozen=True)
+class HelperWriteResult:
+    wrote_krl: bool = False
+    wrote_lud: bool = False
+    wrote_olo: bool = False
+    wrote_vep: bool = False
+    wrote_ambiguous: bool = False
+    wrote_ambiguous_summary: bool = False
+
+
+def _normalize_writer_df(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+
+    out = df.copy()
+
+    if "task_key" in out.columns:
+        out["task_key"] = out["task_key"].map(normalize_loaded_task_key)
+
+    if "task_key_str" in out.columns:
+        out = out.drop(columns=["task_key_str"])
+
+    return out
 
 
 @dataclass(frozen=True)
@@ -322,35 +353,40 @@ def save_translate_helper_files(
     df_vep: pd.DataFrame,
     ambiguous_df: pd.DataFrame,
     translate_dir: pathlib.Path,
-) -> None:
+) -> HelperWriteResult:
     """Save helper CSV files for translation workflow."""
     translate_dir.mkdir(parents=True, exist_ok=True)
     
+    result = HelperWriteResult()
+
     if not df_krl.empty:
-        if "task_key_str" in df_krl.columns:
-            df_krl = df_krl.drop(columns=["task_key_str"])
+        df_krl = _normalize_writer_df(df_krl)
         df_krl.to_csv(translate_dir / "meanings_krl_to_translate.csv", index=False)
+        result = dataclasses.replace(result, wrote_krl=True)
     if not df_lud.empty:
-        if "task_key_str" in df_lud.columns:
-            df_lud = df_lud.drop(columns=["task_key_str"])
+        df_lud = _normalize_writer_df(df_lud)
         df_lud.to_csv(translate_dir / "meanings_lud_to_translate.csv", index=False)
+        result = dataclasses.replace(result, wrote_lud=True)
     if not df_olo.empty:
-        if "task_key_str" in df_olo.columns:
-            df_olo = df_olo.drop(columns=["task_key_str"])
+        df_olo = _normalize_writer_df(df_olo)
         df_olo.to_csv(translate_dir / "meanings_olo_to_translate.csv", index=False)
+        result = dataclasses.replace(result, wrote_olo=True)
     if not df_vep.empty:
-        if "task_key_str" in df_vep.columns:
-            df_vep = df_vep.drop(columns=["task_key_str"])
+        df_vep = _normalize_writer_df(df_vep)
         df_vep.to_csv(translate_dir / "meanings_vep_to_translate.csv", index=False)
+        result = dataclasses.replace(result, wrote_vep=True)
     
     if not ambiguous_df.empty:
-        if "task_key_str" in ambiguous_df.columns:
-            ambiguous_df = ambiguous_df.drop(columns=["task_key_str"])
+        ambiguous_df = _normalize_writer_df(ambiguous_df)
         ambiguous_df.to_csv(translate_dir / "ambiguous_existing_en_by_task.csv", index=False)
+        result = dataclasses.replace(result, wrote_ambiguous=True)
     
     if not ambiguous_df.empty:
         ambiguous_task_df = _build_ambiguous_task_summary(ambiguous_df)
         ambiguous_task_df.to_csv(translate_dir / "ambiguous_existing_en_by_task_summary.csv", index=False)
+        result = dataclasses.replace(result, wrote_ambiguous_summary=True)
+
+    return result
 
 
 def _build_ambiguous_task_summary(df: pd.DataFrame) -> pd.DataFrame:
@@ -359,15 +395,21 @@ def _build_ambiguous_task_summary(df: pd.DataFrame) -> pd.DataFrame:
     Returns a DataFrame with one row per unique task_key that has ambiguous existing English,
     instead of one row per missing meaning.
     """
-    from src.sem_cat.pipeline.vepkar_translation_selection import compute_suggested_candidate_index
-    
+    if df.empty:
+        return pd.DataFrame()
+
+    out = df.copy()
+
+    if "task_key" in out.columns:
+        out["task_key"] = out["task_key"].map(normalize_loaded_task_key)
+
     summaryParts = []
-    for _, group in df.groupby(["task_key", "task_pos", "primary_gloss_ru", "existing_en_candidates", "existing_en_candidate_count"], dropna=False, sort=False):
+    for _, group in out.groupby(["task_key", "task_pos", "primary_gloss_ru", "existing_en_candidates", "existing_en_candidate_count"], dropna=False, sort=False):
         suggested_idx = compute_suggested_candidate_index(
             str(group["existing_en_candidates"].iloc[0]) if "existing_en_candidates" in group.columns else ""
         )
         summary = {
-            "task_key": str(group["task_key"].iloc[0]) if "task_key" in group.columns else "",
+            "task_key": group["task_key"].iloc[0] if "task_key" in group.columns else "",
             "task_pos": str(group["task_pos"].iloc[0]) if "task_pos" in group.columns else "",
             "primary_gloss_ru": str(group["primary_gloss_ru"].iloc[0]) if "primary_gloss_ru" in group.columns else "",
             "existing_en_candidates": str(group["existing_en_candidates"].iloc[0]) if "existing_en_candidates" in group.columns else "",
@@ -590,7 +632,7 @@ def main() -> None:
     
     print("\nSaving helper files...")
     
-    save_translate_helper_files(
+    write_result = save_translate_helper_files(
         df_krl=needs_model_df[needs_model_df["lang"] == "krl"] if "lang" in needs_model_df.columns else pd.DataFrame(),
         df_lud=needs_model_df[needs_model_df["lang"] == "lud"] if "lang" in needs_model_df.columns else pd.DataFrame(),
         df_olo=needs_model_df[needs_model_df["lang"] == "olo"] if "lang" in needs_model_df.columns else pd.DataFrame(),
@@ -599,16 +641,16 @@ def main() -> None:
         translate_dir=translate_dir,
     )
     
-    print(f"  Saved ambiguous_existing_en_by_task.csv")
+    if write_result.wrote_ambiguous:
+        print(f"  Saved ambiguous_existing_en_by_task.csv")
+    if write_result.wrote_ambiguous_summary:
+        print(f"  Saved ambiguous_existing_en_by_task_summary.csv")
     
     print("Extracting unique translation tasks...")
     tasks = extract_unique_translation_tasks(needs_model_df)
     total_tasks = len(tasks)
     print(f"Found {total_tasks} unique translation tasks")
 
-    print("Building task metadata map...")
-    task_metadata_map = build_task_metadata_map(needs_model_df)
-    
     print("Loading translation cache...")
     cache_df = load_translation_cache(out_path, expected_model_key=resolved_model_key)
     cached_tasks = set()

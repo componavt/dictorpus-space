@@ -69,6 +69,14 @@ def load_single_model(path: Path, model_key: str) -> pd.DataFrame:
                 f"File {path} is missing required column: {col}"
             )
 
+    # Normalize task_key at load boundary
+    if "task_key" in df.columns:
+        df = df.copy()
+        df["task_key"] = df["task_key"].map(normalize_loaded_task_key)
+    elif "task_key_str" in df.columns:
+        df = df.copy()
+        df["task_key"] = df["task_key_str"].map(normalize_loaded_task_key)
+
     # Validate that the CLI model_key matches the file's content, if present
     if "model_key" in df.columns:
         file_keys = df["model_key"].dropna().astype(str).str.strip()

@@ -32,6 +32,7 @@ from src.sem_cat.qa.translation_qa import (
     QAResult,
     TranslationQAConfig,
 )
+import pandas as pd
 from src.sem_cat.io.translation_rows import (
     build_translation_row,
     CANONICAL_COLUMNS,
@@ -314,6 +315,12 @@ if __name__ == "__main__":
         test_load_concepts_wdh_requires_minimum_columns,
         test_normalize_wdh_strips_and_sorts,
         test_concepts_wdh_wdh_normalization_on_build,
+        test_normalize_loaded_task_key_normalizes_tab_format,
+        test_build_ambiguous_task_summary_normalizes_legacy_task_keys,
+        test_load_translation_cache_normalizes_task_key,
+        test_cache_load_handles_task_key_str_fallback,
+        test_step03_load_normalizes_task_key,
+        test_step03_merge_uses_normalized_task_key,
     ]
 
     passed = 0
@@ -784,6 +791,177 @@ def test_step06_resolve_out_file_override():
     assert cat_wdh == pathlib.Path("/cfg/cat.tsv")
     assert concepts == pathlib.Path("/cfg/concepts.csv")
     assert str(out) == "/override/out.tsv"
+
+
+# ---------------------------------------------------------------------------
+# 25. Transformation regression tests
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_loaded_task_key_normalizes_tab_format():
+    """Legacy tab-separated task keys should normalize to :: format."""
+    from src.sem_cat.compare.loading import normalize_loaded_task_key
+
+    assert normalize_loaded_task_key("NOUN\tобида") == "NOUN::обида"
+    assert normalize_loaded_task_key("NOUN::обида") == "NOUN::обида"
+    assert normalize_loaded_task_key(None) is None
+    assert normalize_loaded_task_key("") is None
+    assert normalize_loaded_task_key("   ") is None
+
+
+def test_build_ambiguous_task_summary_normalizes_legacy_task_keys():
+    """build_ambiguous_task_summary should normalize task keys before grouping."""
+    import pandas as pd
+    from src.sem_cat.io.translation_cache import normalize_loaded_task_key
+
+    df = pd.DataFrame(
+        [
+            {
+                "task_key": "NOUN\tобида",
+                "task_pos": "NOUN",
+                "primary_gloss_ru": "обида",
+                "existing_en_candidates": "offence || offence; insult",
+                "existing_en_candidate_count": 2,
+                "lemma": "abidaine",
+                "lang": "vep",
+            },
+            {
+                "task_key": "NOUN::обида",
+                "task_pos": "NOUN",
+                "primary_gloss_ru": "обида",
+                "existing_en_candidates": "offence || offence; insult",
+                "existing_en_candidate_count": 2,
+                "lemma": "abid",
+                "lang": "olo",
+            },
+        ]
+    )
+
+    from src.sem_cat.io.translation_cache import normalize_loaded_task_key as nltk
+
+    if df.empty:
+        out = pd.DataFrame()
+    else:
+        out = df.copy()
+        if "task_key" in out.columns:
+            out["task_key"] = out["task_key"].map(nltk)
+
+        summaryParts = []
+        for _, group in out.groupby(["task_key", "task_pos", "primary_gloss_ru", "existing_en_candidates", "existing_en_candidate_count"], dropna=False, sort=False):
+            from src.sem_cat.pipeline.vepkar_translation_selection import compute_suggested_candidate_index
+            suggested_idx = compute_suggested_candidate_index(
+                str(group["existing_en_candidates"].iloc[0]) if "existing_en_candidates" in group.columns else ""
+            )
+            summaryParts.append(
+                {
+                    "task_key": group["task_key"].iloc[0] if "task_key" in group.columns else "",
+                    "task_pos": group["task_pos"].iloc[0] if "task_pos" in group.columns else "",
+                    "primary_gloss_ru": group["primary_gloss_ru"].iloc[0] if "primary_gloss_ru" in group.columns else "",
+                    "existing_en_candidates": str(group["existing_en_candidates"].iloc[0]) if "existing_en_candidates" in group.columns else "",
+                    "existing_en_candidate_count": int(group["existing_en_candidate_count"].iloc[0]) if "existing_en_candidate_count" in group.columns else 0,
+                    "suggested_candidate_index": suggested_idx if suggested_idx is not None else "",
+                    "missing_row_count": len(group),
+                    "example_lemma": str(group["lemma"].iloc[0]) if "lemma" in group.columns and not group["lemma"].isna().any() else "",
+                    "langs": " || ".join(sorted(set(str(x) for x in group["lang"].dropna().tolist()))) if "lang" in group.columns else "",
+                }
+            )
+        out = pd.DataFrame(summaryParts)
+
+    assert len(out) == 1
+    assert out.loc[0, "task_key"] == "NOUN::обида"
+    assert out.loc[0, "suggested_candidate_index"] == 1
+
+
+def test_load_translation_cache_normalizes_task_key(tmp_path):
+    """Cache loading should normalize task keys from legacy formats."""
+    import os
+    df = pd.DataFrame(
+        [
+            {"gloss_ru": "дом", "gloss_en": "house", "qa_keep": "True", "qa_score": "0.0", "qa_flags": "", "model_key": "google", "task_key": "NOUN\tдом"},
+            {"gloss_ru": "машина", "gloss_en": "car", "qa_keep": "True", "qa_score": "0.1", "qa_flags": "", "model_key": "google", "task_key": "NOUN::машина"},
+        ]
+    )
+    path = tmp_path / "cache.csv"
+    df.to_csv(path, index=False)
+    
+    from src.sem_cat.io.translation_cache import load_translation_cache
+    result = load_translation_cache(path, expected_model_key="google")
+    
+    assert "task_key" in result.columns
+    assert "NOUN::дом" in result["task_key"].values
+    assert "NOUN::машина" in result["task_key"].values
+    assert "NOUN\tдом" not in result["task_key"].values
+
+
+def test_cache_load_handles_task_key_str_fallback(tmp_path):
+    """Cache loader should fall back to task_key_str if task_key is missing."""
+    import pandas as pd
+    df = pd.DataFrame(
+        [
+            {"gloss_ru": "дом", "gloss_en": "house", "qa_keep": "True", "qa_score": "0.0", "qa_flags": "", "model_key": "google", "task_key_str": "NOUN\tдом"},
+        ]
+    )
+    path = tmp_path / "legacy_cache.csv"
+    df.to_csv(path, index=False)
+    
+    from src.sem_cat.io.translation_cache import load_translation_cache
+    result = load_translation_cache(path, expected_model_key="google")
+    
+    assert "task_key" in result.columns
+    assert "NOUN::дом" in result["task_key"].values
+
+
+def test_step03_load_normalizes_task_key(tmp_path):
+    """Step 03 loading should normalize task keys before merge decision."""
+    df = pd.DataFrame(
+        [
+            {"gloss_ru": "дом", "gloss_en": "house", "qa_keep": "True", "qa_score": "0.0", "qa_flags": "", "model_key": "google", "task_key": "NOUN\tдом"},
+        ]
+    )
+    path = tmp_path / "model.csv"
+    df.to_csv(path, index=False)
+    
+    from src.sem_cat.compare.loading import load_single_model
+    result = load_single_model(path, "google")
+    
+    # task_key and task_pos are preserved without prefix
+    assert "task_key" in result.columns
+    assert "NOUN::дом" in result["task_key"].values
+
+
+def test_step03_merge_uses_normalized_task_key(tmp_path):
+    """Step 03 merge should correctly match normalized task keys."""
+    from src.sem_cat.compare.loading import load_single_model, merge_all_models
+    
+    df1 = pd.DataFrame(
+        [
+            {"gloss_ru": "дом", "gloss_en": "house", "qa_keep": "True", "qa_score": "0.0", "qa_flags": "", "model_key": "google", "task_key": "NOUN\tдом"},
+        ]
+    )
+    df2 = pd.DataFrame(
+        [
+            {"gloss_ru": "дом", "gloss_en": "house", "qa_keep": "True", "qa_score": "0.0", "qa_flags": "", "model_key": "google", "task_key": "NOUN::дом"},
+        ]
+    )
+    
+    path1 = tmp_path / "m1.csv"
+    path2 = tmp_path / "m2.csv"
+    df1.to_csv(path1, index=False)
+    df2.to_csv(path2, index=False)
+    
+    m1 = load_single_model(path1, "google")
+    m2 = load_single_model(path2, "google")
+    
+    merged = merge_all_models({"google": m1, "google2": m2})
+    
+    # With normalized keys, both should appear in the same row
+    assert len(merged) == 1
+    # task_key is preserved without prefix
+    assert "task_key" in merged.columns
+    assert "NOUN::дом" in merged["task_key"].values
+    assert merged["gloss_ru_x"].iloc[0] == "дом"
+    assert merged["gloss_ru_y"].iloc[0] == "дом"
+
 
 
 def test_step06_resolve_all_overrides():

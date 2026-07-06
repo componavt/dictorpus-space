@@ -3,8 +3,50 @@
 from __future__ import annotations
 
 import pathlib
+from dataclasses import dataclass
+from typing import Literal
 
 import pandas as pd
+
+
+TASK_KEY_SEP = "::"
+
+
+@dataclass(frozen=True)
+class TranslationCacheLoadResult:
+    """Result of loading/validating a translation cache file."""
+    state: Literal["missing", "valid", "malformed"]
+    df: pd.DataFrame
+    reason: str | None = None
+    columns: tuple[str, ...] = ()
+    row_count: int = 0
+
+
+def normalize_loaded_task_key(value: object) -> str | None:
+    """Normalize task key from legacy formats.
+    
+    Accepts:
+    - New format: "NOUN::obida"
+    - Legacy tab format: "NOUN\tobida"
+    
+    Args:
+        value: Raw task key value from CSV
+        
+    Returns:
+        Normalized task key in :: format, or None if empty/invalid
+    """
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    if TASK_KEY_SEP in s:
+        pos, gloss = s.split(TASK_KEY_SEP, 1)
+        return f"{pos}{TASK_KEY_SEP}{gloss}"
+    if "\t" in s:
+        pos, gloss = s.split("\t", 1)
+        return f"{pos}{TASK_KEY_SEP}{gloss}"
+    return s
 
 
 REQUIRED_CACHE_COLUMNS = [
@@ -42,7 +84,7 @@ LEGACY_CACHE_COLUMNS = [
 def load_translation_cache(
     out_path: pathlib.Path,
     expected_model_key: str | None = None,
-) -> pd.DataFrame:
+) -> TranslationCacheLoadResult:
     """Load and validate an existing translation cache file.
 
     Args:
@@ -50,35 +92,47 @@ def load_translation_cache(
         expected_model_key: If provided, validates that cached rows match.
 
     Returns:
-        Validated DataFrame, or empty DataFrame with canonical columns if
-        the file doesn't exist or is invalid.
+        TranslationCacheLoadResult with structured state information.
     """
     if not out_path.exists():
-        return pd.DataFrame(columns=ALL_CACHE_COLUMNS)
+        return TranslationCacheLoadResult(
+            state="missing",
+            df=pd.DataFrame(columns=ALL_CACHE_COLUMNS),
+            reason="file does not exist",
+        )
 
     try:
         df = pd.read_csv(out_path, encoding="utf-8", dtype=str)
     except Exception as e:
-        print(f"WARNING: could not read cache file ({e}) — starting fresh.")
-        return pd.DataFrame(columns=ALL_CACHE_COLUMNS)
+        return TranslationCacheLoadResult(
+            state="malformed",
+            df=pd.DataFrame(columns=ALL_CACHE_COLUMNS),
+            reason=f"csv read failed: {e}",
+        )
 
+    cols = tuple(df.columns.tolist())
     if "gloss_ru" not in df.columns:
-        print("WARNING: cache file exists but has no 'gloss_ru' column — ignoring cache.")
-        return pd.DataFrame(columns=ALL_CACHE_COLUMNS)
+        return TranslationCacheLoadResult(
+            state="malformed",
+            df=pd.DataFrame(columns=ALL_CACHE_COLUMNS),
+            reason="missing required column 'gloss_ru'",
+            columns=cols,
+            row_count=len(df),
+        )
+
+    # Handle task_key normalization
+    if "task_key" in df.columns:
+        df = df.copy()
+        df["task_key"] = df["task_key"].map(normalize_loaded_task_key)
+    elif "task_key_str" in df.columns:
+        df = df.copy()
+        df["task_key"] = df["task_key_str"].map(normalize_loaded_task_key)
 
     # Schema upgrade: if model_key is missing, infer it
     if "model_key" not in df.columns:
         if expected_model_key:
-            print(
-                f"WARNING: cache predates model_key column. "
-                f"Assigning model_key='{expected_model_key}' to all cached rows."
-            )
             df["model_key"] = expected_model_key
         else:
-            print(
-                "WARNING: cache has no model_key and no expected key provided. "
-                "Proceeding with caution."
-            )
             df["model_key"] = "unknown"
 
     # Ensure required columns exist (fill missing with defaults)
@@ -103,7 +157,12 @@ def load_translation_cache(
         df = df.drop_duplicates(subset="gloss_ru", keep="first")
         df = df.drop(columns=["_qa_score_num"])
 
-    return df
+    return TranslationCacheLoadResult(
+        state="valid",
+        df=df,
+        columns=cols,
+        row_count=len(df),
+    )
 
 
 def build_cached_gloss_set(cache_df: pd.DataFrame) -> set[str]:
@@ -118,14 +177,17 @@ def build_cached_task_key_set(cache_df: pd.DataFrame) -> set[str]:
     
     If task_key column is missing, falls back to gloss_ru for backward compatibility.
     """
-    if cache_df.empty:
+    if cache_df.empty or "task_key" not in cache_df.columns:
         return set()
     
-    if "task_key" in cache_df.columns and not cache_df["task_key"].isna().all():
-        return set(cache_df["task_key"].dropna().astype(str).tolist())
+    non_null_keys = cache_df["task_key"].dropna()
+    if not non_null_keys.empty:
+        return set(non_null_keys.astype(str).tolist())
     
     if "gloss_ru" in cache_df.columns:
-        return set(cache_df["gloss_ru"].dropna().tolist())
+        non_null_glosses = cache_df["gloss_ru"].dropna()
+        if not non_null_glosses.empty:
+            return set(non_null_glosses.tolist())
     
     return set()
 

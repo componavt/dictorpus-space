@@ -56,6 +56,7 @@ def build_translation_row(
     gloss_ru_back: str | None = None,
     task_key: str | None = None,
     task_pos: str | None = None,
+    primary_gloss_ru: str | None = None,
 ) -> dict[str, object]:
     """Build a single canonical output row for the translation CSV.
 
@@ -73,7 +74,7 @@ def build_translation_row(
         "qa_score": qa_result.qa_score,
         "qa_flags": ";".join(qa_result.qa_flags) if qa_result.qa_flags else "",
         "qa_version": QA_VERSION,
-        "primary_gloss_ru": gloss_ru,
+        "primary_gloss_ru": primary_gloss_ru or gloss_ru,
         "model_key": model_key,
         "model_name": model_name,
         "backend_family": backend_family,
