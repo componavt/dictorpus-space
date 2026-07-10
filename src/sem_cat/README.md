@@ -172,7 +172,7 @@ Many causal models have quantization enabled in the registry defaults:
 
 ## Step 01 — Missing-English reuse analysis
 
-This step inspects only meanings whose English translation is missing and groups them by `(pos, primary_gloss_ru)`.
+This step inspects only meanings whose English translation is missing and groups them by the exact pair `(pos, primary_gloss_ru)`.
 
 It exports two row-level files and two summary files in `data/sem_cat/2translate/`:
 
@@ -219,7 +219,9 @@ python3 -m src.sem_cat.01_reuse_analysis \
 - `existing_en_candidate_count` - number of distinct candidates
 - `missing_row_count_for_pos_gloss_ru` - count of missing-English rows in this group
 - `existing_en_row_count_for_pos_gloss_ru` - count of existing-English rows in this group
-- `suggested_candidate_index` - 1 (for ambiguous) or 1 (for unambiguous)
+- `suggested_candidate_index` — a 1-based position in `existing_en_candidates`.
+  It is currently `1` whenever candidates exist; for example,
+  `offence || insult || grievance` → `1` means “preselect `offence`”.
 
 **Summary output columns**
 - `pos_gloss_ru_key` - serialized `(pos, primary_gloss_ru)` key
@@ -238,7 +240,7 @@ python3 -m src.sem_cat.01_reuse_analysis \
 - Groups are exact by `(pos, primary_gloss_ru)`; same gloss with different POS are separate groups.
 - Whitespace in existing English is normalized (collapsed) before counting distinct values.
 - Semicolon-separated candidates are NOT split; `"offence; insult"` counts as one candidate string.
-- Groups with zero existing English values appear in `missing_en_without_reuse` (neither reuse file).
+- Groups with zero existing English values are not written to either Step 01 reuse file; they remain part of the missing-English pool for Step 02.
 - Empty CSVs are still written with headers to ensure predictable output.
 
 ---

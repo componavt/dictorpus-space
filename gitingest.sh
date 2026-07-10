@@ -7,4 +7,4 @@ gitingest src \
   --exclude-pattern "src/notebooks" \
   --exclude-pattern "*/__pycache__/*" \
   --exclude-pattern "*.ipynb" \
-  --output out_gitingest/semcat_36_broken3.txt
+  --output out_gitingest/semcat_37_step_one_01.txt
