@@ -146,43 +146,19 @@ def prepare_translation_input_for_task(
 
 
 def prepare_meanings_for_translation(df_meanings: pd.DataFrame) -> pd.DataFrame:
-    """Prepare meanings DataFrame for translation workflow.
-    
-    Adds derived columns needed for translation selection:
-    - primary_gloss: extracted primary gloss from meaning_ru
-    - has_existing_en: whether meaning_en has content
-    - task_key: serialized task key
-    - task_pos: normalized POS
-    - primary_gloss_ru: primary gloss as separate column
-    
+    """Compatibility wrapper; use prepare_meanings_for_reuse_and_translation.
+
+    This wrapper exists only for backward compatibility.
+    The implementation delegates to the shared neutral function.
+
     Args:
         df_meanings: Raw meanings DataFrame
-        
+
     Returns:
-        Prepared DataFrame with derived columns
+        Prepared DataFrame (same as prepare_meanings_for_reuse_and_translation)
     """
-    df = df_meanings.copy()
-    
-    # Extract primary gloss
-    df["primary_gloss"] = df["meaning_ru"].apply(
-        lambda x: primary_gloss(x) if pd.notna(x) else ""
-    )
-    
-    # Filter rows with non-empty primary gloss
-    df = df[df["primary_gloss"].str.len() > 0]
-    
-    # Add derived columns
-    df["has_existing_en"] = df["meaning_en"].apply(has_existing_english)
-    df["task_pos"] = df["pos"].apply(normalize_pos_for_task)
-    df["primary_gloss_ru"] = df["primary_gloss"]
-    
-    # Build serialized task key
-    df["task_key"] = df.apply(
-        lambda row: serialize_task_key(row["task_pos"], row["primary_gloss_ru"]),
-        axis=1,
-    )
-    
-    return df
+    from src.sem_cat.pipeline.meaning_preparation import prepare_meanings_for_reuse_and_translation
+    return prepare_meanings_for_reuse_and_translation(df_meanings)
 
 
 def split_by_existing_en_reuse(

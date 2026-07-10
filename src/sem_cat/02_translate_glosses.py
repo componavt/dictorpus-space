@@ -44,14 +44,7 @@ from src.sem_cat.translators.diagnostics import (
     run_backend_diagnostics,
     summarize_diagnostics,
 )
-from src.sem_cat.pipeline.vepkar_translation_selection import (
-    prepare_meanings_for_translation,
-    split_by_existing_en_reuse,
-    extract_unique_translation_tasks,
-    prepare_translation_input_for_task,
-    TranslationTaskMetadata,
-    serialize_task_key,
-)
+from src.sem_cat.pipeline.meaning_preparation import prepare_meanings_for_reuse_and_translation
 from src.sem_cat.compare.loading import normalize_loaded_task_key
 from src.sem_cat.pipeline.vepkar_translation_selection import (
     compute_suggested_candidate_index,
@@ -634,7 +627,7 @@ def main() -> None:
     df_meanings = load_meanings(str(data_dir))
     
     print("Preparing meanings for translation...")
-    work = prepare_meanings_for_translation(df_meanings)
+    work = prepare_meanings_for_reuse_and_translation(df_meanings)
     print(f"Total rows with non-empty primary gloss: {len(work)}")
     
     print("Computing reuse analysis by (pos, primary_gloss_ru)...")

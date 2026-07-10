@@ -24,13 +24,13 @@ from pathlib import Path
 import pandas as pd
 
 _THIS_FILE = Path(__file__).resolve()
-_PROJECT_ROOT = _THIS_FILE.parent.parent
+_PROJECT_ROOT = _THIS_FILE.parent.parent.parent
 _DEFAULT_DATA_DIR = _PROJECT_ROOT / "data" / "vepkar"
 _DEFAULT_OUT_DIR = _PROJECT_ROOT / "data" / "sem_cat"
 _DEFAULT_TRANSLATE_DIR = _DEFAULT_OUT_DIR / "2translate"
 
 from src.sem_cat.utils.vepkar_loader import load_meanings
-from src.sem_cat.pipeline.vepkar_translation_selection import prepare_meanings_for_translation
+from src.sem_cat.pipeline.meaning_preparation import prepare_meanings_for_reuse_and_translation
 from src.sem_cat.pipeline.reuse_analysis import (
     analyze_missing_en_reuse,
     write_reuse_outputs,
@@ -61,11 +61,18 @@ def main() -> None:
     translate_dir = Path(args.translate_dir)
     translate_dir.mkdir(parents=True, exist_ok=True)
 
+    print(f"Data dir: {data_dir}")
+    print(f"Translate dir: {translate_dir}")
+
+    if not data_dir.exists():
+        print(f"Error: Data directory does not exist: {data_dir}")
+        sys.exit(1)
+
     print("Loading meanings...")
     df_meanings = load_meanings(str(data_dir))
 
     print("Preparing meanings for analysis...")
-    work = prepare_meanings_for_translation(df_meanings)
+    work = prepare_meanings_for_reuse_and_translation(df_meanings)
     print(f"Total rows with non-empty primary gloss: {len(work)}")
 
     print("Analyzing missing-English reuse by (pos, primary_gloss_ru)...")
