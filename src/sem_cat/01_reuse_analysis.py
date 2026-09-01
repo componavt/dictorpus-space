@@ -4,14 +4,16 @@ Step 01: Missing-English reuse analysis.
 Analyze rows that do not have an English translation yet, grouping by
 (pos, primary_gloss_ru) to identify reusable existing English evidence.
 
-This step produces two row-level files and two summary files:
+This step produces three row-level files and two summary files:
 - missing_en_reusable_unambiguous_pos_gloss_ru.csv
 - missing_en_reusable_ambiguous_pos_gloss_ru.csv
+- needs_translation_no_reuse.csv
 - missing_en_reusable_unambiguous_pos_gloss_ru_summary.csv
 - missing_en_reusable_ambiguous_pos_gloss_ru_summary.csv
 
 Unambiguous reuse: exactly one distinct existing English value for the group
 Ambiguous reuse: two or more distinct existing English values for the group
+No reuse: missing-English rows with zero existing English candidates
 
 This step does NOT auto-fill translations and does NOT invoke any MT backend.
 It only exports reuse evidence for review and later steps.
@@ -87,6 +89,7 @@ def main() -> None:
     print(f"Output directory: {translate_dir}")
     print("  - missing_en_reusable_unambiguous_pos_gloss_ru.csv")
     print("  - missing_en_reusable_ambiguous_pos_gloss_ru.csv")
+    print("  - needs_translation_no_reuse.csv")
     print("  - missing_en_reusable_unambiguous_pos_gloss_ru_summary.csv")
     print("  - missing_en_reusable_ambiguous_pos_gloss_ru_summary.csv")
 

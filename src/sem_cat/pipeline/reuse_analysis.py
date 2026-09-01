@@ -8,6 +8,7 @@ can reuse existing English translations based on exact grouping by
 Output files are written to data/sem_cat/2translate/:
 - missing_en_reusable_unambiguous_pos_gloss_ru.csv
 - missing_en_reusable_ambiguous_pos_gloss_ru.csv
+- needs_translation_no_reuse.csv
 - missing_en_reusable_unambiguous_pos_gloss_ru_summary.csv
 - missing_en_reusable_ambiguous_pos_gloss_ru_summary.csv
 """
@@ -34,6 +35,15 @@ CORE_ROW_LEVEL_COLUMNS = [
     "primary_gloss_ru",
     "concept_id",
     "category_id",
+]
+
+NO_REUSE_ROW_LEVEL_COLUMNS = [
+    *CORE_ROW_LEVEL_COLUMNS,
+    "pos_gloss_ru_key",
+    "existing_en_candidates",
+    "existing_en_candidate_count",
+    "missing_row_count_for_pos_gloss_ru",
+    "existing_en_row_count_for_pos_gloss_ru",
 ]
 
 UNAMBIGUOUS_ROW_LEVEL_COLUMNS = [
@@ -259,10 +269,13 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
         else pd.DataFrame(columns=AMBIGUOUS_ROW_LEVEL_COLUMNS)
     )
     no_reuse_df = (
-        pd.concat(no_reuse_parts, ignore_index=True)
+        ensure_columns(pd.concat(no_reuse_parts, ignore_index=True), NO_REUSE_ROW_LEVEL_COLUMNS)[NO_REUSE_ROW_LEVEL_COLUMNS]
         if no_reuse_parts
-        else pd.DataFrame(columns=missing_df.columns.tolist())
+        else pd.DataFrame(columns=NO_REUSE_ROW_LEVEL_COLUMNS)
     )
+    if not no_reuse_df.empty:
+        no_reuse_df["existing_en_candidate_count"] = no_reuse_df["existing_en_candidate_count"].replace("", 0).astype(int)
+        no_reuse_df["existing_en_candidates"] = no_reuse_df["existing_en_candidates"].replace("", "").replace("nan", "")
 
     return ReuseAnalysisResult(
         missing_en_reusable_unambiguous=unambiguous_df,
@@ -339,7 +352,7 @@ def build_reuse_summary(df: pd.DataFrame, *, kind: str) -> pd.DataFrame:
 def write_reuse_outputs(result: ReuseAnalysisResult, translate_dir: Path) -> None:
     """Write reuse output CSV files.
     
-    Writes all four CSV files, including empty files with headers.
+    Writes all five CSV files, including empty files with headers.
     
     Args:
         result: ReuseAnalysisResult from analyze_missing_en_reuse
@@ -353,6 +366,14 @@ def write_reuse_outputs(result: ReuseAnalysisResult, translate_dir: Path) -> Non
     )
     result.missing_en_reusable_ambiguous.to_csv(
         translate_dir / "missing_en_reusable_ambiguous_pos_gloss_ru.csv",
+        index=False,
+    )
+    no_reuse_output = ensure_columns(
+        result.missing_en_without_reuse,
+        NO_REUSE_ROW_LEVEL_COLUMNS,
+    )
+    no_reuse_output.to_csv(
+        translate_dir / "needs_translation_no_reuse.csv",
         index=False,
     )
     result.unambiguous_summary.to_csv(
