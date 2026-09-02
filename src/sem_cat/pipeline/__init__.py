@@ -24,7 +24,6 @@ from .vepkar_translation_selection import (
 from .reuse_analysis import (
     ReuseAnalysisResult,
     analyze_missing_en_reuse,
-    build_reuse_summary,
     write_reuse_outputs,
     print_reuse_summary,
 )
@@ -49,7 +48,6 @@ __all__ = [
     "compute_suggested_candidate_index",
     "ReuseAnalysisResult",
     "analyze_missing_en_reuse",
-    "build_reuse_summary",
     "write_reuse_outputs",
     "print_reuse_summary",
 ]

@@ -156,6 +156,23 @@ def distinct_existing_en_candidates(group_df: pd.DataFrame) -> list[str]:
     return sorted(seen)
 
 
+def join_sorted_nonblank(values: pd.Series) -> str:
+    items = {
+        str(value).strip()
+        for value in values.tolist()
+        if value is not None and str(value).strip()
+    }
+    return " || ".join(sorted(items))
+
+
+def first_nonblank(values: pd.Series) -> str:
+    for value in values.tolist():
+        text = str(value).strip() if value is not None else ""
+        if text:
+            return text
+    return ""
+
+
 def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
     """Analyze missing-English rows for reuse evidence grouped by (pos, primary_gloss_ru).
     
@@ -193,12 +210,14 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
         amb_cols = unamb_cols + ["suggested_candidate_index"]
         empty_unamb = pd.DataFrame(columns=unamb_cols)
         empty_amb = pd.DataFrame(columns=amb_cols)
+        empty_unamb_sum = pd.DataFrame(columns=UNAMBIGUOUS_SUMMARY_COLUMNS)
+        empty_amb_sum = pd.DataFrame(columns=AMBIGUOUS_SUMMARY_COLUMNS)
         return ReuseAnalysisResult(
             missing_en_reusable_unambiguous=empty_unamb,
             missing_en_reusable_ambiguous=empty_amb,
             missing_en_without_reuse=missing_df.copy(),
-            unambiguous_summary=build_reuse_summary(empty_unamb, kind="unambiguous"),
-            ambiguous_summary=build_reuse_summary(empty_amb, kind="ambiguous"),
+            unambiguous_summary=empty_unamb_sum,
+            ambiguous_summary=empty_amb_sum,
             stats={
                 "rows_with_primary_gloss_ru": int(len(work)),
                 "rows_with_existing_en": int(work["has_existing_en"].sum()),
@@ -214,6 +233,7 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
         )
 
     groups: list[dict[str, object]] = []
+    summary_records: list[dict[str, object]] = []
     for (task_pos, primary_gloss_ru), full_group in work.groupby(
         ["task_pos", "primary_gloss_ru"], sort=False, dropna=False
     ):
@@ -242,11 +262,32 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
         base["missing_row_count_for_pos_gloss_ru"] = len(missing_group)
         base["existing_en_row_count_for_pos_gloss_ru"] = len(existing_group)
 
+        missing_langs = join_sorted_nonblank(missing_group["lang"])
+        existing_en_langs = join_sorted_nonblank(existing_group["lang"])
+        example_missing_lemma = first_nonblank(missing_group["lemma"])
+
+        summary_record = {
+            "pos_gloss_ru_key": build_pos_gloss_ru_key(task_pos, primary_gloss_ru),
+            "task_pos": task_pos,
+            "primary_gloss_ru": primary_gloss_ru,
+            "existing_en_candidates": TOP_LEVEL_CANDIDATE_SEP.join(candidates),
+            "existing_en_candidate_count": candidate_count,
+            "missing_row_count": len(missing_group),
+            "existing_en_row_count": len(existing_group),
+            "missing_langs": missing_langs,
+            "existing_en_langs": existing_en_langs,
+            "example_missing_lemma": example_missing_lemma,
+        }
+
         if candidate_count == 1:
             groups.append({"kind": "unambiguous", "rows": base})
+            summary_record["suggested_candidate_index"] = None
+            summary_records.append(summary_record)
         else:
             base["suggested_candidate_index"] = 1
             groups.append({"kind": "ambiguous", "rows": base})
+            summary_record["suggested_candidate_index"] = 1
+            summary_records.append(summary_record)
 
     unambiguous_parts = [g["rows"] for g in groups if g["kind"] == "unambiguous"]
     ambiguous_parts = [g["rows"] for g in groups if g["kind"] == "ambiguous"]
@@ -268,12 +309,17 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
         else pd.DataFrame(columns=NO_REUSE_ROW_LEVEL_COLUMNS)
     )
 
+    unamb_summary_records = [r for r in summary_records if r.get("suggested_candidate_index") is None]
+    unambiguous_summary = pd.DataFrame(unamb_summary_records)[UNAMBIGUOUS_SUMMARY_COLUMNS] if unamb_summary_records else pd.DataFrame(columns=UNAMBIGUOUS_SUMMARY_COLUMNS)
+    amb_summary_records = [r for r in summary_records if r.get("suggested_candidate_index") is not None]
+    ambiguous_summary = pd.DataFrame(amb_summary_records)[AMBIGUOUS_SUMMARY_COLUMNS] if amb_summary_records else pd.DataFrame(columns=AMBIGUOUS_SUMMARY_COLUMNS)
+
     return ReuseAnalysisResult(
         missing_en_reusable_unambiguous=unambiguous_df,
         missing_en_reusable_ambiguous=ambiguous_df,
         missing_en_without_reuse=no_reuse_df,
-        unambiguous_summary=build_reuse_summary(unambiguous_df, kind="unambiguous"),
-        ambiguous_summary=build_reuse_summary(ambiguous_df, kind="ambiguous"),
+        unambiguous_summary=unambiguous_summary,
+        ambiguous_summary=ambiguous_summary,
         stats={
             "rows_with_primary_gloss_ru": int(len(work)),
             "rows_with_existing_en": int(work["has_existing_en"].sum()),
@@ -287,57 +333,6 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
         },
         per_lang_stats=None,
     )
-
-
-def build_reuse_summary(df: pd.DataFrame, *, kind: str) -> pd.DataFrame:
-    """Build summary DataFrame with one row per unique (pos, primary_gloss_ru) group.
-    
-    Args:
-        df: Row-level DataFrame from reuse analysis (unambiguous or ambiguous)
-        kind: Either "unambiguous" or "ambiguous"
-        
-    Returns:
-        Summary DataFrame with aggregated info per group
-    """
-    if kind == "unambiguous":
-        cols = UNAMBIGUOUS_SUMMARY_COLUMNS
-    else:
-        cols = AMBIGUOUS_SUMMARY_COLUMNS
-    
-    if df.empty:
-        return pd.DataFrame(columns=cols)
-
-    rows: list[dict[str, object]] = []
-    for _, group in df.groupby(
-        ["pos_gloss_ru_key", "task_pos", "primary_gloss_ru"], sort=False, dropna=False
-    ):
-        candidates_text = (
-            str(group["existing_en_candidates"].iloc[0])
-            if "existing_en_candidates" in group.columns
-            else ""
-        )
-        row = {
-            "pos_gloss_ru_key": group["pos_gloss_ru_key"].iloc[0],
-            "task_pos": group["task_pos"].iloc[0],
-            "primary_gloss_ru": group["primary_gloss_ru"].iloc[0],
-            "existing_en_candidates": candidates_text,
-            "existing_en_candidate_count": int(group["existing_en_candidate_count"].iloc[0]),
-            "missing_row_count": len(group),
-            "existing_en_row_count": int(group["existing_en_row_count_for_pos_gloss_ru"].iloc[0]),
-            "missing_langs": " || ".join(
-                sorted({str(x) for x in group["lang"].dropna().tolist() if str(x).strip()})
-            ),
-            "existing_en_langs": " || ".join(
-                sorted({str(x) for x in group["lang"].dropna().tolist() if str(x).strip()})
-            ),
-            "example_missing_lemma": str(group["lemma"].iloc[0]) if "lemma" in group.columns else "",
-        }
-        if kind == "ambiguous":
-            row["suggested_candidate_index"] = (
-                1 if candidates_text.strip() else None
-            )
-        rows.append(row)
-    return pd.DataFrame(rows)
 
 
 def write_reuse_outputs(result: ReuseAnalysisResult, translate_dir: Path) -> None:
