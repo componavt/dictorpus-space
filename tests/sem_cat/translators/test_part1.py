@@ -348,20 +348,30 @@ class TestHFSeq2SeqTranslator:
 class TestNLLBGeneration:
     def test_generation_config_max_length_cleared(self):
         """Verify that NLLBTranslator clears max_length from generation config."""
-        try:
-            import torch  # noqa: F401
-            import transformers  # noqa: F401
-        except ImportError:
-            pytest.skip("torch/transformers not available")
+        from types import SimpleNamespace
+        from unittest.mock import patch
 
         from src.sem_cat.translators.nllb_translator import NLLBTranslator
-        translator = NLLBTranslator(
-            model_key="nllb_3_3b",
-            model_name="facebook/nllb-200-3.3B",
+
+        fake_tokenizer = SimpleNamespace(
+            convert_tokens_to_ids=lambda x: 12345,
         )
-        # The generation config should have max_length set to 20
-        # to avoid conflict with max_new_tokens
-        assert translator.model.generation_config.max_length == 20
+        fake_model = SimpleNamespace(
+            generation_config=SimpleNamespace(max_length=512),
+        )
+
+        with patch(
+            "src.sem_cat.translators.nllb_translator.load_hf_model",
+            return_value=(fake_tokenizer, fake_model),
+        ) as mocked_load:
+            translator = NLLBTranslator(
+                model_key="nllb_3_3b",
+                model_name="facebook/nllb-200-3.3B",
+            )
+
+        mocked_load.assert_called_once()
+        assert translator.model is fake_model
+        assert fake_model.generation_config.max_length == 20
 
     def test_gloss_strict_preset_has_max_new_tokens(self):
         """Verify the gloss_strict preset uses max_new_tokens, not max_length."""
