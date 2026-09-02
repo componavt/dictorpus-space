@@ -40,10 +40,7 @@ CORE_ROW_LEVEL_COLUMNS = [
 NO_REUSE_ROW_LEVEL_COLUMNS = [
     *CORE_ROW_LEVEL_COLUMNS,
     "pos_gloss_ru_key",
-    "existing_en_candidates",
-    "existing_en_candidate_count",
     "missing_row_count_for_pos_gloss_ru",
-    "existing_en_row_count_for_pos_gloss_ru",
 ]
 
 UNAMBIGUOUS_ROW_LEVEL_COLUMNS = [
@@ -53,9 +50,6 @@ UNAMBIGUOUS_ROW_LEVEL_COLUMNS = [
     "existing_en_candidate_count",
     "missing_row_count_for_pos_gloss_ru",
     "existing_en_row_count_for_pos_gloss_ru",
-    "existing_en_langs_for_summary",
-    "missing_langs_for_summary",
-    "example_missing_lemma_for_summary",
 ]
 
 AMBIGUOUS_ROW_LEVEL_COLUMNS = [
@@ -195,9 +189,6 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
             "existing_en_candidate_count",
             "missing_row_count_for_pos_gloss_ru",
             "existing_en_row_count_for_pos_gloss_ru",
-            "existing_en_langs_for_summary",
-            "missing_langs_for_summary",
-            "example_missing_lemma_for_summary",
         ]
         amb_cols = unamb_cols + ["suggested_candidate_index"]
         empty_unamb = pd.DataFrame(columns=unamb_cols)
@@ -234,9 +225,12 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
         candidates = distinct_existing_en_candidates(existing_group)
         candidate_count = len(candidates)
         if candidate_count == 0:
+            no_reuse_rows = missing_group.copy()
+            no_reuse_rows["missing_row_count_for_pos_gloss_ru"] = len(missing_group)
+
             groups.append({
                 "kind": "no_reuse",
-                "rows": missing_group,
+                "rows": no_reuse_rows,
                 "candidates": [],
                 "existing_en_row_count": len(existing_group),
             })
@@ -273,9 +267,6 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
         if no_reuse_parts
         else pd.DataFrame(columns=NO_REUSE_ROW_LEVEL_COLUMNS)
     )
-    if not no_reuse_df.empty:
-        no_reuse_df["existing_en_candidate_count"] = no_reuse_df["existing_en_candidate_count"].replace("", 0).astype(int)
-        no_reuse_df["existing_en_candidates"] = no_reuse_df["existing_en_candidates"].replace("", "").replace("nan", "")
 
     return ReuseAnalysisResult(
         missing_en_reusable_unambiguous=unambiguous_df,
