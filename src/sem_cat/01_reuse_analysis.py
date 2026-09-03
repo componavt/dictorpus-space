@@ -92,6 +92,7 @@ def main() -> None:
     print("  - needs_translation_no_reuse.csv")
     print("  - missing_en_reusable_unambiguous_pos_gloss_ru_summary.csv")
     print("  - missing_en_reusable_ambiguous_pos_gloss_ru_summary.csv")
+    print("  - pos_meanings_ru.csv")
 
 
 if __name__ == "__main__":

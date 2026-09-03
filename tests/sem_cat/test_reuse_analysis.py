@@ -24,6 +24,7 @@ from src.sem_cat.pipeline.reuse_analysis import (
     AMBIGUOUS_ROW_LEVEL_COLUMNS,
     UNAMBIGUOUS_SUMMARY_COLUMNS,
     AMBIGUOUS_SUMMARY_COLUMNS,
+    POS_MEANINGS_RU_COLUMNS,
 )
 
 # ---------------------------------------------------------------------------
@@ -574,7 +575,7 @@ def test_row_level_csv_schema_is_exact(tmp_path):
     )
 
     assert list(unambiguous_output.columns) == [
-        "id", "meaning_id", "lemma_id", "lemma", "lang", "task_pos",
+        "id", "meaning_id", "lemma_id", "lemma", "lang", "pos", "task_pos",
         "meaning_ru", "primary_gloss_ru", "concept_id", "category_id",
         "pos_gloss_ru_key", "existing_en_candidates",
         "existing_en_candidate_count",
@@ -582,7 +583,7 @@ def test_row_level_csv_schema_is_exact(tmp_path):
         "existing_en_row_count_for_pos_gloss_ru",
     ]
     assert list(ambiguous_output.columns) == [
-        "id", "meaning_id", "lemma_id", "lemma", "lang", "task_pos",
+        "id", "meaning_id", "lemma_id", "lemma", "lang", "pos", "task_pos",
         "meaning_ru", "primary_gloss_ru", "concept_id", "category_id",
         "pos_gloss_ru_key", "existing_en_candidates",
         "existing_en_candidate_count",
@@ -691,7 +692,7 @@ def test_no_reuse_output_has_correct_schema():
         assert no_reuse_df["missing_row_count_for_pos_gloss_ru"].tolist() == [2, 2]
 
         required_cols = {
-            "id", "meaning_id", "lemma_id", "lemma", "lang", "task_pos",
+            "id", "meaning_id", "lemma_id", "lemma", "lang", "pos", "task_pos",
             "meaning_ru", "primary_gloss_ru", "concept_id", "category_id",
             "pos_gloss_ru_key", "missing_row_count_for_pos_gloss_ru",
         }
@@ -793,7 +794,7 @@ def test_no_reuse_empty_output_creates_csv_with_headers():
         assert len(no_reuse_df) == 0
 
         required_cols = {
-            "id", "meaning_id", "lemma_id", "lemma", "lang", "task_pos",
+            "id", "meaning_id", "lemma_id", "lemma", "lang", "pos", "task_pos",
             "meaning_ru", "primary_gloss_ru", "concept_id", "category_id",
             "pos_gloss_ru_key", "missing_row_count_for_pos_gloss_ru",
         }
@@ -831,6 +832,7 @@ def test_no_reuse_csv_schema_and_content():
             "lemma_id",
             "lemma",
             "lang",
+            "pos",
             "task_pos",
             "meaning_ru",
             "primary_gloss_ru",
@@ -852,6 +854,302 @@ def test_no_reuse_csv_schema_and_content():
             "existing_en_norm",
         }
         assert not (forbidden_columns & set(output.columns))
+
+
+def test_pos_meanings_ru_blank_pos_warning_preservation():
+    """Test that blank raw POS triggers warning but is preserved in output."""
+    import warnings
+
+    df = pd.DataFrame([
+        {
+            "id": "1",
+            "meaning_id": "m1",
+            "lemma_id": "l1",
+            "lemma": "test1",
+            "lang": "vep",
+            "pos": "",
+            "meaning_ru": "деревня",
+            "primary_gloss_ru": "деревня",
+            "meaning_en": "",
+            "concept_id": "c1",
+            "category_id": "cat1",
+        },
+    ])
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        result = analyze_missing_en_reuse(df)
+
+        assert len(w) == 1
+        assert "blank raw pos" in str(w[0].message)
+        assert "m1" in str(w[0].message)
+        assert "l1" in str(w[0].message)
+
+    assert len(result.pos_meanings_ru) == 1
+    output_dict = result.pos_meanings_ru.iloc[0].to_dict()
+    assert output_dict["meaning_ru"] == "деревня"
+    assert output_dict["pos"] == ""
+
+    with tempfile.TemporaryDirectory() as td:
+        translate_dir = pathlib.Path(td) / "translate"
+        write_reuse_outputs(result, translate_dir)
+
+        output = pd.read_csv(
+            translate_dir / "pos_meanings_ru.csv",
+            dtype=str,
+            keep_default_na=False,
+        )
+        assert output.iloc[0]["pos"] == ""
+        assert output.iloc[0]["meaning_ru"] == "деревня"
+
+
+def test_pos_meanings_ru_conservation_invariant():
+    """Test that classification invariant is preserved with pos_meanings_ru."""
+    df = pd.DataFrame([
+        {
+            "id": "1",
+            "meaning_id": "m1",
+            "lemma_id": "l1",
+            "lemma": "test1",
+            "lang": "vep",
+            "pos": "NOUN",
+            "meaning_ru": "деревня",
+            "primary_gloss_ru": "деревня",
+            "meaning_en": "village",
+            "concept_id": "c1",
+            "category_id": "cat1",
+        },
+        {
+            "id": "2",
+            "meaning_id": "m2",
+            "lemma_id": "l2",
+            "lemma": "test2",
+            "lang": "vep",
+            "pos": "NOUN",
+            "meaning_ru": "деревня",
+            "primary_gloss_ru": "деревня",
+            "meaning_en": "",
+            "concept_id": "c1",
+            "category_id": "cat1",
+        },
+        {
+            "id": "3",
+            "meaning_id": "m3",
+            "lemma_id": "l3",
+            "lemma": "test3",
+            "lang": "olo",
+            "pos": "NOUN",
+            "meaning_ru": "деревня",
+            "primary_gloss_ru": "деревня",
+            "meaning_en": "",
+            "concept_id": "c1",
+            "category_id": "cat1",
+        },
+        {
+            "id": "4",
+            "meaning_id": "m4",
+            "lemma_id": "l4",
+            "lemma": "test4",
+            "lang": "olo",
+            "pos": "NOUN",
+            "meaning_ru": "концертный зал",
+            "primary_gloss_ru": "концертный зал",
+            "meaning_en": "",
+            "concept_id": "c2",
+            "category_id": "cat2",
+        },
+    ])
+    result = analyze_missing_en_reuse(df)
+
+    assert result.stats["rows_missing_en"] == (
+        result.stats["rows_reusable_unambiguous"]
+        + result.stats["rows_reusable_ambiguous"]
+        + result.stats["rows_missing_en_without_reuse"]
+    )
+
+    no_reuse_count = len(result.pos_meanings_ru)
+    assert no_reuse_count == result.stats["rows_missing_en_without_reuse"]
+
+
+def test_pos_meanings_ru_empty_output():
+    """Test empty output behavior when all rows have reusable English."""
+    with tempfile.TemporaryDirectory() as td:
+        df = pd.DataFrame([
+            {
+                "id": "1",
+                "meaning_id": "m1",
+                "lemma_id": "l1",
+                "lemma": "test1",
+                "lang": "vep",
+                "pos": "NOUN",
+                "meaning_ru": "деревня",
+                "primary_gloss_ru": "деревня",
+                "meaning_en": "village",
+                "concept_id": "c1",
+                "category_id": "cat1",
+            },
+        ])
+        result = analyze_missing_en_reuse(df)
+
+        translate_dir = pathlib.Path(td) / "translate"
+        write_reuse_outputs(result, translate_dir)
+
+        output_path = translate_dir / "pos_meanings_ru.csv"
+        assert output_path.exists()
+
+        output = pd.read_csv(output_path, dtype=str, keep_default_na=False)
+        assert list(output.columns) == ["pos", "meaning_ru"]
+        assert output.empty
+
+        assert result.stats["rows_missing_en"] == 0
+        assert result.stats["rows_missing_en_without_reuse"] == 0
+
+
+def test_pos_meanings_ru_preserve_distinct_full_meanings():
+    """Test that distinct full meanings with same primary_gloss_ru remain separate."""
+    df = pd.DataFrame([
+        {
+            "id": "1",
+            "meaning_id": "m1",
+            "lemma_id": "l1",
+            "lemma": "test1",
+            "lang": "vep",
+            "pos": "NOUN",
+            "meaning_ru": "место (под чем-либо)",
+            "primary_gloss_ru": "место",
+            "meaning_en": "",
+            "concept_id": "c1",
+            "category_id": "cat1",
+        },
+        {
+            "id": "2",
+            "meaning_id": "m2",
+            "lemma_id": "l2",
+            "lemma": "test2",
+            "lang": "vep",
+            "pos": "NOUN",
+            "meaning_ru": "место (перед чем-либо)",
+            "primary_gloss_ru": "место",
+            "meaning_en": "",
+            "concept_id": "c1",
+            "category_id": "cat1",
+        },
+        {
+            "id": "3",
+            "meaning_id": "m3",
+            "lemma_id": "l3",
+            "lemma": "test3",
+            "lang": "vep",
+            "pos": "NOUN",
+            "meaning_ru": "место (вокруг чего-л.)",
+            "primary_gloss_ru": "место",
+            "meaning_en": "",
+            "concept_id": "c1",
+            "category_id": "cat1",
+        },
+    ])
+    result = analyze_missing_en_reuse(df)
+
+    assert len(result.pos_meanings_ru) == 3
+    meaning_rus = set(result.pos_meanings_ru["meaning_ru"].tolist())
+    assert meaning_rus == {
+        "место (под чем-либо)",
+        "место (перед чем-либо)",
+        "место (вокруг чего-л.)",
+    }
+
+    assert result.stats["rows_missing_en_without_reuse"] == 3
+
+
+def test_pos_meanings_ru_exact_schema():
+    """Test that pos_meanings_ru has exact schema without forbidden columns."""
+    df = pd.DataFrame([
+        {
+            "id": "1",
+            "meaning_id": "m1",
+            "lemma_id": "l1",
+            "lemma": "test1",
+            "lang": "vep",
+            "pos": "NOUN",
+            "meaning_ru": "деревня",
+            "primary_gloss_ru": "деревня",
+            "meaning_en": "",
+            "concept_id": "c1",
+            "category_id": "cat1",
+        },
+    ])
+    result = analyze_missing_en_reuse(df)
+
+    assert list(result.pos_meanings_ru.columns) == ["pos", "meaning_ru"]
+
+    forbidden = {
+        "pos_gloss_ru_key",
+        "task_pos",
+        "primary_gloss_ru",
+        "id",
+        "meaning_id",
+        "lemma_id",
+        "lemma",
+        "lang",
+        "concept_id",
+        "category_id",
+        "missing_row_count_for_pos_gloss_ru",
+        "missing_row_count",
+        "missing_langs",
+        "example_missing_lemma",
+        "existing_en_candidates",
+        "existing_en_candidate_count",
+        "existing_en_row_count_for_pos_gloss_ru",
+        "existing_en_langs",
+        "suggested_candidate_index",
+        "task_key",
+        "has_primary_gloss_ru",
+        "has_existing_en",
+        "existing_en_norm",
+    }
+    output_cols = set(result.pos_meanings_ru.columns)
+    assert not (forbidden & output_cols)
+
+
+def test_pos_meanings_ru_deduplicate_identical_pairs():
+    """Test that identical (pos, meaning_ru) pairs deduplicate to one row."""
+    df = pd.DataFrame([
+        {
+            "id": "1",
+            "meaning_id": "m1",
+            "lemma_id": "l1",
+            "lemma": "test1",
+            "lang": "vep",
+            "pos": "NOUN",
+            "meaning_ru": "морошковое варенье",
+            "primary_gloss_ru": "морошковое варенье",
+            "meaning_en": "",
+            "concept_id": "c1",
+            "category_id": "cat1",
+        },
+        {
+            "id": "2",
+            "meaning_id": "m2",
+            "lemma_id": "l2",
+            "lemma": "test2",
+            "lang": "olo",
+            "pos": "NOUN",
+            "meaning_ru": "морошковое варенье",
+            "primary_gloss_ru": "морошковое варенье",
+            "meaning_en": "",
+            "concept_id": "c1",
+            "category_id": "cat1",
+        },
+    ])
+    result = analyze_missing_en_reuse(df)
+
+    assert len(result.pos_meanings_ru) == 1
+    assert result.pos_meanings_ru.iloc[0].to_dict() == {
+        "pos": "NOUN",
+        "meaning_ru": "морошковое варенье",
+    }
+
+    assert result.stats["rows_missing_en_without_reuse"] == 2
 
 
 def test_no_reuse_empty_file_schema():
@@ -1003,6 +1301,12 @@ if __name__ == "__main__":
         test_no_reuse_csv_schema_and_content,
         test_no_reuse_empty_file_schema,
         test_classification_invariant_preserved,
+        test_pos_meanings_ru_deduplicate_identical_pairs,
+        test_pos_meanings_ru_preserve_distinct_full_meanings,
+        test_pos_meanings_ru_exact_schema,
+        test_pos_meanings_ru_empty_output,
+        test_pos_meanings_ru_blank_pos_warning_preservation,
+        test_pos_meanings_ru_conservation_invariant,
     ]
 
     passed = 0

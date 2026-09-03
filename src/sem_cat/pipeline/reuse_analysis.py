@@ -11,11 +11,13 @@ Output files are written to data/sem_cat/2translate/:
 - needs_translation_no_reuse.csv
 - missing_en_reusable_unambiguous_pos_gloss_ru_summary.csv
 - missing_en_reusable_ambiguous_pos_gloss_ru_summary.csv
+- pos_meanings_ru.csv
 """
 
 from __future__ import annotations
 
 import dataclasses
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Tuple
@@ -24,12 +26,18 @@ import pandas as pd
 
 TOP_LEVEL_CANDIDATE_SEP = " || "
 
+POS_MEANINGS_RU_COLUMNS = [
+    "pos",
+    "meaning_ru",
+]
+
 CORE_ROW_LEVEL_COLUMNS = [
     "id",
     "meaning_id",
     "lemma_id",
     "lemma",
     "lang",
+    "pos",
     "task_pos",
     "meaning_ru",
     "primary_gloss_ru",
@@ -85,6 +93,45 @@ def ensure_columns(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
     return result[cols].copy()
 
 
+def build_pos_meanings_ru(no_reuse_df: pd.DataFrame) -> pd.DataFrame:
+    """Build the pos_meanings_ru DataFrame for translation inputs.
+    
+    Creates a deduplicated list of (pos, meaning_ru) pairs from no-reuse rows.
+    This file is used as input for machine translation.
+    
+    Args:
+        no_reuse_df: DataFrame of no-reuse rows
+        
+    Returns:
+        DataFrame with columns: pos, meaning_ru
+    """
+    if no_reuse_df.empty:
+        return pd.DataFrame(columns=POS_MEANINGS_RU_COLUMNS)
+
+    invalid_pos_mask = (
+        no_reuse_df["pos"].isna()
+        | no_reuse_df["pos"].astype(str).str.strip().eq("")
+    )
+    for _, row in no_reuse_df.loc[invalid_pos_mask].iterrows():
+        warnings.warn(
+            (
+                "No-reuse translation input has blank raw pos: "
+                f"meaning_id={row.get('meaning_id', '')!r}, "
+                f"lemma_id={row.get('lemma_id', '')!r}"
+            ),
+            RuntimeWarning,
+            stacklevel=2,
+        )
+
+    out = no_reuse_df.loc[:, ["pos", "meaning_ru"]].copy()
+
+    out = out.drop_duplicates(subset=["pos", "meaning_ru"], keep="first")
+
+    out = out.where(pd.notna(out), "")
+
+    return out.loc[:, POS_MEANINGS_RU_COLUMNS]
+
+
 @dataclass(frozen=True)
 class ReuseAnalysisResult:
     """Result of reuse analysis for missing-English rows."""
@@ -95,6 +142,7 @@ class ReuseAnalysisResult:
     ambiguous_summary: pd.DataFrame
     stats: dict[str, int]
     per_lang_stats: dict[str, int] | None = None
+    pos_meanings_ru: pd.DataFrame = None  # type: ignore
 
 
 def is_nonblank_text(value: object) -> bool:
@@ -212,10 +260,11 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
         empty_amb = pd.DataFrame(columns=amb_cols)
         empty_unamb_sum = pd.DataFrame(columns=UNAMBIGUOUS_SUMMARY_COLUMNS)
         empty_amb_sum = pd.DataFrame(columns=AMBIGUOUS_SUMMARY_COLUMNS)
+        empty_pos_meanings = pd.DataFrame(columns=POS_MEANINGS_RU_COLUMNS)
         return ReuseAnalysisResult(
             missing_en_reusable_unambiguous=empty_unamb,
             missing_en_reusable_ambiguous=empty_amb,
-            missing_en_without_reuse=missing_df.copy(),
+            missing_en_without_reuse=empty_unamb,
             unambiguous_summary=empty_unamb_sum,
             ambiguous_summary=empty_amb_sum,
             stats={
@@ -230,6 +279,7 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
                 "pos_gloss_ru_without_reuse_count": 0,
             },
             per_lang_stats=None,
+            pos_meanings_ru=empty_pos_meanings,
         )
 
     groups: list[dict[str, object]] = []
@@ -314,6 +364,8 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
     amb_summary_records = [r for r in summary_records if r.get("suggested_candidate_index") is not None]
     ambiguous_summary = pd.DataFrame(amb_summary_records)[AMBIGUOUS_SUMMARY_COLUMNS] if amb_summary_records else pd.DataFrame(columns=AMBIGUOUS_SUMMARY_COLUMNS)
 
+    pos_meanings_ru = build_pos_meanings_ru(no_reuse_df)
+
     return ReuseAnalysisResult(
         missing_en_reusable_unambiguous=unambiguous_df,
         missing_en_reusable_ambiguous=ambiguous_df,
@@ -332,13 +384,14 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
             "pos_gloss_ru_without_reuse_count": int(no_reuse_df["pos_gloss_ru_key"].nunique()) if not no_reuse_df.empty else 0,
         },
         per_lang_stats=None,
+        pos_meanings_ru=pos_meanings_ru,
     )
 
 
 def write_reuse_outputs(result: ReuseAnalysisResult, translate_dir: Path) -> None:
     """Write reuse output CSV files.
     
-    Writes all five CSV files, including empty files with headers.
+    Writes all six CSV files, including empty files with headers.
     
     Args:
         result: ReuseAnalysisResult from analyze_missing_en_reuse
@@ -368,6 +421,10 @@ def write_reuse_outputs(result: ReuseAnalysisResult, translate_dir: Path) -> Non
     )
     result.ambiguous_summary.to_csv(
         translate_dir / "missing_en_reusable_ambiguous_pos_gloss_ru_summary.csv",
+        index=False,
+    )
+    result.pos_meanings_ru.to_csv(
+        translate_dir / "pos_meanings_ru.csv",
         index=False,
     )
 
