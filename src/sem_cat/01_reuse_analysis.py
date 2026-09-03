@@ -87,12 +87,12 @@ def main() -> None:
 
     print()
     print(f"Output directory: {translate_dir}")
-    print("  - missing_en_reusable_unambiguous_pos_gloss_ru.csv")
-    print("  - missing_en_reusable_ambiguous_pos_gloss_ru.csv")
     print("  - needs_translation_no_reuse.csv")
-    print("  - missing_en_reusable_unambiguous_pos_gloss_ru_summary.csv")
-    print("  - missing_en_reusable_ambiguous_pos_gloss_ru_summary.csv")
     print("  - pos_meanings_ru.csv")
+    print("  - reusable_english/one_english.csv")
+    print("  - reusable_english/one_english_summary.csv")
+    print("  - reusable_english/several_english.csv")
+    print("  - reusable_english/several_english_summary.csv")
 
 
 if __name__ == "__main__":
