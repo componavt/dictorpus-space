@@ -899,12 +899,12 @@ def main() -> None:
                 backend_family=spec.backend_family,
                 translation_input_mode=args.translation_input_mode,
                 input_text_used=input_text,
-                pos_hint=task.task_pos,
+                pos_hint=task.pos,
                 meaning_hint=task.meaning_hint,
                 source_count=task.sourcecount,
                 gloss_ru_back=roundtrip_text if roundtrip_text else "",
                 task_key=task.task_key,
-                task_pos=task.task_pos,
+                task_pos=task.pos,
                 primary_gloss_ru=task.primary_gloss_ru,
             )
             batch_rows.append(row)

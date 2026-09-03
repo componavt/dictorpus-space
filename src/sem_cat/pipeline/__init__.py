@@ -9,7 +9,6 @@ from .translation_input import (
 from .vepkar_translation_selection import (
     serialize_task_key,
     parse_serialized_task_key,
-    normalize_pos_for_task,
     canonical_existing_en,
     has_existing_english,
     build_task_key,
@@ -35,7 +34,6 @@ __all__ = [
     "prepare_translation_input",
     "serialize_task_key",
     "parse_serialized_task_key",
-    "normalize_pos_for_task",
     "canonical_existing_en",
     "has_existing_english",
     "build_task_key",

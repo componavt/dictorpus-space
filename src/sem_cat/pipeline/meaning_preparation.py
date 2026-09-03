@@ -16,7 +16,6 @@ import pandas as pd
 
 from src.sem_cat.pipeline.vepkar_translation_selection import (
     serialize_task_key,
-    normalize_pos_for_task,
     canonical_existing_en,
 )
 
@@ -42,7 +41,6 @@ def prepare_meanings_for_reuse_and_translation(df_meanings: pd.DataFrame) -> pd.
 
     Adds derived columns:
     - primary_gloss_ru: normalized primary gloss from meaning_ru
-    - task_pos: normalized POS
     - meaning_en: filledna with empty string
     - existing_en_norm: normalized existing English value
     - has_primary_gloss_ru: whether primary_gloss_ru is non-empty
@@ -65,7 +63,6 @@ def prepare_meanings_for_reuse_and_translation(df_meanings: pd.DataFrame) -> pd.
         lambda x: primary_gloss(x) if pd.notna(x) else ""
     )
     out["primary_gloss_ru"] = out["primary_gloss"].map(normalize_text)
-    out["task_pos"] = out["pos"].map(normalize_pos_for_task)
     out["meaning_en"] = out["meaning_en"].fillna("")
     out["existing_en_norm"] = out["meaning_en"].map(canonical_existing_en)
 
@@ -74,9 +71,9 @@ def prepare_meanings_for_reuse_and_translation(df_meanings: pd.DataFrame) -> pd.
 
     out["has_existing_en"] = out["existing_en_norm"].ne("")
     out["task_key"] = [
-        serialize_task_key(task_pos, gloss_ru)
-        for task_pos, gloss_ru in zip(
-            out["task_pos"], out["primary_gloss_ru"], strict=True
+        serialize_task_key(pos, gloss_ru)
+        for pos, gloss_ru in zip(
+            out["pos"], out["primary_gloss_ru"], strict=True
         )
     ]
     return out

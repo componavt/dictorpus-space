@@ -24,7 +24,6 @@ from src.sem_cat.compare.data_structures import ModelOutput, ConsensusCluster
 
 # VepKar translation workflow tests
 from src.sem_cat.pipeline.vepkar_translation_selection import (
-    normalize_pos_for_task,
     canonical_existing_en,
     has_existing_english,
     build_task_key,
@@ -668,7 +667,6 @@ if __name__ == "__main__":
         test_full_comparison_includes_roundtrip_when_any_has_data,
         test_gold_template_only_has_gloss_en_per_model,
         test_review_queue_only_has_relevant_columns,
-        test_normalize_pos_for_task,
         test_canonical_existing_en,
         test_has_existing_english,
         test_build_task_key,
@@ -702,15 +700,6 @@ if __name__ == "__main__":
 # ---------------------------------------------------------------------------
 
 
-def test_normalize_pos_for_task():
-    """POS normalization handles None, empty, and normal values."""
-    assert normalize_pos_for_task(None) == "UNKNOWN"
-    assert normalize_pos_for_task("") == "UNKNOWN"
-    assert normalize_pos_for_task("   ") == "UNKNOWN"
-    assert normalize_pos_for_task("NOUN") == "NOUN"
-    assert normalize_pos_for_task("VERB") == "VERB"
-
-
 def test_canonical_existing_en():
     """Existing English canonicalization handles None, empty, whitespace."""
     assert canonical_existing_en(None) == ""
@@ -734,13 +723,13 @@ def test_build_task_key():
     key = build_task_key("NOUN", "дом")
     assert key == ("NOUN", "дом")
     
-    # Empty POS becomes UNKNOWN
+    # Empty POS flows through as-is
     key = build_task_key("", "дом")
-    assert key == ("UNKNOWN", "дом")
+    assert key == ("", "дом")
     
-    # Missing POS becomes UNKNOWN
+    # Missing POS flows through as-is
     key = build_task_key(None, "дом")
-    assert key == ("UNKNOWN", "дом")
+    assert key == (None, "дом")
 
 
 def test_split_by_existing_en_excludes_human_translations():
@@ -896,7 +885,7 @@ def test_translation_input_mode_pos():
     task = TranslationTaskMetadata(
         task_key="NOUN::дом",
         primary_gloss_ru="дом",
-        task_pos="NOUN",
+        pos="NOUN",
         meaning_hint=None,
         sourcecount=1,
     )
@@ -912,7 +901,7 @@ def test_translation_input_mode_pos_meaning():
     task = TranslationTaskMetadata(
         task_key="NOUN::дом",
         primary_gloss_ru="дом",
-        task_pos="NOUN",
+        pos="NOUN",
         meaning_hint="жилищное строение",
         sourcecount=1,
     )
@@ -930,7 +919,7 @@ def test_translation_input_mode_default_changed_to_pos():
     task = TranslationTaskMetadata(
         task_key="NOUN::дом",
         primary_gloss_ru="дом",
-        task_pos="NOUN",
+        pos="NOUN",
         meaning_hint=None,
         sourcecount=1,
     )

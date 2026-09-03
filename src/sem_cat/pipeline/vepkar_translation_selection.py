@@ -15,17 +15,17 @@ from src.sem_cat.utils.gloss_normalizer import primary_gloss
 TASK_KEY_SEP = "::"
 
 
-def serialize_task_key(task_pos: str, primary_gloss_ru: str) -> str:
+def serialize_task_key(pos: str, primary_gloss_ru: str) -> str:
     """Serialize task key to a stable string format.
     
     Args:
-        task_pos: Part of speech (e.g., "NOUN", "VERB")
+        pos: Part of speech (e.g., "NOUN", "VERB")
         primary_gloss_ru: Russian gloss string
         
     Returns:
         Serialized task key in format "POS::gloss"
     """
-    return f"{task_pos}{TASK_KEY_SEP}{primary_gloss_ru}"
+    return f"{pos}{TASK_KEY_SEP}{primary_gloss_ru}"
 
 
 def parse_serialized_task_key(value: str) -> tuple[str, str] | None:
@@ -53,18 +53,7 @@ def parse_serialized_task_key(value: str) -> tuple[str, str] | None:
     return None
 
 
-def normalize_pos_for_task(pos: str | None) -> str:
-    """Normalize POS for task key construction.
-    
-    Args:
-        pos: Part of speech string
-        
-    Returns:
-        Normalized POS, or "UNKNOWN" if empty/None
-    """
-    if not pos or not str(pos).strip():
-        return "UNKNOWN"
-    return str(pos).strip()
+
 
 
 def canonical_existing_en(meaning_en: str | None) -> str:
@@ -103,8 +92,7 @@ def build_task_key(pos: str, primary_gloss_ru: str) -> tuple[str, str]:
     Returns:
         (pos, primary_gloss_ru) tuple
     """
-    normalized_pos = normalize_pos_for_task(pos)
-    return (normalized_pos, primary_gloss_ru)
+    return (pos, primary_gloss_ru)
 
 
 @dataclass(frozen=True)
@@ -112,7 +100,7 @@ class TranslationTaskMetadata:
     """Metadata for a translation task."""
     task_key: str
     primary_gloss_ru: str
-    task_pos: str
+    pos: str
     meaning_hint: str | None
     sourcecount: int
 
@@ -133,7 +121,7 @@ def prepare_translation_input_for_task(
     if mode == "raw":
         return task.primary_gloss_ru
 
-    pos_str = task.task_pos if task.task_pos else "UNKNOWN"
+    pos_str = task.pos
 
     if mode == "pos":
         return f"{pos_str} | {task.primary_gloss_ru}"
@@ -239,8 +227,8 @@ def build_task_metadata_map(df: pd.DataFrame) -> dict[str, TranslationTaskMetada
         
         metadata_map[str(task_key)] = TranslationTaskMetadata(
             task_key=str(task_key),
-            primary_gloss_ru=str(first_row.get("primary_gloss_ru", "")),
-            task_pos=str(first_row.get("task_pos", "UNKNOWN")),
+            primary_gloss_ru=first_row.get("primary_gloss_ru"),
+            pos=first_row.get("pos"),
             meaning_hint=None,
             sourcecount=int(first_row.get("sourcecount", 1)) if pd.notna(first_row.get("sourcecount")) else 1,
         )
@@ -294,8 +282,8 @@ def extract_unique_translation_tasks(
         
         task = TranslationTaskMetadata(
             task_key=str(task_key),
-            primary_gloss_ru=str(first_row.get("primary_gloss_ru", "")),
-            task_pos=str(first_row.get("task_pos", "UNKNOWN")),
+            primary_gloss_ru=first_row.get("primary_gloss_ru"),
+            pos=first_row.get("pos"),
             meaning_hint=None,
             sourcecount=int(first_row.get("sourcecount", 1)) if pd.notna(first_row.get("sourcecount")) else 1,
         )
