@@ -1487,6 +1487,115 @@ def test_cli_smoke_test():
         assert unamb_df.iloc[0]["existing_en_candidates"] == "village"
 
 
+def test_pos_meanings_ru_matches_deduplicated_no_reuse_pairs(tmp_path):
+    """Cross-file regression test proving pos_meanings_ru.csv is exactly the deduplicated (pos, meaning_ru) set from needs_translation_no_reuse.csv."""
+    df = pd.DataFrame(
+        [
+            {
+                "id": "1",
+                "meaning_id": "10",
+                "lemma_id": "100",
+                "lemma": "muraškkeitoz",
+                "lang": "vep",
+                "pos": "NOUN",
+                "meaning_ru": "морошковое варенье",
+                "meaning_en": "",
+                "concept_id": "",
+                "category_id": "",
+            },
+            {
+                "id": "2",
+                "meaning_id": "11",
+                "lemma_id": "101",
+                "lemma": "muur'oivaren'n'u",
+                "lang": "olo",
+                "pos": "NOUN",
+                "meaning_ru": "морошковое варенье",
+                "meaning_en": "",
+                "concept_id": "",
+                "category_id": "",
+            },
+            {
+                "id": "3",
+                "meaning_id": "12",
+                "lemma_id": "102",
+                "lemma": "murašklehtez",
+                "lang": "vep",
+                "pos": "NOUN",
+                "meaning_ru": "лист морошки",
+                "meaning_en": "",
+                "concept_id": "",
+                "category_id": "",
+            },
+            {
+                "id": "4",
+                "meaning_id": "13",
+                "lemma_id": "103",
+                "lemma": "covered",
+                "lang": "vep",
+                "pos": "NOUN",
+                "meaning_ru": "экспертно покрытое значение",
+                "meaning_en": "",
+                "concept_id": "951",
+                "category_id": "B353",
+            },
+            {
+                "id": "5",
+                "meaning_id": "14",
+                "lemma_id": "104",
+                "lemma": "existing",
+                "lang": "vep",
+                "pos": "NOUN",
+                "meaning_ru": "уже переведённое значение",
+                "meaning_en": "already translated meaning",
+                "concept_id": "",
+                "category_id": "",
+            },
+        ]
+    )
+
+    result = analyze_missing_en_reuse(df)
+    write_reuse_outputs(result, tmp_path)
+
+    no_reuse = pd.read_csv(
+        tmp_path / "needs_translation_no_reuse.csv",
+        dtype=str,
+        keep_default_na=False,
+    )
+    pos_meanings = pd.read_csv(
+        tmp_path / "pos_meanings_ru.csv",
+        dtype=str,
+        keep_default_na=False,
+    )
+
+    expected_pairs = set(
+        map(
+            tuple,
+            no_reuse[["pos", "meaning_ru"]]
+            .drop_duplicates()
+            .to_numpy(),
+        )
+    )
+    actual_pairs = set(
+        map(
+            tuple,
+            pos_meanings[["pos", "meaning_ru"]]
+            .to_numpy(),
+        )
+    )
+
+    assert expected_pairs == actual_pairs
+    assert actual_pairs == {
+        ("NOUN", "морошковое варенье"),
+        ("NOUN", "лист морошки"),
+    }
+    assert len(no_reuse) == 3
+    assert len(pos_meanings) == 2
+    assert len(result.concept_category_without_english) == 1
+    assert "экспертно покрытое значение" not in pos_meanings["meaning_ru"].tolist()
+    assert "уже переведённое значение" not in pos_meanings["meaning_ru"].tolist()
+
+
 # ---------------------------------------------------------------------------
 # Schema snapshot tests
 # ---------------------------------------------------------------------------
@@ -1496,9 +1605,3 @@ if __name__ == "__main__":
     raise SystemExit(
         "Run with: python3 -m pytest tests/sem_cat/test_reuse_analysis.py"
     )
-
-    # pytest handles tmp_path fixtures automatically; manual test runner can't
-    # so we just run the tests that don't require fixtures
-    print("Run with: python3 -m pytest tests/sem_cat/test_reuse_analysis.py")
-
-    print("\nAll tests passed.")
