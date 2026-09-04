@@ -1,9 +1,9 @@
 """
-Reuse analysis for missing-English rows grouped by (pos, primary_gloss_ru).
+Reuse analysis for missing-English rows grouped by (pos, meaning_ru).
 
 This module provides pure helpers for analyzing which missing-English rows
 can reuse existing English translations based on exact grouping by
-(pos, primary_gloss_ru).
+(pos, meaning_ru).
 
 Output files are written to data/sem_cat/2translate/:
 - needs_translation_no_reuse.csv
@@ -31,6 +31,18 @@ POS_MEANINGS_RU_COLUMNS = [
     "meaning_ru",
 ]
 
+CONCEPT_CATEGORY_AUDIT_COLUMNS = [
+    "id",
+    "meaning_id",
+    "lemma_id",
+    "lemma",
+    "lang",
+    "pos",
+    "meaning_ru",
+    "concept_id",
+    "category_id",
+]
+
 CORE_ROW_LEVEL_COLUMNS = [
     "id",
     "meaning_id",
@@ -40,24 +52,20 @@ CORE_ROW_LEVEL_COLUMNS = [
     "pos",
     "task_pos",
     "meaning_ru",
-    "primary_gloss_ru",
     "concept_id",
     "category_id",
 ]
 
 NO_REUSE_ROW_LEVEL_COLUMNS = [
     *CORE_ROW_LEVEL_COLUMNS,
-    "pos_gloss_ru_key",
-    "missing_row_count_for_pos_gloss_ru",
 ]
 
 UNAMBIGUOUS_ROW_LEVEL_COLUMNS = [
     *CORE_ROW_LEVEL_COLUMNS,
-    "pos_gloss_ru_key",
     "existing_en_candidates",
     "existing_en_candidate_count",
-    "missing_row_count_for_pos_gloss_ru",
-    "existing_en_row_count_for_pos_gloss_ru",
+    "missing_row_count",
+    "existing_en_row_count",
 ]
 
 AMBIGUOUS_ROW_LEVEL_COLUMNS = [
@@ -66,9 +74,8 @@ AMBIGUOUS_ROW_LEVEL_COLUMNS = [
 ]
 
 UNAMBIGUOUS_SUMMARY_COLUMNS = [
-    "pos_gloss_ru_key",
-    "task_pos",
-    "primary_gloss_ru",
+    "pos",
+    "meaning_ru",
     "existing_en_candidates",
     "existing_en_candidate_count",
     "missing_row_count",
@@ -99,6 +106,8 @@ class ReuseAnalysisResult:
     missing_en_reusable_unambiguous: pd.DataFrame
     missing_en_reusable_ambiguous: pd.DataFrame
     missing_en_without_reuse: pd.DataFrame
+    concept_category_without_english: pd.DataFrame
+    invalid_concept_category_pairs: pd.DataFrame
     unambiguous_summary: pd.DataFrame
     ambiguous_summary: pd.DataFrame
     stats: dict[str, int]
@@ -130,21 +139,6 @@ def normalize_existing_en(value: object) -> str | None:
     if not is_nonblank_text(value):
         return None
     return " ".join(str(value).strip().split())
-
-
-def build_pos_gloss_ru_key(pos: object, primary_gloss_ru: object) -> str:
-    """Build a stable key from (pos, primary_gloss_ru).
-    
-    Args:
-        pos: Part of speech
-        primary_gloss_ru: Russian primary gloss
-        
-    Returns:
-        Serialized key in format "pos::gloss"
-    """
-    pos_s = str(pos or "").strip()
-    gloss_s = str(primary_gloss_ru or "").strip()
-    return f"{pos_s}::{gloss_s}"
 
 
 def distinct_existing_en_candidates(group_df: pd.DataFrame) -> list[str]:
@@ -182,13 +176,17 @@ def first_nonblank(values: pd.Series) -> str:
     return ""
 
 
+def _is_blank_series(series: pd.Series) -> pd.Series:
+    return series.isna() | series.astype(str).str.strip().eq("")
+
+
 def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
-    """Analyze missing-English rows for reuse evidence grouped by (pos, primary_gloss_ru).
+    """Analyze missing-English rows for reuse evidence grouped by (pos, meaning_ru).
     
     Args:
         df: Prepared meanings DataFrame with columns:
-            - lang, lemma, pos, primary_gloss_ru, meaning_en
-            - task_key, task_pos, primary_gloss_ru (from prepare_meanings_for_translation)
+            - lang, lemma, pos, meaning_ru, meaning_en
+            - task_pos, meaning_ru (from prepare_meanings_for_translation)
             
     Returns:
         ReuseAnalysisResult with all output DataFrames and stats
@@ -196,69 +194,100 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
     work = df.copy()
 
     work["task_pos"] = work["pos"].fillna("").astype(str).str.strip()
-    work["primary_gloss_ru"] = work["primary_gloss_ru"].fillna("").astype(str).str.strip()
-    work["has_primary_gloss_ru"] = work["primary_gloss_ru"] != ""
+    work["meaning_ru"] = work["meaning_ru"].fillna("").astype(str).str.strip()
+    work["meaning_ru"] = work["meaning_ru"].fillna("").astype(str).str.strip()
     work["existing_en_norm"] = work["meaning_en"].map(normalize_existing_en)
     work["has_existing_en"] = work["existing_en_norm"].notna()
 
-    work = work[work["has_primary_gloss_ru"]].copy()
-    work["pos_gloss_ru_key"] = work.apply(
-        lambda row: build_pos_gloss_ru_key(row["task_pos"], row["primary_gloss_ru"]),
-        axis=1,
-    )
-
     missing_df = work[~work["has_existing_en"]].copy()
     if missing_df.empty:
-        unamb_cols = CORE_ROW_LEVEL_COLUMNS + [
-            "pos_gloss_ru_key",
-            "existing_en_candidates",
-            "existing_en_candidate_count",
-            "missing_row_count_for_pos_gloss_ru",
-            "existing_en_row_count_for_pos_gloss_ru",
-        ]
-        amb_cols = unamb_cols + ["suggested_candidate_index"]
-        empty_unamb = pd.DataFrame(columns=unamb_cols)
-        empty_amb = pd.DataFrame(columns=amb_cols)
+        empty_unamb = pd.DataFrame(columns=UNAMBIGUOUS_ROW_LEVEL_COLUMNS)
+        empty_amb = pd.DataFrame(columns=AMBIGUOUS_ROW_LEVEL_COLUMNS)
         empty_unamb_sum = pd.DataFrame(columns=UNAMBIGUOUS_SUMMARY_COLUMNS)
         empty_amb_sum = pd.DataFrame(columns=AMBIGUOUS_SUMMARY_COLUMNS)
         empty_pos_meanings = pd.DataFrame(columns=POS_MEANINGS_RU_COLUMNS)
+        empty_audit = pd.DataFrame(columns=CONCEPT_CATEGORY_AUDIT_COLUMNS)
         return ReuseAnalysisResult(
             missing_en_reusable_unambiguous=empty_unamb,
             missing_en_reusable_ambiguous=empty_amb,
             missing_en_without_reuse=empty_unamb,
+            concept_category_without_english=empty_audit,
+            invalid_concept_category_pairs=empty_audit,
             unambiguous_summary=empty_unamb_sum,
             ambiguous_summary=empty_amb_sum,
             stats={
-                "rows_with_primary_gloss_ru": int(len(work)),
+                "rows_with_meaning_ru": int(len(work)),
                 "rows_with_existing_en": int(work["has_existing_en"].sum()),
                 "rows_missing_en": 0,
                 "rows_reusable_unambiguous": 0,
                 "rows_reusable_ambiguous": 0,
                 "rows_missing_en_without_reuse": 0,
-                "pos_gloss_ru_unambiguous_count": 0,
-                "pos_gloss_ru_ambiguous_count": 0,
-                "pos_gloss_ru_without_reuse_count": 0,
+                "rows_concept_covered_skip": 0,
+                "rows_invalid_concept_category_pair": 0,
+                "unambiguous_group_count": 0,
+                "ambiguous_group_count": 0,
+                "no_reuse_group_count": 0,
             },
             per_lang_stats=None,
             pos_meanings_ru=empty_pos_meanings,
         )
 
+    has_concept_id = "concept_id" in missing_df.columns
+    has_category_id = "category_id" in missing_df.columns
+
+    if has_concept_id and has_category_id:
+        concept_blank = _is_blank_series(missing_df["concept_id"])
+        category_blank = _is_blank_series(missing_df["category_id"])
+
+        translatable_mask = concept_blank & category_blank
+        concept_covered_mask = ~concept_blank & ~category_blank
+        invalid_pair_mask = concept_blank ^ category_blank
+    else:
+        # If concept_id or category_id columns are missing, treat all rows as translatable
+        translatable_mask = pd.Series([True] * len(missing_df), index=missing_df.index)
+        concept_covered_mask = pd.Series([False] * len(missing_df), index=missing_df.index)
+        invalid_pair_mask = pd.Series([False] * len(missing_df), index=missing_df.index)
+
+    # Add classification flags to missing_df for use in the loop
+    missing_df = missing_df.copy()
+    missing_df["_is_translatable"] = translatable_mask.values
+    missing_df["_is_concept_covered"] = concept_covered_mask.values
+    missing_df["_is_invalid_pair"] = invalid_pair_mask.values
+
+    translatable_df = missing_df[missing_df["_is_translatable"]].copy()
+    concept_covered_df = missing_df[missing_df["_is_concept_covered"]].copy()
+    invalid_pair_df = missing_df[missing_df["_is_invalid_pair"]].copy()
+
+    # Copy flags to work for use in the loop
+    work["_is_translatable"] = work.index.isin(translatable_df.index)
+    work["_is_concept_covered"] = work.index.isin(concept_covered_df.index)
+    work["_is_invalid_pair"] = work.index.isin(invalid_pair_df.index)
+
     groups: list[dict[str, object]] = []
     summary_records: list[dict[str, object]] = []
     pos_meanings_records: list[dict[str, object]] = []
-    for (task_pos, primary_gloss_ru), full_group in work.groupby(
-        ["task_pos", "primary_gloss_ru"], sort=False, dropna=False
+    for (pos, meaning_ru), full_group in work.groupby(
+        ["pos", "meaning_ru"], sort=False, dropna=False
     ):
         missing_group = full_group[~full_group["has_existing_en"]].copy()
         if missing_group.empty:
             continue
 
+        # Check if this group has any translatable rows
+        has_translatable = missing_group["_is_translatable"].any()
+        if not has_translatable:
+            # All missing rows in this group are concept-covered or invalid-pair
+            continue
+
         existing_group = full_group[full_group["has_existing_en"]].copy()
         candidates = distinct_existing_en_candidates(existing_group)
         candidate_count = len(candidates)
+        
+        # Only process translatable rows
+        translatable_missing = missing_group[missing_group["_is_translatable"]].copy()
+        
         if candidate_count == 0:
-            no_reuse_rows = missing_group.copy()
-            no_reuse_rows["missing_row_count_for_pos_gloss_ru"] = len(missing_group)
+            no_reuse_rows = translatable_missing.copy()
 
             groups.append({
                 "kind": "no_reuse",
@@ -268,10 +297,10 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
             })
 
             for raw_pos, raw_meaning_ru, meaning_id, lemma_id in zip(
-                missing_group["pos"],
-                missing_group.get("meaning_ru", pd.Series([None] * len(missing_group))),
-                missing_group.get("meaning_id", pd.Series([None] * len(missing_group))),
-                missing_group.get("lemma_id", pd.Series([None] * len(missing_group))),
+                translatable_missing["pos"],
+                translatable_missing["meaning_ru"],
+                translatable_missing.get("meaning_id", pd.Series([None] * len(translatable_missing))),
+                translatable_missing.get("lemma_id", pd.Series([None] * len(translatable_missing))),
             ):
                 if pd.isna(raw_pos) or not str(raw_pos).strip():
                     warnings.warn(
@@ -291,23 +320,22 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
                 )
             continue
 
-        base = missing_group.copy()
+        base = translatable_missing.copy()
         base["existing_en_candidates"] = TOP_LEVEL_CANDIDATE_SEP.join(candidates)
         base["existing_en_candidate_count"] = candidate_count
-        base["missing_row_count_for_pos_gloss_ru"] = len(missing_group)
-        base["existing_en_row_count_for_pos_gloss_ru"] = len(existing_group)
+        base["missing_row_count"] = len(translatable_missing)
+        base["existing_en_row_count"] = len(existing_group)
 
-        missing_langs = join_sorted_nonblank(missing_group["lang"])
+        missing_langs = join_sorted_nonblank(translatable_missing["lang"])
         existing_en_langs = join_sorted_nonblank(existing_group["lang"])
-        example_missing_lemma = first_nonblank(missing_group["lemma"])
+        example_missing_lemma = first_nonblank(translatable_missing["lemma"])
 
         summary_record = {
-            "pos_gloss_ru_key": build_pos_gloss_ru_key(task_pos, primary_gloss_ru),
-            "task_pos": task_pos,
-            "primary_gloss_ru": primary_gloss_ru,
+            "pos": pos,
+            "meaning_ru": meaning_ru,
             "existing_en_candidates": TOP_LEVEL_CANDIDATE_SEP.join(candidates),
             "existing_en_candidate_count": candidate_count,
-            "missing_row_count": len(missing_group),
+            "missing_row_count": len(translatable_missing),
             "existing_en_row_count": len(existing_group),
             "missing_langs": missing_langs,
             "existing_en_langs": existing_en_langs,
@@ -356,22 +384,33 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
         else pd.DataFrame(columns=POS_MEANINGS_RU_COLUMNS)
     )
 
+    concept_category_without_english = ensure_columns(
+        concept_covered_df, CONCEPT_CATEGORY_AUDIT_COLUMNS
+    )
+    invalid_concept_category_pairs = ensure_columns(
+        invalid_pair_df, CONCEPT_CATEGORY_AUDIT_COLUMNS
+    )
+
     return ReuseAnalysisResult(
         missing_en_reusable_unambiguous=unambiguous_df,
         missing_en_reusable_ambiguous=ambiguous_df,
         missing_en_without_reuse=no_reuse_df,
+        concept_category_without_english=concept_category_without_english,
+        invalid_concept_category_pairs=invalid_concept_category_pairs,
         unambiguous_summary=unambiguous_summary,
         ambiguous_summary=ambiguous_summary,
         stats={
-            "rows_with_primary_gloss_ru": int(len(work)),
+            "rows_with_meaning_ru": int(len(work)),
             "rows_with_existing_en": int(work["has_existing_en"].sum()),
             "rows_missing_en": int((~work["has_existing_en"]).sum()),
             "rows_reusable_unambiguous": int(len(unambiguous_df)),
             "rows_reusable_ambiguous": int(len(ambiguous_df)),
             "rows_missing_en_without_reuse": int(len(no_reuse_df)),
-            "pos_gloss_ru_unambiguous_count": int(unambiguous_df["pos_gloss_ru_key"].nunique()) if not unambiguous_df.empty else 0,
-            "pos_gloss_ru_ambiguous_count": int(ambiguous_df["pos_gloss_ru_key"].nunique()) if not ambiguous_df.empty else 0,
-            "pos_gloss_ru_without_reuse_count": int(no_reuse_df["pos_gloss_ru_key"].nunique()) if not no_reuse_df.empty else 0,
+            "rows_concept_covered_skip": int(len(concept_covered_df)),
+            "rows_invalid_concept_category_pair": int(len(invalid_pair_df)),
+            "unambiguous_group_count": int(unambiguous_df["pos"].nunique()) if not unambiguous_df.empty else 0,
+            "ambiguous_group_count": int(ambiguous_df["pos"].nunique()) if not ambiguous_df.empty else 0,
+            "no_reuse_group_count": int(no_reuse_df["pos"].nunique()) if not no_reuse_df.empty else 0,
         },
         per_lang_stats=None,
         pos_meanings_ru=pos_meanings_ru,
@@ -420,6 +459,14 @@ def write_reuse_outputs(result: ReuseAnalysisResult, translate_dir: Path) -> Non
         translate_dir / "pos_meanings_ru.csv",
         index=False,
     )
+    result.concept_category_without_english.to_csv(
+        translate_dir / "concept_category_without_english.csv",
+        index=False,
+    )
+    result.invalid_concept_category_pairs.to_csv(
+        translate_dir / "invalid_concept_category_pairs.csv",
+        index=False,
+    )
 
 
 def print_reuse_summary(stats: dict[str, int], *, per_lang_stats: dict[str, int] | None = None) -> None:
@@ -430,10 +477,10 @@ def print_reuse_summary(stats: dict[str, int], *, per_lang_stats: dict[str, int]
         per_lang_stats: Optional per-language stats dict
     """
     print("=" * 60)
-    print("Missing-English reuse analysis by (pos, primary_gloss_ru)")
+    print("Missing-English reuse analysis by (pos, meaning_ru)")
     print("=" * 60)
     print()
-    print(f"Rows with non-empty primary_gloss_ru:        {stats['rows_with_primary_gloss_ru']}")
+    print(f"Rows with non-empty meaning_ru:              {stats['rows_with_meaning_ru']}")
     print(f"Rows with existing human English:            {stats['rows_with_existing_en']}")
     print(f"Rows missing English:                        {stats['rows_missing_en']}")
     print()
@@ -441,9 +488,18 @@ def print_reuse_summary(stats: dict[str, int], *, per_lang_stats: dict[str, int]
     print(f"  Reusable, one EN variant:                  {stats['rows_reusable_unambiguous']}")
     print(f"  Reusable, multiple EN variants:            {stats['rows_reusable_ambiguous']}")
     print(f"  No reusable EN evidence:                   {stats['rows_missing_en_without_reuse']}")
+    print(
+        "Rows with concept-level coverage but no English translation yet\n"
+        f"  (see concept_category_without_english.csv): {stats['rows_concept_covered_skip']}"
+    )
+    print(
+        "Rows with inconsistent concept/category pair\n"
+        f"  (see invalid_concept_category_pairs.csv): {stats['rows_invalid_concept_category_pair']}"
+    )
     print()
-    print("Unique (pos, primary_gloss_ru) groups among rows missing English:")
-    print(f"  Reusable, one EN variant:                  {stats['pos_gloss_ru_unambiguous_count']}")
-    print(f"  Reusable, multiple EN variants:            {stats['pos_gloss_ru_ambiguous_count']}")
-    print(f"  No reusable EN evidence:                   {stats['pos_gloss_ru_without_reuse_count']}")
+    print("Unique (pos, meaning_ru) groups among rows missing English:")
+    print(f"  Reusable, one EN variant:                  {stats['unambiguous_group_count']}")
+    print(f"  Reusable, multiple EN variants:            {stats['ambiguous_group_count']}")
+    print(f"  No reusable EN evidence:                   {stats['no_reuse_group_count']}")
+    print()
 

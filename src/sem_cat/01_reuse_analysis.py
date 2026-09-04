@@ -2,7 +2,7 @@
 Step 01: Missing-English reuse analysis.
 
 Analyze rows that do not have an English translation yet, grouping by
-(pos, primary_gloss_ru) to identify reusable existing English evidence.
+(pos, meaning_ru) to identify reusable existing English evidence.
 
 This step produces three row-level files and two summary files:
 - missing_en_reusable_unambiguous_pos_gloss_ru.csv
@@ -42,7 +42,7 @@ from src.sem_cat.pipeline.reuse_analysis import (
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Analyze missing-English rows for reusable existing English evidence grouped by (pos, primary_gloss_ru)."
+        description="Analyze missing-English rows for reusable existing English evidence grouped by (pos, meaning_ru)."
     )
     parser.add_argument(
         "--data-dir",
@@ -75,9 +75,9 @@ def main() -> None:
 
     print("Preparing meanings for analysis...")
     work = prepare_meanings_for_reuse_and_translation(df_meanings)
-    print(f"Total rows with non-empty primary gloss: {len(work)}")
+    print(f"Total rows with non-empty meaning_ru: {len(work)}")
 
-    print("Analyzing missing-English reuse by (pos, primary_gloss_ru)...")
+    print("Analyzing missing-English reuse by (pos, meaning_ru)...")
     result = analyze_missing_en_reuse(work)
 
     print("Writing reuse output files...")
@@ -89,6 +89,8 @@ def main() -> None:
     print(f"Output directory: {translate_dir}")
     print("  - needs_translation_no_reuse.csv")
     print("  - pos_meanings_ru.csv")
+    print("  - concept_category_without_english.csv")
+    print("  - invalid_concept_category_pairs.csv")
     print("  - reusable_english/one_english.csv")
     print("  - reusable_english/one_english_summary.csv")
     print("  - reusable_english/several_english.csv")

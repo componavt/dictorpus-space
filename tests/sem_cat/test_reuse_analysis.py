@@ -13,7 +13,6 @@ import pandas as pd
 from src.sem_cat.pipeline.reuse_analysis import (
     is_nonblank_text,
     normalize_existing_en,
-    build_pos_gloss_ru_key,
     distinct_existing_en_candidates,
     analyze_missing_en_reuse,
     write_reuse_outputs,
@@ -25,6 +24,7 @@ from src.sem_cat.pipeline.reuse_analysis import (
     UNAMBIGUOUS_SUMMARY_COLUMNS,
     AMBIGUOUS_SUMMARY_COLUMNS,
     POS_MEANINGS_RU_COLUMNS,
+    CONCEPT_CATEGORY_AUDIT_COLUMNS,
 )
 
 # ---------------------------------------------------------------------------
@@ -47,14 +47,6 @@ def test_normalize_existing_en():
     assert normalize_existing_en("hello") == "hello"
     assert normalize_existing_en("  hello  ") == "hello"
     assert normalize_existing_en("  hello   world  ") == "hello world"
-
-
-def test_build_pos_gloss_ru_key():
-    assert build_pos_gloss_ru_key("NOUN", "деревня") == "NOUN::деревня"
-    assert build_pos_gloss_ru_key("NOUN", "  деревня  ") == "NOUN::деревня"
-    assert build_pos_gloss_ru_key("  NOUN  ", "деревня") == "NOUN::деревня"
-    assert build_pos_gloss_ru_key("VERB", "бить") == "VERB::бить"
-    assert build_pos_gloss_ru_key(None, None) == "::"
 
 
 def test_distinct_existing_en_candidates_unambiguous():
@@ -107,45 +99,45 @@ def test_distinct_existing_en_candidates_does_not_split_semicolon():
 
 
 # ---------------------------------------------------------------------------
-# Exact grouping by (pos, primary_gloss_ru)
+# Exact grouping by (pos, meaning_ru)
 # ---------------------------------------------------------------------------
 
 
 def test_grouper_different_pos_same_gloss_are_separate():
     df = pd.DataFrame([
-        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня деревня", "primary_gloss_ru": "деревня", "meaning_en": "village"},
-        {"lang": "vep", "lemma": "l2", "pos": "VERB", "meaning_ru": "деревня деревня", "primary_gloss_ru": "деревня", "meaning_en": "to village"},
-        {"lang": "vep", "lemma": "l3", "pos": "NOUN", "meaning_ru": "деревня деревня", "primary_gloss_ru": "деревня", "meaning_en": ""},
-        {"lang": "vep", "lemma": "l4", "pos": "VERB", "meaning_ru": "деревня деревня", "primary_gloss_ru": "деревня", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня деревня", "meaning_en": "village"},
+        {"lang": "vep", "lemma": "l2", "pos": "VERB", "meaning_ru": "деревня деревня", "meaning_en": "to village"},
+        {"lang": "vep", "lemma": "l3", "pos": "NOUN", "meaning_ru": "деревня деревня", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l4", "pos": "VERB", "meaning_ru": "деревня деревня", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
-    # Each (pos, gloss_ru) is a separate group
-    # NOUN + деревня: 1 existing candidate ("village") → missing NOUN goes to unambiguous
-    # VERB + деревня: 1 existing candidate ("to village") → missing VERB goes to unambiguous
+    # Each (pos, meaning_ru) is a separate group
+    # NOUN + деревня деревня: 1 existing candidate ("village") → missing NOUN goes to unambiguous
+    # VERB + деревня деревня: 1 existing candidate ("to village") → missing VERB goes to unambiguous
     assert len(result.missing_en_reusable_unambiguous) == 2
-    unamb_keys = set(result.missing_en_reusable_unambiguous["pos_gloss_ru_key"])
-    assert unamb_keys == {"NOUN::деревня", "VERB::деревня"}
-
     assert len(result.missing_en_reusable_ambiguous) == 0
     assert len(result.missing_en_without_reuse) == 0
 
 
-def test_grouper_same_pos_different_gloss_are_separate():
+def test_grouper_same_pos_different_full_meanings_are_separate():
     df = pd.DataFrame([
-        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "village"},
-        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
-        {"lang": "vep", "lemma": "l3", "pos": "NOUN", "primary_gloss_ru": "дом", "meaning_en": "house"},
-        {"lang": "vep", "lemma": "l4", "pos": "NOUN", "primary_gloss_ru": "дом", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "место (под чем-либо)", "meaning_en": "place under something"},
+        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "место (под чем-либо)", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l3", "pos": "NOUN", "meaning_ru": "место (перед чем-либо)", "meaning_en": "place in front of something"},
+        {"lang": "vep", "lemma": "l4", "pos": "NOUN", "meaning_ru": "место (перед чем-либо)", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
-    # деревня missing → unambiguous (1 candidate)
-    # дом missing → unambiguous (1 candidate)
-    # Both groups have 1 candidate, so both missing go to unambiguous
+    # Two distinct full meanings must remain separate
     assert len(result.missing_en_reusable_unambiguous) == 2
-    unamb_glosses = set(result.missing_en_reusable_unambiguous["primary_gloss_ru"])
-    assert unamb_glosses == {"деревня", "дом"}
+    assert set(
+        result.missing_en_reusable_unambiguous["meaning_ru"]
+    ) == {
+        "место (под чем-либо)",
+        "место (перед чем-либо)",
+    }
+    assert result.unambiguous_summary["meaning_ru"].nunique() == 2
 
 
 # ---------------------------------------------------------------------------
@@ -155,30 +147,27 @@ def test_grouper_same_pos_different_gloss_are_separate():
 
 def test_unambiguous_reuse_one_candidate():
     df = pd.DataFrame([
-        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "village"},
-        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
-        {"lang": "olo", "lemma": "l3", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "village"},
+        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
+        {"lang": "olo", "lemma": "l3", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
     assert len(result.missing_en_reusable_unambiguous) == 2
-    # All rows have 1 candidate and go to unambiguous
     for _, row in result.missing_en_reusable_unambiguous.iterrows():
         assert row["existing_en_candidates"] == "village"
         assert row["existing_en_candidate_count"] == 1
-        # Unambiguous outputs should NOT have suggested_candidate_index
         assert "suggested_candidate_index" not in row
 
 
 def test_unambiguous_reuse_all_missing_no_candidates():
     df = pd.DataFrame([
-        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
-        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
     assert len(result.missing_en_reusable_unambiguous) == 0
-    # No existing English → goes to no_reuse
     assert len(result.missing_en_without_reuse) == 2
 
 
@@ -189,16 +178,15 @@ def test_unambiguous_reuse_all_missing_no_candidates():
 
 def test_ambiguous_reuse_two_candidates():
     df = pd.DataFrame([
-        {"lang": "krl", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "offence"},
-        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "insult"},
-        {"lang": "olo", "lemma": "l3", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": ""},
-        {"lang": "vep", "lemma": "l4", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": ""},
+        {"lang": "krl", "lemma": "l1", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "offence"},
+        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "insult"},
+        {"lang": "olo", "lemma": "l3", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l4", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
     assert len(result.missing_en_reusable_ambiguous) == 2
     for _, row in result.missing_en_reusable_ambiguous.iterrows():
-        # Candidates should be sorted alphabetically
         assert row["existing_en_candidates"] == "insult || offence"
         assert row["existing_en_candidate_count"] == 2
         assert row["suggested_candidate_index"] == 1
@@ -206,17 +194,16 @@ def test_ambiguous_reuse_two_candidates():
 
 def test_ambiguous_reuse_three_candidates():
     df = pd.DataFrame([
-        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "слово", "meaning_en": "word"},
-        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "слово", "meaning_en": "word"},
-        {"lang": "vep", "lemma": "l3", "pos": "NOUN", "primary_gloss_ru": "слово", "meaning_en": "term"},
-        {"lang": "vep", "lemma": "l4", "pos": "NOUN", "primary_gloss_ru": "слово", "meaning_en": "expression"},
-        {"lang": "vep", "lemma": "l5", "pos": "NOUN", "primary_gloss_ru": "слово", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "слово", "meaning_en": "word"},
+        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "слово", "meaning_en": "word"},
+        {"lang": "vep", "lemma": "l3", "pos": "NOUN", "meaning_ru": "слово", "meaning_en": "term"},
+        {"lang": "vep", "lemma": "l4", "pos": "NOUN", "meaning_ru": "слово", "meaning_en": "expression"},
+        {"lang": "vep", "lemma": "l5", "pos": "NOUN", "meaning_ru": "слово", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
     assert len(result.missing_en_reusable_ambiguous) == 1
     row = result.missing_en_reusable_ambiguous.iloc[0]
-    # Candidates should be sorted alphabetically
     assert row["existing_en_candidates"] == "expression || term || word"
     assert row["existing_en_candidate_count"] == 3
 
@@ -228,17 +215,15 @@ def test_ambiguous_reuse_three_candidates():
 
 def test_no_reuse_missing_all_have_no_candidates():
     df = pd.DataFrame([
-        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "концертный зал", "meaning_en": ""},
-        {"lang": "olo", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "концертный зал", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "концертный зал", "meaning_en": ""},
+        {"lang": "olo", "lemma": "l2", "pos": "NOUN", "meaning_ru": "концертный зал", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
     assert len(result.missing_en_reusable_unambiguous) == 0
     assert len(result.missing_en_reusable_ambiguous) == 0
-    # All go to no_reuse
     assert len(result.missing_en_without_reuse) == 2
-    assert result.missing_en_without_reuse["pos_gloss_ru_key"].nunique() == 1
-    assert result.missing_en_without_reuse["missing_row_count_for_pos_gloss_ru"].tolist() == [2, 2]
+    assert result.missing_en_without_reuse["pos"].nunique() == 1
 
 
 # ---------------------------------------------------------------------------
@@ -248,13 +233,12 @@ def test_no_reuse_missing_all_have_no_candidates():
 
 def test_whitespace_normalization_counts_as_same_candidate():
     df = pd.DataFrame([
-        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "  village  "},
-        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "village"},
-        {"lang": "vep", "lemma": "l3", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "  village  "},
+        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "village"},
+        {"lang": "vep", "lemma": "l3", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
-    # All "village" values (including whitespace variants) count as 1 distinct candidate
     assert len(result.missing_en_reusable_unambiguous) == 1
     assert result.missing_en_reusable_unambiguous.iloc[0]["existing_en_candidate_count"] == 1
 
@@ -266,12 +250,11 @@ def test_whitespace_normalization_counts_as_same_candidate():
 
 def test_semicolon_not_split_into_multiple_candidates():
     df = pd.DataFrame([
-        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "дело", "meaning_en": "offence; insult"},
-        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "дело", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "дело", "meaning_en": "offence; insult"},
+        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "дело", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
-    # "offence; insult" is one candidate string
     assert len(result.missing_en_reusable_unambiguous) == 1
     assert result.missing_en_reusable_unambiguous.iloc[0]["existing_en_candidates"] == "offence; insult"
     assert result.missing_en_reusable_unambiguous.iloc[0]["existing_en_candidate_count"] == 1
@@ -284,57 +267,49 @@ def test_semicolon_not_split_into_multiple_candidates():
 
 def test_unambiguous_summary_one_row_per_group():
     df = pd.DataFrame([
-        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "village"},
-        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
-        {"lang": "olo", "lemma": "l3", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "village"},
+        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
+        {"lang": "olo", "lemma": "l3", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
     summary = result.unambiguous_summary
     assert len(summary) == 1
     row = summary.iloc[0]
-    assert row["pos_gloss_ru_key"] == "NOUN::деревня"
-    assert row["task_pos"] == "NOUN"
-    assert row["primary_gloss_ru"] == "деревня"
+    assert row["pos"] == "NOUN"
+    assert row["meaning_ru"] == "деревня"
     assert row["existing_en_candidates"] == "village"
     assert row["existing_en_candidate_count"] == 1
     assert row["missing_row_count"] == 2
     assert row["existing_en_row_count"] == 1
-    # missing_langs should contain vep and olo (missing rows)
     assert "vep" in row["missing_langs"]
     assert "olo" in row["missing_langs"]
-    # existing_en_langs should contain vep (the row with existing English)
     assert "vep" in row["existing_en_langs"]
-    # example_missing_lemma should come from missing rows, not existing ones
     assert row["example_missing_lemma"] in ["l2", "l3"]
 
 
 def test_ambiguous_summary_one_row_per_group():
     df = pd.DataFrame([
-        {"lang": "krl", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "offence"},
-        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "insult"},
-        {"lang": "olo", "lemma": "l3", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": ""},
-        {"lang": "vep", "lemma": "l4", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": ""},
+        {"lang": "krl", "lemma": "l1", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "offence"},
+        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "insult"},
+        {"lang": "olo", "lemma": "l3", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l4", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
     summary = result.ambiguous_summary
     assert len(summary) == 1
     row = summary.iloc[0]
-    assert row["pos_gloss_ru_key"] == "NOUN::обида"
-    assert row["task_pos"] == "NOUN"
-    assert row["primary_gloss_ru"] == "обида"
+    assert row["pos"] == "NOUN"
+    assert row["meaning_ru"] == "обида"
     assert row["existing_en_candidates"] == "insult || offence"
     assert row["existing_en_candidate_count"] == 2
     assert row["missing_row_count"] == 2
     assert row["existing_en_row_count"] == 2
-    # missing_langs should contain olo and vep (missing rows)
     assert "olo" in row["missing_langs"]
     assert "vep" in row["missing_langs"]
-    # existing_en_langs should contain krl and vep (existing English rows)
     assert "krl" in row["existing_en_langs"]
     assert "vep" in row["existing_en_langs"]
-    # example_missing_lemma should come from missing rows
     assert row["example_missing_lemma"] in ["l3", "l4"]
     assert row["suggested_candidate_index"] == 1
 
@@ -346,8 +321,8 @@ def test_ambiguous_summary_one_row_per_group():
 
 def test_empty_dataframe_creates_valid_outputs():
     df = pd.DataFrame([
-        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "village"},
-        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "дом", "meaning_en": "house"},
+        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "village"},
+        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "дом", "meaning_en": "house"},
     ])
     result = analyze_missing_en_reuse(df)
 
@@ -370,7 +345,7 @@ def test_empty_dataframe_creates_valid_outputs():
 def test_writer_creates_csvs_with_headers_even_when_empty():
     with tempfile.TemporaryDirectory() as td:
         df = pd.DataFrame([
-            {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "village"},
+            {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "village"},
         ])
         result = analyze_missing_en_reuse(df)
 
@@ -389,17 +364,20 @@ def test_writer_creates_csvs_with_headers_even_when_empty():
         # Even empty, they have headers
         unamb_df = pd.read_csv(reusable_dir / "one_english.csv")
         unamb_cols = list(unamb_df.columns)
-        assert "pos_gloss_ru_key" in unamb_cols
-        assert "task_pos" in unamb_cols
-        assert "primary_gloss_ru" in unamb_cols
+        assert "pos" in unamb_cols
+        assert "meaning_ru" in unamb_cols
         assert "lang" in unamb_cols
         assert "lemma" in unamb_cols
         assert "existing_en_candidates" in unamb_cols
         assert "existing_en_candidate_count" in unamb_cols
-        assert "missing_row_count_for_pos_gloss_ru" in unamb_cols
-        assert "existing_en_row_count_for_pos_gloss_ru" in unamb_cols
-        # For row-level output, suggested_candidate_index is present when unambiguous
-        # Check if it exists in the columns
+        assert "missing_row_count" in unamb_cols
+        assert "existing_en_row_count" in unamb_cols
+        assert "primary_gloss_ru" not in unamb_cols
+        assert "pos_gloss_ru_key" not in unamb_cols
+        assert "pos_meaning_ru_key" not in unamb_cols
+        assert "missing_row_count_for_pos_gloss_ru" not in unamb_cols
+        assert "existing_en_row_count_for_pos_gloss_ru" not in unamb_cols
+        assert "task_pos" in unamb_cols
         assert len(unamb_df) == 0
 
 
@@ -411,21 +389,21 @@ def test_writer_creates_csvs_with_headers_even_when_empty():
 def test_full_fixture_all_cases():
     df = pd.DataFrame([
         # Unambiguous case: one existing EN for NOUN + деревня
-        {"lang": "krl", "lemma": "lemma1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "village"},
-        {"lang": "vep", "lemma": "lemma2", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
-        {"lang": "olo", "lemma": "lemma3", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": None},
+        {"lang": "krl", "lemma": "lemma1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "village"},
+        {"lang": "vep", "lemma": "lemma2", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
+        {"lang": "olo", "lemma": "lemma3", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": None},
 
         # Ambiguous case: two existing ENs for NOUN + обида
-        {"lang": "krl", "lemma": "lemma4", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "offence"},
-        {"lang": "vep", "lemma": "lemma5", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "insult"},
-        {"lang": "lud", "lemma": "lemma6", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": ""},
+        {"lang": "krl", "lemma": "lemma4", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "offence"},
+        {"lang": "vep", "lemma": "lemma5", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "insult"},
+        {"lang": "lud", "lemma": "lemma6", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": ""},
 
         # No reuse case: no existing EN for NOUN + концертный зал
-        {"lang": "olo", "lemma": "lemma7", "pos": "NOUN", "primary_gloss_ru": "концертный зал", "meaning_en": ""},
+        {"lang": "olo", "lemma": "lemma7", "pos": "NOUN", "meaning_ru": "концертный зал", "meaning_en": ""},
 
         # Separate group: VERB + деревня (different POS from NOUN + деревня)
-        {"lang": "vep", "lemma": "lemma8", "pos": "VERB", "primary_gloss_ru": "деревня", "meaning_en": "to village"},
-        {"lang": "vep", "lemma": "lemma9", "pos": "VERB", "primary_gloss_ru": "деревня", "meaning_en": ""},
+        {"lang": "vep", "lemma": "lemma8", "pos": "VERB", "meaning_ru": "деревня", "meaning_en": "to village"},
+        {"lang": "vep", "lemma": "lemma9", "pos": "VERB", "meaning_ru": "деревня", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
@@ -442,18 +420,18 @@ def test_full_fixture_all_cases():
     assert len(result.missing_en_reusable_ambiguous) == result.stats["rows_reusable_ambiguous"]
 
     # Summary counts
-    assert result.stats["pos_gloss_ru_unambiguous_count"] == 2  # NOUN::деревня and VERB::деревня
-    assert result.stats["pos_gloss_ru_ambiguous_count"] == 1  # NOUN::обида
-    assert result.stats["pos_gloss_ru_without_reuse_count"] == 1  # NOUN::концертный зал
+    assert result.stats["unambiguous_group_count"] == 2
+    assert result.stats["ambiguous_group_count"] == 1
+    assert result.stats["no_reuse_group_count"] == 1
 
 
 def test_missing_langs_and_existing_en_langs_separated():
     """Verify missing_langs and existing_en_langs are correctly separated."""
     df = pd.DataFrame([
         # Missing row in krl
-        {"lang": "krl", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": ""},
+        {"lang": "krl", "lemma": "l1", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": ""},
         # Existing English in vep
-        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "insult"},
+        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "insult"},
     ])
     result = analyze_missing_en_reuse(df)
 
@@ -462,37 +440,33 @@ def test_missing_langs_and_existing_en_langs_separated():
     assert len(summary) == 1
     row = summary.iloc[0]
 
-    # missing_langs should only contain krl (missing row language)
     assert row["missing_langs"] == "krl"
-    # existing_en_langs should only contain vep (existing English row language)
     assert row["existing_en_langs"] == "vep"
-    # example_missing_lemma should come from missing row
     assert row["example_missing_lemma"] == "l1"
 
 
 def test_per_language_stats():
     df = pd.DataFrame([
         {"id": "k1", "meaning_id": "m1", "lemma_id": "l1", "meaning_ru": "деревня деревня", "concept_id": "c1", "category_id": "cat1",
-         "lang": "krl", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "village"},
+         "lang": "krl", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "village"},
         {"id": "k2", "meaning_id": "m2", "lemma_id": "l2", "meaning_ru": "деревня деревня", "concept_id": "c1", "category_id": "cat1",
-         "lang": "krl", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
+         "lang": "krl", "lemma": "l2", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
         {"id": "v1", "meaning_id": "m3", "lemma_id": "l3", "meaning_ru": "деревня деревня", "concept_id": "c1", "category_id": "cat1",
-         "lang": "vep", "lemma": "l3", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
+         "lang": "vep", "lemma": "l3", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
         {"id": "o1", "meaning_id": "m4", "lemma_id": "l4", "meaning_ru": "деревня деревня", "concept_id": "c1", "category_id": "cat1",
-         "lang": "olo", "lemma": "l4", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
+         "lang": "olo", "lemma": "l4", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
         {"id": "lu1", "meaning_id": "m5", "lemma_id": "l5", "meaning_ru": "дом дом", "concept_id": "c2", "category_id": "cat2",
-         "lang": "lud", "lemma": "l5", "pos": "NOUN", "primary_gloss_ru": "дом", "meaning_en": ""},
+         "lang": "lud", "lemma": "l5", "pos": "NOUN", "meaning_ru": "дом", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
-    # Verify per-lang stats attribute exists but is None (out of scope)
     assert result.per_lang_stats is None
 
 
 def test_unambiguous_summary_has_no_suggested_candidate_index():
     df = pd.DataFrame([
-        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "village"},
-        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "village"},
+        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
@@ -503,24 +477,23 @@ def test_unambiguous_summary_has_no_suggested_candidate_index():
 
 def test_ambiguous_summary_has_suggested_candidate_index():
     df = pd.DataFrame([
-        {"lang": "krl", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "offence"},
-        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "insult"},
-        {"lang": "olo", "lemma": "l3", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": ""},
+        {"lang": "krl", "lemma": "l1", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "offence"},
+        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "insult"},
+        {"lang": "olo", "lemma": "l3", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
     amb_summary = result.ambiguous_summary
     assert "suggested_candidate_index" in amb_summary.columns
     assert set(amb_summary.columns) == set(AMBIGUOUS_SUMMARY_COLUMNS)
-    # First candidate is always suggested
     assert amb_summary.iloc[0]["suggested_candidate_index"] == 1
 
 
 def test_unambiguous_row_level_output_excludes_summary_placeholder_columns():
     df = pd.DataFrame(
         [
-            {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "village"},
-            {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
+            {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "village"},
+            {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
         ]
     )
     result = analyze_missing_en_reuse(df)
@@ -534,9 +507,9 @@ def test_unambiguous_row_level_output_excludes_summary_placeholder_columns():
 def test_ambiguous_row_level_output_excludes_summary_placeholder_columns():
     df = pd.DataFrame(
         [
-            {"lang": "krl", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "offence"},
-            {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "insult"},
-            {"lang": "olo", "lemma": "l3", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": ""},
+            {"lang": "krl", "lemma": "l1", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "offence"},
+            {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "insult"},
+            {"lang": "olo", "lemma": "l3", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": ""},
         ]
     )
     result = analyze_missing_en_reuse(df)
@@ -551,11 +524,11 @@ def test_ambiguous_row_level_output_excludes_summary_placeholder_columns():
 def test_row_level_csv_schema_is_exact(tmp_path):
     df = pd.DataFrame(
         [
-            {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "village"},
-            {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
-            {"lang": "krl", "lemma": "l3", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "offence"},
-            {"lang": "vep", "lemma": "l4", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "insult"},
-            {"lang": "olo", "lemma": "l5", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": ""},
+            {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "village"},
+            {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
+            {"lang": "krl", "lemma": "l3", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "offence"},
+            {"lang": "vep", "lemma": "l4", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "insult"},
+            {"lang": "olo", "lemma": "l5", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": ""},
         ]
     )
     result = analyze_missing_en_reuse(df)
@@ -573,31 +546,25 @@ def test_row_level_csv_schema_is_exact(tmp_path):
         keep_default_na=False,
     )
 
-    assert list(unambiguous_output.columns) == [
-        "id", "meaning_id", "lemma_id", "lemma", "lang", "pos", "task_pos",
-        "meaning_ru", "primary_gloss_ru", "concept_id", "category_id",
-        "pos_gloss_ru_key", "existing_en_candidates",
-        "existing_en_candidate_count",
-        "missing_row_count_for_pos_gloss_ru",
-        "existing_en_row_count_for_pos_gloss_ru",
-    ]
-    assert list(ambiguous_output.columns) == [
-        "id", "meaning_id", "lemma_id", "lemma", "lang", "pos", "task_pos",
-        "meaning_ru", "primary_gloss_ru", "concept_id", "category_id",
-        "pos_gloss_ru_key", "existing_en_candidates",
-        "existing_en_candidate_count",
-        "missing_row_count_for_pos_gloss_ru",
-        "existing_en_row_count_for_pos_gloss_ru",
-        "suggested_candidate_index",
-    ]
+    assert "primary_gloss_ru" not in unambiguous_output.columns
+    assert "pos_gloss_ru_key" not in unambiguous_output.columns
+    assert "pos_meaning_ru_key" not in unambiguous_output.columns
+    assert "missing_row_count_for_pos_gloss_ru" not in unambiguous_output.columns
+    assert "existing_en_row_count_for_pos_gloss_ru" not in unambiguous_output.columns
+    assert "suggested_candidate_index" not in unambiguous_output.columns
+
+    assert "primary_gloss_ru" not in ambiguous_output.columns
+    assert "pos_gloss_ru_key" not in ambiguous_output.columns
+    assert "pos_meaning_ru_key" not in ambiguous_output.columns
+    assert "suggested_candidate_index" in ambiguous_output.columns
 
 
 def test_summary_csv_still_contains_language_and_lemma_fields(tmp_path):
     df = pd.DataFrame(
         [
-            {"lang": "krl", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "offence"},
-            {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "insult"},
-            {"lang": "olo", "lemma": "l3", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": ""},
+            {"lang": "krl", "lemma": "l1", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "offence"},
+            {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "insult"},
+            {"lang": "olo", "lemma": "l3", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": ""},
         ]
     )
     result = analyze_missing_en_reuse(df)
@@ -621,10 +588,10 @@ def test_summary_csv_still_contains_language_and_lemma_fields(tmp_path):
 def test_row_level_outputs_preserve_identifiers():
     df = pd.DataFrame([
         {"id": "123", "meaning_id": "456", "lemma_id": "789", "lemma": "test_lemma", "lang": "vep",
-         "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "village", "meaning_ru": "деревня деревня",
+         "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "village", "meaning_ru": "деревня деревня",
          "concept_id": "c1", "category_id": "cat1"},
         {"id": "124", "meaning_id": "457", "lemma_id": "790", "lemma": "test_lemma2", "lang": "vep",
-         "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "", "meaning_ru": "деревня деревня",
+         "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "", "meaning_ru": "деревня деревня",
          "concept_id": "c1", "category_id": "cat1"},
     ])
     result = analyze_missing_en_reuse(df)
@@ -637,7 +604,6 @@ def test_row_level_outputs_preserve_identifiers():
         "lang",
         "task_pos",
         "meaning_ru",
-        "primary_gloss_ru",
         "concept_id",
         "category_id",
     }
@@ -648,15 +614,14 @@ def test_row_level_outputs_preserve_identifiers():
 def test_row_level_outputs_do_not_leak_internal_fields():
     df = pd.DataFrame([
         {"id": "1", "meaning_id": "m1", "lemma_id": "l1", "meaning_ru": "деревня деревня", "concept_id": "c1", "category_id": "cat1",
-         "lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "village"},
+         "lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "village"},
         {"id": "2", "meaning_id": "m2", "lemma_id": "l2", "meaning_ru": "деревня деревня", "concept_id": "c1", "category_id": "cat1",
-         "lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
+         "lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
     forbidden = {
         "task_key",
-        "has_primary_gloss_ru",
         "has_existing_en",
         "existing_en_norm",
     }
@@ -670,8 +635,8 @@ def test_no_reuse_output_has_correct_schema():
     import tempfile
 
     df = pd.DataFrame([
-        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
-        {"lang": "olo", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
+        {"lang": "olo", "lemma": "l2", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
@@ -689,24 +654,21 @@ def test_no_reuse_output_has_correct_schema():
         no_reuse_df = pd.read_csv(no_reuse_path)
 
         assert len(no_reuse_df) == 2
-        assert no_reuse_df["missing_row_count_for_pos_gloss_ru"].tolist() == [2, 2]
 
         required_cols = {
             "id", "meaning_id", "lemma_id", "lemma", "lang", "pos", "task_pos",
-            "meaning_ru", "primary_gloss_ru", "concept_id", "category_id",
-            "pos_gloss_ru_key", "missing_row_count_for_pos_gloss_ru",
+            "meaning_ru", "concept_id", "category_id",
         }
         assert set(no_reuse_df.columns) == required_cols
 
         forbidden_cols = {
             "suggested_candidate_index",
             "task_key",
-            "has_primary_gloss_ru",
             "has_existing_en",
             "existing_en_norm",
             "existing_en_candidates",
             "existing_en_candidate_count",
-            "existing_en_row_count_for_pos_gloss_ru",
+            "existing_en_row_count",
         }
         assert not (forbidden_cols & set(no_reuse_df.columns))
 
@@ -723,7 +685,6 @@ def test_no_reuse_meaningful_group_size_three_rows():
                 "lang": "vep",
                 "pos": "NOUN",
                 "meaning_ru": "брусничный напиток",
-                "primary_gloss_ru": "брусничный напиток",
                 "meaning_en": "",
                 "concept_id": "",
                 "category_id": "",
@@ -736,7 +697,6 @@ def test_no_reuse_meaningful_group_size_three_rows():
                 "lang": "vep",
                 "pos": "NOUN",
                 "meaning_ru": "брусничный напиток",
-                "primary_gloss_ru": "брусничный напиток",
                 "meaning_en": "",
                 "concept_id": "",
                 "category_id": "",
@@ -749,7 +709,6 @@ def test_no_reuse_meaningful_group_size_three_rows():
                 "lang": "olo",
                 "pos": "NOUN",
                 "meaning_ru": "брусничный напиток",
-                "primary_gloss_ru": "брусничный напиток",
                 "meaning_en": "",
                 "concept_id": "",
                 "category_id": "",
@@ -761,8 +720,7 @@ def test_no_reuse_meaningful_group_size_three_rows():
     no_reuse = result.missing_en_without_reuse
 
     assert len(no_reuse) == 3
-    assert no_reuse["pos_gloss_ru_key"].eq("NOUN::брусничный напиток").all()
-    assert no_reuse["missing_row_count_for_pos_gloss_ru"].eq(3).all()
+    assert no_reuse["pos"].nunique() == 1
 
     # Verify not in unambiguous or ambiguous outputs
     assert len(result.missing_en_reusable_unambiguous) == 0
@@ -775,8 +733,8 @@ def test_no_reuse_empty_output_creates_csv_with_headers():
     import tempfile
 
     df = pd.DataFrame([
-        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "village"},
-        {"lang": "olo", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "house"},
+        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "village"},
+        {"lang": "olo", "lemma": "l2", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "house"},
     ])
     result = analyze_missing_en_reuse(df)
 
@@ -795,12 +753,16 @@ def test_no_reuse_empty_output_creates_csv_with_headers():
 
         required_cols = {
             "id", "meaning_id", "lemma_id", "lemma", "lang", "pos", "task_pos",
-            "meaning_ru", "primary_gloss_ru", "concept_id", "category_id",
-            "pos_gloss_ru_key", "missing_row_count_for_pos_gloss_ru",
+            "meaning_ru", "concept_id", "category_id",
         }
         assert set(no_reuse_df.columns) == required_cols
 
         assert "suggested_candidate_index" not in no_reuse_df.columns
+        assert "primary_gloss_ru" not in no_reuse_df.columns
+        assert "pos_gloss_ru_key" not in no_reuse_df.columns
+        assert "pos_meaning_ru_key" not in no_reuse_df.columns
+        assert "missing_row_count_for_pos_gloss_ru" not in no_reuse_df.columns
+
 
 
 def test_no_reuse_csv_schema_and_content():
@@ -809,8 +771,8 @@ def test_no_reuse_csv_schema_and_content():
     import tempfile
 
     df = pd.DataFrame([
-        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
-        {"lang": "olo", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
+        {"lang": "olo", "lemma": "l2", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
@@ -824,7 +786,6 @@ def test_no_reuse_csv_schema_and_content():
         assert output_path.exists()
         assert list(output.columns) == NO_REUSE_ROW_LEVEL_COLUMNS
         assert len(output) == 2
-        assert output["missing_row_count_for_pos_gloss_ru"].tolist() == ["2", "2"]
 
         required_columns = {
             "id",
@@ -835,23 +796,23 @@ def test_no_reuse_csv_schema_and_content():
             "pos",
             "task_pos",
             "meaning_ru",
-            "primary_gloss_ru",
             "concept_id",
             "category_id",
-            "pos_gloss_ru_key",
-            "missing_row_count_for_pos_gloss_ru",
         }
         assert required_columns == set(output.columns)
 
         forbidden_columns = {
             "existing_en_candidates",
             "existing_en_candidate_count",
-            "existing_en_row_count_for_pos_gloss_ru",
+            "existing_en_row_count",
             "suggested_candidate_index",
             "task_key",
-            "has_primary_gloss_ru",
             "has_existing_en",
             "existing_en_norm",
+            "primary_gloss_ru",
+            "pos_gloss_ru_key",
+            "pos_meaning_ru_key",
+            "missing_row_count_for_pos_gloss_ru",
         }
         assert not (forbidden_columns & set(output.columns))
 
@@ -869,10 +830,9 @@ def test_pos_meanings_ru_blank_pos_warning_preservation():
             "lang": "vep",
             "pos": "",
             "meaning_ru": "деревня",
-            "primary_gloss_ru": "деревня",
             "meaning_en": "",
-            "concept_id": "c1",
-            "category_id": "cat1",
+            "concept_id": "",
+            "category_id": "",
         },
     ])
 
@@ -914,10 +874,9 @@ def test_pos_meanings_ru_conservation_invariant():
             "lang": "vep",
             "pos": "NOUN",
             "meaning_ru": "деревня",
-            "primary_gloss_ru": "деревня",
-            "meaning_en": "village",
-            "concept_id": "c1",
-            "category_id": "cat1",
+            "meaning_en": "",
+            "concept_id": "",
+            "category_id": "",
         },
         {
             "id": "2",
@@ -927,10 +886,9 @@ def test_pos_meanings_ru_conservation_invariant():
             "lang": "vep",
             "pos": "NOUN",
             "meaning_ru": "деревня",
-            "primary_gloss_ru": "деревня",
             "meaning_en": "",
-            "concept_id": "c1",
-            "category_id": "cat1",
+            "concept_id": "",
+            "category_id": "",
         },
         {
             "id": "3",
@@ -940,10 +898,9 @@ def test_pos_meanings_ru_conservation_invariant():
             "lang": "olo",
             "pos": "NOUN",
             "meaning_ru": "деревня",
-            "primary_gloss_ru": "деревня",
             "meaning_en": "",
-            "concept_id": "c1",
-            "category_id": "cat1",
+            "concept_id": "",
+            "category_id": "",
         },
         {
             "id": "4",
@@ -953,10 +910,9 @@ def test_pos_meanings_ru_conservation_invariant():
             "lang": "olo",
             "pos": "NOUN",
             "meaning_ru": "концертный зал",
-            "primary_gloss_ru": "концертный зал",
             "meaning_en": "",
-            "concept_id": "c2",
-            "category_id": "cat2",
+            "concept_id": "",
+            "category_id": "",
         },
     ])
     result = analyze_missing_en_reuse(df)
@@ -965,10 +921,9 @@ def test_pos_meanings_ru_conservation_invariant():
         result.stats["rows_reusable_unambiguous"]
         + result.stats["rows_reusable_ambiguous"]
         + result.stats["rows_missing_en_without_reuse"]
+        + result.stats["rows_concept_covered_skip"]
+        + result.stats["rows_invalid_concept_category_pair"]
     )
-
-    no_reuse_count = len(result.pos_meanings_ru)
-    assert no_reuse_count == result.stats["rows_missing_en_without_reuse"]
 
 
 def test_pos_meanings_ru_empty_output():
@@ -983,7 +938,6 @@ def test_pos_meanings_ru_empty_output():
                 "lang": "vep",
                 "pos": "NOUN",
                 "meaning_ru": "деревня",
-                "primary_gloss_ru": "деревня",
                 "meaning_en": "village",
                 "concept_id": "c1",
                 "category_id": "cat1",
@@ -1018,8 +972,8 @@ def test_pos_meanings_ru_preserve_distinct_full_meanings():
             "meaning_ru": "место (под чем-либо)",
             "primary_gloss_ru": "место",
             "meaning_en": "",
-            "concept_id": "c1",
-            "category_id": "cat1",
+            "concept_id": "",
+            "category_id": "",
         },
         {
             "id": "2",
@@ -1031,8 +985,8 @@ def test_pos_meanings_ru_preserve_distinct_full_meanings():
             "meaning_ru": "место (перед чем-либо)",
             "primary_gloss_ru": "место",
             "meaning_en": "",
-            "concept_id": "c1",
-            "category_id": "cat1",
+            "concept_id": "",
+            "category_id": "",
         },
         {
             "id": "3",
@@ -1044,8 +998,8 @@ def test_pos_meanings_ru_preserve_distinct_full_meanings():
             "meaning_ru": "место (вокруг чего-л.)",
             "primary_gloss_ru": "место",
             "meaning_en": "",
-            "concept_id": "c1",
-            "category_id": "cat1",
+            "concept_id": "",
+            "category_id": "",
         },
     ])
     result = analyze_missing_en_reuse(df)
@@ -1072,7 +1026,6 @@ def test_pos_meanings_ru_exact_schema():
             "lang": "vep",
             "pos": "NOUN",
             "meaning_ru": "деревня",
-            "primary_gloss_ru": "деревня",
             "meaning_en": "",
             "concept_id": "c1",
             "category_id": "cat1",
@@ -1093,17 +1046,17 @@ def test_pos_meanings_ru_exact_schema():
         "lang",
         "concept_id",
         "category_id",
-        "missing_row_count_for_pos_gloss_ru",
         "missing_row_count",
+        "missing_row_count_for_pos_gloss_ru",
         "missing_langs",
         "example_missing_lemma",
         "existing_en_candidates",
         "existing_en_candidate_count",
+        "existing_en_row_count",
         "existing_en_row_count_for_pos_gloss_ru",
         "existing_en_langs",
         "suggested_candidate_index",
         "task_key",
-        "has_primary_gloss_ru",
         "has_existing_en",
         "existing_en_norm",
     }
@@ -1124,8 +1077,8 @@ def test_pos_meanings_ru_deduplicate_identical_pairs():
             "meaning_ru": "морошковое варенье",
             "primary_gloss_ru": "морошковое варенье",
             "meaning_en": "",
-            "concept_id": "c1",
-            "category_id": "cat1",
+            "concept_id": "",
+            "category_id": "",
         },
         {
             "id": "2",
@@ -1137,8 +1090,8 @@ def test_pos_meanings_ru_deduplicate_identical_pairs():
             "meaning_ru": "морошковое варенье",
             "primary_gloss_ru": "морошковое варенье",
             "meaning_en": "",
-            "concept_id": "c1",
-            "category_id": "cat1",
+            "concept_id": "",
+            "category_id": "",
         },
     ])
     result = analyze_missing_en_reuse(df)
@@ -1153,7 +1106,7 @@ def test_pos_meanings_ru_deduplicate_identical_pairs():
 
 
 def test_no_reuse_csv_schema_snapshot(tmp_path):
-    """Lock the exact 13-column schema of needs_translation_no_reuse.csv."""
+    """Lock the exact 10-column schema of needs_translation_no_reuse.csv."""
     df = pd.DataFrame(
         [
             {
@@ -1164,7 +1117,6 @@ def test_no_reuse_csv_schema_snapshot(tmp_path):
                 "lang": "vep",
                 "pos": "NOUN",
                 "meaning_ru": "тестовое значение",
-                "primary_gloss_ru": "тестовое значение",
                 "meaning_en": "",
                 "concept_id": "",
                 "category_id": "",
@@ -1189,11 +1141,8 @@ def test_no_reuse_csv_schema_snapshot(tmp_path):
         "pos",
         "task_pos",
         "meaning_ru",
-        "primary_gloss_ru",
         "concept_id",
         "category_id",
-        "pos_gloss_ru_key",
-        "missing_row_count_for_pos_gloss_ru",
     ]
     assert list(output.columns) == expected_columns
 
@@ -1251,9 +1200,9 @@ def test_reusable_english_files_moved_and_renamed(tmp_path):
     """Verify reusable-English files are moved to subfolder and renamed."""
     df = pd.DataFrame(
         [
-            {"lang": "krl", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "offence"},
-            {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "insult"},
-            {"lang": "olo", "lemma": "l3", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": ""},
+            {"lang": "krl", "lemma": "l1", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "offence"},
+            {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "insult"},
+            {"lang": "olo", "lemma": "l3", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": ""},
         ]
     )
     result = analyze_missing_en_reuse(df)
@@ -1279,7 +1228,7 @@ def test_reusable_english_files_created_even_when_empty(tmp_path):
     """Verify reusable-English files are created even when no reusable rows exist."""
     df = pd.DataFrame(
         [
-            {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "тест", "meaning_en": ""},
+            {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "тест", "meaning_en": ""},
         ]
     )
     result = analyze_missing_en_reuse(df)
@@ -1304,11 +1253,11 @@ def test_one_english_and_several_english_content_unchanged(tmp_path):
     """Verify reusable-English output content is unchanged, only location changed."""
     df = pd.DataFrame(
         [
-            {"lang": "krl", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "village"},
-            {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
-            {"lang": "krl", "lemma": "l3", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "offence"},
-            {"lang": "vep", "lemma": "l4", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "insult"},
-            {"lang": "olo", "lemma": "l5", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": ""},
+            {"lang": "krl", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "village"},
+            {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
+            {"lang": "krl", "lemma": "l3", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "offence"},
+            {"lang": "vep", "lemma": "l4", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "insult"},
+            {"lang": "olo", "lemma": "l5", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": ""},
         ]
     )
     result = analyze_missing_en_reuse(df)
@@ -1333,8 +1282,8 @@ def test_no_reuse_empty_file_schema():
     import tempfile
 
     df = pd.DataFrame([
-        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "village"},
-        {"lang": "olo", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "house"},
+        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "village"},
+        {"lang": "olo", "lemma": "l2", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "house"},
     ])
     result = analyze_missing_en_reuse(df)
 
@@ -1353,13 +1302,13 @@ def test_no_reuse_empty_file_schema():
 def test_classification_invariant_preserved():
     """Verify rows_missing_en equals sum of unambiguous + ambiguous + no_reuse."""
     df = pd.DataFrame([
-        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": "village"},
-        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
-        {"lang": "olo", "lemma": "l3", "pos": "NOUN", "primary_gloss_ru": "деревня", "meaning_en": ""},
-        {"lang": "lud", "lemma": "l4", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "offence"},
-        {"lang": "krl", "lemma": "l5", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": "insult"},
-        {"lang": "vep", "lemma": "l6", "pos": "NOUN", "primary_gloss_ru": "обида", "meaning_en": ""},
-        {"lang": "olo", "lemma": "l7", "pos": "NOUN", "primary_gloss_ru": "дом", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "village"},
+        {"lang": "vep", "lemma": "l2", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
+        {"lang": "olo", "lemma": "l3", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
+        {"lang": "lud", "lemma": "l4", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "offence"},
+        {"lang": "krl", "lemma": "l5", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": "insult"},
+        {"lang": "vep", "lemma": "l6", "pos": "NOUN", "meaning_ru": "обида", "meaning_en": ""},
+        {"lang": "olo", "lemma": "l7", "pos": "NOUN", "meaning_ru": "дом", "meaning_en": ""},
     ])
     result = analyze_missing_en_reuse(df)
 
@@ -1379,6 +1328,189 @@ def test_classification_invariant_preserved():
     actual_no_reuse = len(result.missing_en_without_reuse)
 
     assert rows_missing_en == actual_unamb + actual_amb + actual_no_reuse
+
+
+def test_translatable_row_still_classified_normally():
+    """A row with blank meaning_en, blank concept_id, blank category_id must still flow into existing logic."""
+    df = pd.DataFrame(
+        [
+            {
+                "id": "1", "meaning_id": "10", "lemma_id": "100", "lemma": "l1",
+                "lang": "vep", "pos": "NOUN", "meaning_ru": "деревня",
+                "meaning_en": "",
+                "concept_id": "", "category_id": "",
+            },
+        ]
+    )
+    result = analyze_missing_en_reuse(df)
+
+    assert len(result.concept_category_without_english) == 0
+    assert len(result.invalid_concept_category_pairs) == 0
+    assert len(result.missing_en_without_reuse) == 1
+    assert "деревня" in result.pos_meanings_ru["meaning_ru"].tolist()
+
+
+def test_concept_covered_row_fully_excluded():
+    """A row with both concept_id and category_id filled must be excluded from all reuse outputs."""
+    df = pd.DataFrame(
+        [
+            {
+                "id": "1", "meaning_id": "10", "lemma_id": "100", "lemma": "l1",
+                "lang": "vep", "pos": "NOUN", "meaning_ru": "стрелять",
+                "meaning_en": "",
+                "concept_id": "951", "category_id": "B353",
+            },
+        ]
+    )
+    result = analyze_missing_en_reuse(df)
+
+    assert len(result.concept_category_without_english) == 1
+    assert len(result.missing_en_reusable_unambiguous) == 0
+    assert len(result.missing_en_reusable_ambiguous) == 0
+    assert len(result.missing_en_without_reuse) == 0
+    assert "стрелять" not in result.pos_meanings_ru["meaning_ru"].tolist()
+
+
+def test_invalid_pair_row_fully_excluded():
+    """A row with exactly one of concept_id/category_id filled must be excluded and audited."""
+    df = pd.DataFrame(
+        [
+            {
+                "id": "1", "meaning_id": "10", "lemma_id": "100", "lemma": "l1",
+                "lang": "vep", "pos": "NOUN", "meaning_ru": "берег",
+                "meaning_en": "",
+                "concept_id": "1293", "category_id": "",
+            },
+        ]
+    )
+    result = analyze_missing_en_reuse(df)
+
+    assert len(result.invalid_concept_category_pairs) == 1
+    assert len(result.concept_category_without_english) == 0
+    assert len(result.missing_en_reusable_unambiguous) == 0
+    assert len(result.missing_en_reusable_ambiguous) == 0
+    assert len(result.missing_en_without_reuse) == 0
+    assert "берег" not in result.pos_meanings_ru["meaning_ru"].tolist()
+
+
+def test_invalid_pair_reverse_case():
+    """Test reverse case: category_id filled, concept_id blank."""
+    df = pd.DataFrame(
+        [
+            {
+                "id": "1", "meaning_id": "10", "lemma_id": "100", "lemma": "l1",
+                "lang": "vep", "pos": "NOUN", "meaning_ru": "берег",
+                "meaning_en": "",
+                "concept_id": "", "category_id": "B353",
+            },
+        ]
+    )
+    result = analyze_missing_en_reuse(df)
+
+    assert len(result.invalid_concept_category_pairs) == 1
+    assert len(result.concept_category_without_english) == 0
+    assert len(result.missing_en_reusable_unambiguous) == 0
+    assert len(result.missing_en_reusable_ambiguous) == 0
+    assert len(result.missing_en_without_reuse) == 0
+
+
+def test_concept_covered_does_not_act_as_donor():
+    """A concept-covered row should not act as a reuse donor for other rows in its group."""
+    df = pd.DataFrame(
+        [
+            {
+                "id": "1", "meaning_id": "10", "lemma_id": "100", "lemma": "l1",
+                "lang": "vep", "pos": "NOUN", "meaning_ru": "тест",
+                "meaning_en": "",
+                "concept_id": "1", "category_id": "A1",
+            },
+            {
+                "id": "2", "meaning_id": "11", "lemma_id": "101", "lemma": "l2",
+                "lang": "olo", "pos": "NOUN", "meaning_ru": "тест",
+                "meaning_en": "",
+                "concept_id": "", "category_id": "",
+            },
+        ]
+    )
+    result = analyze_missing_en_reuse(df)
+
+    assert len(result.concept_category_without_english) == 1
+    assert len(result.missing_en_without_reuse) == 1
+    assert result.missing_en_without_reuse.iloc[0]["meaning_id"] == "11"
+
+
+def test_rows_with_existing_meaning_en_not_checked():
+    """Rows with non-empty meaning_en should never be evaluated for concept/category consistency."""
+    df = pd.DataFrame(
+        [
+            {
+                "id": "1", "meaning_id": "10", "lemma_id": "100", "lemma": "l1",
+                "lang": "vep", "pos": "NOUN", "meaning_ru": "дом",
+                "meaning_en": "house",
+                "concept_id": "1", "category_id": "",
+            },
+        ]
+    )
+    result = analyze_missing_en_reuse(df)
+
+    assert len(result.invalid_concept_category_pairs) == 0
+    assert len(result.concept_category_without_english) == 0
+
+
+def test_concept_category_audit_files_schema_and_empty(tmp_path):
+    """Test schema and empty-file behavior for the two new audit files."""
+    df = pd.DataFrame(
+        [
+            {
+                "id": "1", "meaning_id": "10", "lemma_id": "100", "lemma": "l1",
+                "lang": "vep", "pos": "NOUN", "meaning_ru": "тест",
+                "meaning_en": "",
+                "concept_id": "", "category_id": "",
+            },
+        ]
+    )
+    result = analyze_missing_en_reuse(df)
+    write_reuse_outputs(result, tmp_path)
+
+    for filename in [
+        "concept_category_without_english.csv",
+        "invalid_concept_category_pairs.csv",
+    ]:
+        path = tmp_path / filename
+        assert path.exists()
+        content = pd.read_csv(path, dtype=str, keep_default_na=False)
+        assert list(content.columns) == [
+            "id", "meaning_id", "lemma_id", "lemma", "lang",
+            "pos", "meaning_ru", "concept_id", "category_id",
+        ]
+        assert content.empty
+
+
+def test_five_term_classification_invariant():
+    """Test five-term classification invariant including concept-covered and invalid-pair rows."""
+    df = pd.DataFrame(
+        [
+            {"id": "1", "meaning_id": "1", "lemma_id": "1", "lemma": "l1", "lang": "vep", "pos": "NOUN", "meaning_ru": "а", "meaning_en": "village", "concept_id": "", "category_id": ""},
+            {"id": "2", "meaning_id": "2", "lemma_id": "2", "lemma": "l2", "lang": "olo", "pos": "NOUN", "meaning_ru": "а", "meaning_en": "", "concept_id": "", "category_id": ""},
+            {"id": "3", "meaning_id": "3", "lemma_id": "3", "lemma": "l3", "lang": "krl", "pos": "NOUN", "meaning_ru": "б", "meaning_en": "offence", "concept_id": "", "category_id": ""},
+            {"id": "4", "meaning_id": "4", "lemma_id": "4", "lemma": "l4", "lang": "vep", "pos": "NOUN", "meaning_ru": "б", "meaning_en": "insult", "concept_id": "", "category_id": ""},
+            {"id": "5", "meaning_id": "5", "lemma_id": "5", "lemma": "l5", "lang": "olo", "pos": "NOUN", "meaning_ru": "б", "meaning_en": "", "concept_id": "", "category_id": ""},
+            {"id": "6", "meaning_id": "6", "lemma_id": "6", "lemma": "l6", "lang": "vep", "pos": "VERB", "meaning_ru": "стрелять", "meaning_en": "", "concept_id": "951", "category_id": "B353"},
+            {"id": "7", "meaning_id": "7", "lemma_id": "7", "lemma": "l7", "lang": "krl", "pos": "NOUN", "meaning_ru": "берег", "meaning_en": "", "concept_id": "1293", "category_id": ""},
+        ]
+    )
+    result = analyze_missing_en_reuse(df)
+    stats = result.stats
+
+    assert stats["rows_missing_en"] == (
+        stats["rows_reusable_unambiguous"]
+        + stats["rows_reusable_ambiguous"]
+        + stats["rows_missing_en_without_reuse"]
+        + stats["rows_concept_covered_skip"]
+        + stats["rows_invalid_concept_category_pair"]
+    )
+    assert stats["rows_concept_covered_skip"] == 1
+    assert stats["rows_invalid_concept_category_pair"] == 1
 
 
 def test_cli_smoke_test():
@@ -1412,9 +1544,11 @@ def test_cli_smoke_test():
         result = analyze_missing_en_reuse(work)
         write_reuse_outputs(result, translate_dir)
 
-        # Verify all 6 output files exist
+        # Verify all 8 output files exist
         assert (translate_dir / "needs_translation_no_reuse.csv").exists()
         assert (translate_dir / "pos_meanings_ru.csv").exists()
+        assert (translate_dir / "concept_category_without_english.csv").exists()
+        assert (translate_dir / "invalid_concept_category_pairs.csv").exists()
         reusable_dir = translate_dir / "reusable_english"
         assert reusable_dir.exists()
         assert (reusable_dir / "one_english.csv").exists()
@@ -1431,8 +1565,8 @@ def test_cli_smoke_test():
         # Verify unambiguous output has the missing rows (4 languages * 1 missing row each)
         unamb_df = pd.read_csv(reusable_dir / "one_english.csv")
         assert len(unamb_df) == 4  # 4 languages, each has 1 missing row for деревня
-        # The gloss is "деревня деревня" from the fixture
-        assert "деревня деревня" in unamb_df["primary_gloss_ru"].values
+        # The meaning_ru is "деревня деревня" from the fixture
+        assert "деревня деревня" in unamb_df["meaning_ru"].values
         assert unamb_df.iloc[0]["existing_en_candidates"] == "village"
 
 
@@ -1445,7 +1579,6 @@ if __name__ == "__main__":
     tests = [
         test_is_nonblank_text,
         test_normalize_existing_en,
-        test_build_pos_gloss_ru_key,
         test_distinct_existing_en_candidates_unambiguous,
         test_distinct_existing_en_candidates_ambiguous,
         test_distinct_existing_en_candidates_ignores_blank,
@@ -1453,7 +1586,7 @@ if __name__ == "__main__":
         test_distinct_existing_en_candidates_normalizes_whitespace,
         test_distinct_existing_en_candidates_does_not_split_semicolon,
         test_grouper_different_pos_same_gloss_are_separate,
-        test_grouper_same_pos_different_gloss_are_separate,
+        test_grouper_same_pos_different_full_meanings_are_separate,
         test_unambiguous_reuse_one_candidate,
         test_unambiguous_reuse_all_missing_no_candidates,
         test_ambiguous_reuse_two_candidates,
