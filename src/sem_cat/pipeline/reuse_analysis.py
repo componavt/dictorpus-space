@@ -50,10 +50,7 @@ CORE_ROW_LEVEL_COLUMNS = [
     "lemma",
     "lang",
     "pos",
-    "task_pos",
     "meaning_ru",
-    "concept_id",
-    "category_id",
 ]
 
 NO_REUSE_ROW_LEVEL_COLUMNS = [
@@ -197,14 +194,13 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
     Args:
         df: Prepared meanings DataFrame with columns:
             - lang, lemma, pos, meaning_ru, meaning_en
-            - task_pos, meaning_ru (from prepare_meanings_for_translation)
+            - meaning_ru (from prepare_meanings_for_translation)
             
     Returns:
         ReuseAnalysisResult with all output DataFrames and stats
     """
     work = df.copy()
 
-    work["task_pos"] = work["pos"].fillna("").astype(str).str.strip()
     work["meaning_ru"] = work["meaning_ru"].fillna("").astype(str).str.strip()
     work["existing_en_norm"] = work["meaning_en"].map(normalize_existing_en)
     work["has_existing_en"] = work["existing_en_norm"].notna()

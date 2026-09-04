@@ -377,7 +377,7 @@ def test_writer_creates_csvs_with_headers_even_when_empty():
         assert "pos_meaning_ru_key" not in unamb_cols
         assert "missing_row_count_for_pos_gloss_ru" not in unamb_cols
         assert "existing_en_row_count_for_pos_gloss_ru" not in unamb_cols
-        assert "task_pos" in unamb_cols
+        assert "task_pos" not in unamb_cols
         assert len(unamb_df) == 0
 
 
@@ -602,10 +602,8 @@ def test_row_level_outputs_preserve_identifiers():
         "lemma_id",
         "lemma",
         "lang",
-        "task_pos",
+        "pos",
         "meaning_ru",
-        "concept_id",
-        "category_id",
     }
     unamb_cols = set(result.missing_en_reusable_unambiguous.columns)
     assert required.issubset(unamb_cols)
@@ -656,8 +654,7 @@ def test_no_reuse_output_has_correct_schema():
         assert len(no_reuse_df) == 2
 
         required_cols = {
-            "id", "meaning_id", "lemma_id", "lemma", "lang", "pos", "task_pos",
-            "meaning_ru", "concept_id", "category_id",
+            "id", "meaning_id", "lemma_id", "lemma", "lang", "pos", "meaning_ru",
         }
         assert set(no_reuse_df.columns) == required_cols
 
@@ -752,8 +749,7 @@ def test_no_reuse_empty_output_creates_csv_with_headers():
         assert len(no_reuse_df) == 0
 
         required_cols = {
-            "id", "meaning_id", "lemma_id", "lemma", "lang", "pos", "task_pos",
-            "meaning_ru", "concept_id", "category_id",
+            "id", "meaning_id", "lemma_id", "lemma", "lang", "pos", "meaning_ru",
         }
         assert set(no_reuse_df.columns) == required_cols
 
@@ -794,10 +790,7 @@ def test_no_reuse_csv_schema_and_content():
             "lemma",
             "lang",
             "pos",
-            "task_pos",
             "meaning_ru",
-            "concept_id",
-            "category_id",
         }
         assert required_columns == set(output.columns)
 
@@ -1106,7 +1099,7 @@ def test_pos_meanings_ru_deduplicate_identical_pairs():
 
 
 def test_no_reuse_csv_schema_snapshot(tmp_path):
-    """Lock the exact 10-column schema of needs_translation_no_reuse.csv."""
+    """Lock the exact 7-column schema of needs_translation_no_reuse.csv."""
     df = pd.DataFrame(
         [
             {
@@ -1139,10 +1132,7 @@ def test_no_reuse_csv_schema_snapshot(tmp_path):
         "lemma",
         "lang",
         "pos",
-        "task_pos",
         "meaning_ru",
-        "concept_id",
-        "category_id",
     ]
     assert list(output.columns) == expected_columns
 
@@ -1680,6 +1670,8 @@ if __name__ == "__main__":
         test_reusable_english_files_moved_and_renamed,
         test_reusable_english_files_created_even_when_empty,
         test_one_english_and_several_english_content_unchanged,
+        test_row_level_schemas_exclude_task_pos_and_concept_category,
+        test_audit_files_still_have_concept_and_category,
     ]
 
     passed = 0
@@ -1697,3 +1689,90 @@ if __name__ == "__main__":
     print(f"\n{passed} passed, {failed} failed out of {len(tests)} tests")
     if failed > 0:
         sys.exit(1)
+
+
+def test_row_level_schemas_exclude_task_pos_and_concept_category(tmp_path):
+    df = pd.DataFrame(
+        [
+            {
+                "id": "1", "meaning_id": "1", "lemma_id": "1", "lemma": "l1",
+                "lang": "vep", "pos": "NOUN", "meaning_ru": "тест1",
+                "meaning_en": "", "concept_id": "", "category_id": "",
+            },
+            {
+                "id": "2", "meaning_id": "2", "lemma_id": "2", "lemma": "l2",
+                "lang": "olo", "pos": "NOUN", "meaning_ru": "тест2",
+                "meaning_en": "village", "concept_id": "", "category_id": "",
+            },
+            {
+                "id": "3", "meaning_id": "3", "lemma_id": "3", "lemma": "l3",
+                "lang": "krl", "pos": "NOUN", "meaning_ru": "тест2",
+                "meaning_en": "", "concept_id": "", "category_id": "",
+            },
+            {
+                "id": "4", "meaning_id": "4", "lemma_id": "4", "lemma": "l4",
+                "lang": "vep", "pos": "NOUN", "meaning_ru": "тест2",
+                "meaning_en": "hamlet", "concept_id": "", "category_id": "",
+            },
+        ]
+    )
+    result = analyze_missing_en_reuse(df)
+    write_reuse_outputs(result, tmp_path)
+
+    no_reuse = pd.read_csv(
+        tmp_path / "needs_translation_no_reuse.csv", dtype=str, keep_default_na=False
+    )
+    one_english = pd.read_csv(
+        tmp_path / "reusable_english" / "one_english.csv", dtype=str, keep_default_na=False
+    )
+    several_english = pd.read_csv(
+        tmp_path / "reusable_english" / "several_english.csv", dtype=str, keep_default_na=False
+    )
+
+    for output in (no_reuse, one_english, several_english):
+        assert "task_pos" not in output.columns
+        assert "concept_id" not in output.columns
+        assert "category_id" not in output.columns
+        assert "pos" in output.columns
+        assert "meaning_ru" in output.columns
+
+    assert list(no_reuse.columns) == [
+        "id", "meaning_id", "lemma_id", "lemma", "lang", "pos", "meaning_ru",
+    ]
+
+
+def test_audit_files_still_have_concept_and_category(tmp_path):
+    df = pd.DataFrame(
+        [
+            {
+                "id": "1", "meaning_id": "1", "lemma_id": "1", "lemma": "l1",
+                "lang": "vep", "pos": "VERB", "meaning_ru": "стрелять",
+                "meaning_en": "", "concept_id": "951", "category_id": "B353",
+            },
+            {
+                "id": "2", "meaning_id": "2", "lemma_id": "2", "lemma": "l2",
+                "lang": "krl", "pos": "NOUN", "meaning_ru": "берег",
+                "meaning_en": "", "concept_id": "1293", "category_id": "",
+            },
+        ]
+    )
+    result = analyze_missing_en_reuse(df)
+    write_reuse_outputs(result, tmp_path)
+
+    concept_covered = pd.read_csv(
+        tmp_path / "concept_category_without_english.csv", dtype=str, keep_default_na=False
+    )
+    invalid_pair = pd.read_csv(
+        tmp_path / "invalid_concept_category_pairs.csv", dtype=str, keep_default_na=False
+    )
+
+    assert list(concept_covered.columns) == [
+        "id", "meaning_id", "lemma_id", "lemma", "lang",
+        "pos", "meaning_ru", "concept_id", "category_id",
+    ]
+    assert list(invalid_pair.columns) == [
+        "id", "meaning_id", "lemma_id", "lemma", "lang",
+        "pos", "meaning_ru", "concept_id", "category_id",
+    ]
+    assert len(concept_covered) == 1
+    assert len(invalid_pair) == 1
