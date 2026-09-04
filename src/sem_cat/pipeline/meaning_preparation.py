@@ -71,9 +71,9 @@ def prepare_meanings_for_reuse_and_translation(df_meanings: pd.DataFrame) -> pd.
 
     out["has_existing_en"] = out["existing_en_norm"].ne("")
     out["task_key"] = [
-        serialize_task_key(pos, gloss_ru)
-        for pos, gloss_ru in zip(
-            out["pos"], out["primary_gloss_ru"], strict=True
+        serialize_task_key(pos, meaning_ru)
+        for pos, meaning_ru in zip(
+            out["pos"], out["meaning_ru"], strict=True
         )
     ]
     return out

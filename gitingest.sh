@@ -2,7 +2,10 @@
 set -eu
 
 # Run from the repository root
-#  --exclude-pattern "__init__.py" \
+#
+# Not Step 01
+# --exclude-pattern "tests/sem_cat/test_reuse_analysis.py" \ 
+#
 
 mkdir -p out_gitingest
 
@@ -20,9 +23,10 @@ gitingest . \
   --include-pattern "tests/sem_cat/**/*.py" \
   --include-pattern "data/sem_cat/concepts/get_concepts_with_english.py" \
   --include-pattern "data/sem_cat/concepts/split_concepts_for_translation.py" \
+  --exclude-pattern "tests/sem_cat/test_reuse_analysis.py" \
   --exclude-pattern "src/notebooks/*" \
   --exclude-pattern "*/__pycache__/*" \
   --exclude-pattern "*.pyc" \
   --exclude-pattern "*.ipynb" \
   --exclude-pattern "out_gitingest/*" \
-  --output out_gitingest/semcat_54.md
+  --output out_gitingest/semcat_56.md

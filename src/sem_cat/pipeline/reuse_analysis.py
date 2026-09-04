@@ -24,12 +24,9 @@ from typing import Tuple
 
 import pandas as pd
 
-TOP_LEVEL_CANDIDATE_SEP = " || "
+from src.sem_cat.io import POS_MEANINGS_RU_COLUMNS
 
-POS_MEANINGS_RU_COLUMNS = [
-    "pos",
-    "meaning_ru",
-]
+TOP_LEVEL_CANDIDATE_SEP = " || "
 
 CONCEPT_CATEGORY_AUDIT_COLUMNS = [
     "id",

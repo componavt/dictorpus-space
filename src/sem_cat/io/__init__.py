@@ -7,6 +7,7 @@ from .translation_cache import (
     count_cached_rows,
     REQUIRED_CACHE_COLUMNS,
 )
+from .pos_meaning_ru_reader import read_pos_meaning_ru_tasks, POS_MEANINGS_RU_COLUMNS
 
 __all__ = [
     "build_translation_row",
@@ -16,4 +17,6 @@ __all__ = [
     "build_cached_gloss_set",
     "count_cached_rows",
     "REQUIRED_CACHE_COLUMNS",
+    "read_pos_meaning_ru_tasks",
+    "POS_MEANINGS_RU_COLUMNS",
 ]

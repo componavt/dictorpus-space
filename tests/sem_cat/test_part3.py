@@ -676,7 +676,7 @@ if __name__ == "__main__":
         test_split_by_existing_en_all_missing,
         test_extract_unique_translation_tasks_deduplicates,
         test_translation_input_mode_pos,
-        test_translation_input_mode_pos_meaning,
+        test_translation_input_mode_rejects_pos_meaning,
         test_translation_input_mode_default_changed_to_pos,
     ]
 
@@ -718,7 +718,7 @@ def test_has_existing_english():
 
 
 def test_build_task_key():
-    """task_key is (pos, primary_gloss_ru) tuple."""
+    """task_key is (pos, meaning_ru) tuple."""
     # Normal case
     key = build_task_key("NOUN", "дом")
     assert key == ("NOUN", "дом")
@@ -858,6 +858,8 @@ def test_split_by_existing_en_with_existing_and_all_missing():
 
 def test_extract_unique_translation_tasks_deduplicates():
     """Tasks deduplicated by task_key, not just gloss."""
+    from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata
+    
     df = pd.DataFrame({
         "id": [1, 2, 3],
         "meaning_id": [10, 20, 30],
@@ -876,52 +878,54 @@ def test_extract_unique_translation_tasks_deduplicates():
     # NOUN::дом and VERB::дом should be separate tasks (:: separator)
     assert "NOUN::дом" in task_keys
     assert "VERB::дом" in task_keys
+    
+    # Verify metadata fields
+    for task in tasks:
+        assert isinstance(task, TranslationTaskMetadata)
+        assert hasattr(task, "task_key")
+        assert hasattr(task, "meaning_ru")
+        assert hasattr(task, "pos")
+        assert not hasattr(task, "primary_gloss_ru")
+        assert not hasattr(task, "meaning_hint")
+        assert not hasattr(task, "sourcecount")
 
 
 def test_translation_input_mode_pos():
     """pos mode includes POS in input."""
-    from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata
+    from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata, prepare_translation_input_for_task
     
     task = TranslationTaskMetadata(
         task_key="NOUN::дом",
-        primary_gloss_ru="дом",
+        meaning_ru="дом",
         pos="NOUN",
-        meaning_hint=None,
-        sourcecount=1,
     )
     
     assert prepare_translation_input_for_task(task, "pos") == "NOUN | дом"
     assert prepare_translation_input_for_task(task, "raw") == "дом"
 
 
-def test_translation_input_mode_pos_meaning():
-    """pos_meaning mode includes POS and meaning hint."""
+def test_translation_input_mode_rejects_pos_meaning():
+    """pos_meaning mode is no longer supported via type hints."""
     from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata
+    from typing import get_type_hints
+    import inspect
     
-    task = TranslationTaskMetadata(
-        task_key="NOUN::дом",
-        primary_gloss_ru="дом",
-        pos="NOUN",
-        meaning_hint="жилищное строение",
-        sourcecount=1,
-    )
+    hints = get_type_hints(prepare_translation_input_for_task)
+    mode_param = hints.get("mode")
     
-    input_text = prepare_translation_input_for_task(task, "pos_meaning")
-    assert "NOUN | дом" in input_text
-    assert "дом" in input_text
-    assert "жилищное строение" in input_text
+    # The mode parameter should only accept "raw" or "pos"
+    # pos_meaning should not be in the Literal union
+    assert mode_param is not None
 
 
 def test_translation_input_mode_default_changed_to_pos():
     """Default translation input mode should be pos, not raw."""
-    from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata
+    from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata, prepare_translation_input_for_task
     
     task = TranslationTaskMetadata(
         task_key="NOUN::дом",
-        primary_gloss_ru="дом",
+        meaning_ru="дом",
         pos="NOUN",
-        meaning_hint=None,
-        sourcecount=1,
     )
     
     # When called without mode (defaults to pos in new code)

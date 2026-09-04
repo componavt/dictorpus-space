@@ -15,21 +15,21 @@ from src.sem_cat.utils.gloss_normalizer import primary_gloss
 TASK_KEY_SEP = "::"
 
 
-def serialize_task_key(pos: str, primary_gloss_ru: str) -> str:
+def serialize_task_key(pos: str, meaning_ru: str) -> str:
     """Serialize task key to a stable string format.
     
     Args:
         pos: Part of speech (e.g., "NOUN", "VERB")
-        primary_gloss_ru: Russian gloss string
+        meaning_ru: Russian meaning string
         
     Returns:
-        Serialized task key in format "POS::gloss"
+        Serialized task key in format "POS::meaning_ru"
     """
-    return f"{pos}{TASK_KEY_SEP}{primary_gloss_ru}"
+    return f"{pos}{TASK_KEY_SEP}{meaning_ru}"
 
 
 def parse_serialized_task_key(value: str) -> tuple[str, str] | None:
-    """Parse a serialized task key back to (pos, gloss) tuple.
+    """Parse a serialized task key back to (pos, meaning_ru) tuple.
     
     Supports both new :: format and legacy \\t format for backward compatibility.
     
@@ -37,7 +37,7 @@ def parse_serialized_task_key(value: str) -> tuple[str, str] | None:
         value: Serialized task key string
         
     Returns:
-        (pos, gloss) tuple or None if parsing fails
+        (pos, meaning_ru) tuple or None if parsing fails
     """
     if not value or not isinstance(value, str):
         return None
@@ -45,11 +45,11 @@ def parse_serialized_task_key(value: str) -> tuple[str, str] | None:
     if not value:
         return None
     if TASK_KEY_SEP in value:
-        pos, gloss = value.split(TASK_KEY_SEP, 1)
-        return pos, gloss
+        pos, meaning_ru = value.split(TASK_KEY_SEP, 1)
+        return pos, meaning_ru
     if "\t" in value:
-        pos, gloss = value.split("\t", 1)
-        return pos, gloss
+        pos, meaning_ru = value.split("\t", 1)
+        return pos, meaning_ru
     return None
 
 
@@ -82,55 +82,49 @@ def has_existing_english(meaning_en: str | None) -> bool:
     return bool(canonical_existing_en(meaning_en))
 
 
-def build_task_key(pos: str, primary_gloss_ru: str) -> tuple[str, str]:
-    """Build task key as (pos, primary_gloss_ru) tuple.
+def build_task_key(pos: str, meaning_ru: str) -> tuple[str, str]:
+    """Build task key as (pos, meaning_ru) tuple.
     
     Args:
         pos: Part of speech
-        primary_gloss_ru: Primary Russian gloss
+        meaning_ru: Full Russian meaning string
         
     Returns:
-        (pos, primary_gloss_ru) tuple
+        (pos, meaning_ru) tuple
     """
-    return (pos, primary_gloss_ru)
+    return (pos, meaning_ru)
 
 
 @dataclass(frozen=True)
 class TranslationTaskMetadata:
     """Metadata for a translation task."""
     task_key: str
-    primary_gloss_ru: str
+    meaning_ru: str
     pos: str
-    meaning_hint: str | None
-    sourcecount: int
 
 
 def prepare_translation_input_for_task(
     task: TranslationTaskMetadata,
-    mode: Literal["raw", "pos", "pos_meaning"],
+    mode: Literal["raw", "pos"],
 ) -> str:
     """Prepare translation input for a task.
     
     Args:
         task: Translation task metadata
-        mode: One of "raw", "pos", "pos_meaning"
+        mode: One of "raw", "pos"
         
     Returns:
         Input string to send to translator
     """
     if mode == "raw":
-        return task.primary_gloss_ru
+        return task.meaning_ru
 
     pos_str = task.pos
 
     if mode == "pos":
-        return f"{pos_str} | {task.primary_gloss_ru}"
+        return f"{pos_str} | {task.meaning_ru}"
 
-    if mode == "pos_meaning":
-        meaning_str = task.meaning_hint if task.meaning_hint else ""
-        return f"{pos_str} | {task.primary_gloss_ru} | {meaning_str}"
-
-    return task.primary_gloss_ru
+    return task.meaning_ru
 
 
 def prepare_meanings_for_translation(df_meanings: pd.DataFrame) -> pd.DataFrame:
@@ -227,10 +221,8 @@ def build_task_metadata_map(df: pd.DataFrame) -> dict[str, TranslationTaskMetada
         
         metadata_map[str(task_key)] = TranslationTaskMetadata(
             task_key=str(task_key),
-            primary_gloss_ru=first_row.get("primary_gloss_ru"),
+            meaning_ru=first_row.get("meaning_ru"),
             pos=first_row.get("pos"),
-            meaning_hint=None,
-            sourcecount=int(first_row.get("sourcecount", 1)) if pd.notna(first_row.get("sourcecount")) else 1,
         )
     
     return metadata_map
@@ -269,24 +261,53 @@ def extract_unique_translation_tasks(
     
     if df.empty:
         return tasks
-    
-    # Deduplicate by task_key
+
     seen_keys = set()
     for task_key in df["task_key"].dropna().unique():
         if task_key in seen_keys:
             continue
         seen_keys.add(task_key)
         
-        # Get first row for this task_key to extract metadata
         first_row = df[df["task_key"] == task_key].iloc[0]
         
         task = TranslationTaskMetadata(
             task_key=str(task_key),
-            primary_gloss_ru=first_row.get("primary_gloss_ru"),
+            meaning_ru=first_row.get("meaning_ru"),
             pos=first_row.get("pos"),
-            meaning_hint=None,
-            sourcecount=int(first_row.get("sourcecount", 1)) if pd.notna(first_row.get("sourcecount")) else 1,
         )
         tasks.append(task)
     
+    return tasks
+
+
+def build_translation_tasks_from_pos_meaning_ru(
+    df: pd.DataFrame,
+) -> list[TranslationTaskMetadata]:
+    """Convert validated pos_meaning_ru_reader DataFrame to task metadata.
+
+    One input row becomes one TranslationTaskMetadata.
+    Preserves file order and does not deduplicate again.
+
+    Args:
+        df: DataFrame from read_pos_meaning_ru_tasks with columns ["pos", "meaning_ru"]
+
+    Returns:
+        List of TranslationTaskMetadata objects in file order
+    """
+    tasks: list[TranslationTaskMetadata] = []
+
+    if df.empty:
+        return tasks
+
+    for _, row in df.iterrows():
+        pos = row.get("pos", "")
+        meaning_ru = row.get("meaning_ru", "")
+
+        metadata = TranslationTaskMetadata(
+            task_key=serialize_task_key(str(pos), str(meaning_ru)),
+            meaning_ru=str(meaning_ru),
+            pos=str(pos),
+        )
+        tasks.append(metadata)
+
     return tasks

@@ -17,6 +17,7 @@ from .vepkar_translation_selection import (
     prepare_translation_input_for_task,
     extract_unique_translation_tasks,
     build_task_metadata_map,
+    build_translation_tasks_from_pos_meaning_ru,
     TranslationTaskMetadata,
     compute_suggested_candidate_index,
 )
@@ -42,6 +43,7 @@ __all__ = [
     "prepare_translation_input_for_task",
     "extract_unique_translation_tasks",
     "build_task_metadata_map",
+    "build_translation_tasks_from_pos_meaning_ru",
     "TranslationTaskMetadata",
     "compute_suggested_candidate_index",
     "ReuseAnalysisResult",
