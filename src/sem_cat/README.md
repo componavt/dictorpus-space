@@ -172,20 +172,25 @@ Many causal models have quantization enabled in the registry defaults:
 
 ## Step 01 — Missing-English reuse analysis
 
-This step inspects only meanings whose English translation is missing and groups them by the exact pair `(pos, primary_gloss_ru)`.
+This step finds meanings without English translation and groups eligible rows by exact `(pos, meaning_ru)`.
 
-It exports two row-level files and two summary files in `data/sem_cat/2translate/`:
+Output in `data/sem_cat/2translate`:
 
-- `missing_en_reusable_unambiguous_pos_gloss_ru.csv`
-- `missing_en_reusable_ambiguous_pos_gloss_ru.csv`
-- `missing_en_reusable_unambiguous_pos_gloss_ru_summary.csv`
-- `missing_en_reusable_ambiguous_pos_gloss_ru_summary.csv`
+- `needs_translation_no_reuse.csv`
+- `pos_meanings_ru.csv`
+- `concept_category_without_english.csv`
+- `invalid_concept_category_pairs.csv`
 
-Interpretation:
-- **unambiguous**: exactly one distinct existing English value already exists in the corpus for the same `(pos, primary_gloss_ru)`
-- **ambiguous**: two or more distinct existing English values already exist in the corpus for the same `(pos, primary_gloss_ru)`
+Reusable-English review files are written to `data/sem_cat/2translate/reusable_english`:
 
-This step only exports reuse evidence. It does not auto-fill meanings and does not run any MT backend.
+- `one_english.csv`
+- `one_english_summary.csv`
+- `several_english.csv`
+- `several_english_summary.csv`
+
+`pos_meanings_ru.csv` contains the unique `(pos, meaning_ru)` pairs to translate.
+
+This step does not run an MT backend.
 
 **Main command**
 
@@ -200,48 +205,31 @@ python3 -m src.sem_cat.01_reuse_analysis \
 
 **What it does**
 - Loads VepKar meanings files (`meanings_krl.csv`, `meanings_lud.csv`, `meanings_olo.csv`, `meanings_vep.csv`).
-- Filters to rows with non-empty `primary_gloss_ru` and missing `meaning_en`.
-- Groups by exact `(pos, primary_gloss_ru)` to identify reuse candidates.
-- Detects reuse by counting distinct existing English values per group:
-  - **1 distinct value** → reusable_unambiguous
-  - **2+ distinct values** → reusable_ambiguous
-  - **0 values** → no reusable evidence (passed to step 02 later)
-- Writes helper CSV files in `data/sem_cat/2translate/`
-- Prints summary statistics to console
+- Reads the raw VepKar fields `pos`, `meaning_ru`, `meaning_en`, `concept_id`, and `category_id`.
+- Finds meanings with no English translation (blank `meaning_en`).
+- Groups translation candidates by exact `(pos, meaning_ru)`.
+- Writes `pos_meanings_ru.csv`: unique Russian meanings to translate, with POS.
 
 **Row-level output columns**
-- `pos_gloss_ru_key` - serialized `(pos, primary_gloss_ru)` key
-- `task_pos` - part of speech
-- `primary_gloss_ru` - Russian primary gloss
-- `lang` - language variety (krl, lud, olo, vep)
-- `lemma` - dictionary lemma
-- `existing_en_candidates` - top-level candidates separated by ` || `
-- `existing_en_candidate_count` - number of distinct candidates
-- `missing_row_count_for_pos_gloss_ru` - count of missing-English rows in this group
-- `existing_en_row_count_for_pos_gloss_ru` - count of existing-English rows in this group
-- `suggested_candidate_index` — a 1-based position in `existing_en_candidates`.
-  It is currently `1` whenever candidates exist; for example,
-  `offence || insult || grievance` → `1` means “preselect `offence`”.
 
-**Summary output columns**
-- `pos_gloss_ru_key` - serialized `(pos, primary_gloss_ru)` key
-- `task_pos` - part of speech
-- `primary_gloss_ru` - Russian primary gloss
-- `existing_en_candidates` - candidates string
-- `existing_en_candidate_count` - number of distinct candidates
-- `missing_row_count` - rows missing English in this group
-- `existing_en_row_count` - rows with English in this group
-- `langs` - language varieties separated by ` || `
-- `example_lemma` - first lemma from group
-- `suggested_candidate_index` - 1 (for ambiguous) or 1 (for unambiguous)
+`needs_translation_no_reuse.csv`:
+
+```text
+id, meaning_id, lemma_id, lemma, lang, pos, meaning_ru
+```
+
+### Translation task input
+
+`pos_meanings_ru.csv` contains unique translation tasks:
+
+```csv
+pos,meaning_ru
+```
 
 **Important behavior**
-- Only analyzes rows where `meaning_en` is missing/blank.
-- Groups are exact by `(pos, primary_gloss_ru)`; same gloss with different POS are separate groups.
-- Whitespace in existing English is normalized (collapsed) before counting distinct values.
-- Semicolon-separated candidates are NOT split; `"offence; insult"` counts as one candidate string.
-- Groups with zero existing English values are not written to either Step 01 reuse file; they remain part of the missing-English pool for Step 02.
-- Empty CSVs are still written with headers to ensure predictable output.
+- Step 01 examines rows where `meaning_en` is missing or blank.
+- Rows with both `concept_id` and `category_id` blank are eligible for reuse analysis and translation.
+- `"offence; insult"` is one candidate string; semicolons do not split candidates.
 
 ---
 
@@ -831,15 +819,15 @@ source .venv/bin/activate
 
 # 0. tests
 pytest tests/sem_cat/ -q
+pytest -q tests/sem_cat/test_reuse_analysis.py
 
-# 1. smoke tests
+# 1. reuse analysis
 python3 -m src.sem_cat.01_reuse_analysis
+
+# 2. translation backend smoke tests
 python3 -m src.sem_cat.02_translate_glosses --model-key google --backend-info
 python3 -m src.sem_cat.02_translate_glosses --model-key helsinki_opus_mt_ru_en --backend-info
 python3 -m src.sem_cat.02_translate_glosses --model-key nllb_3_3b --backend-info
-
-# 2. reuse analysis
-python3 -m src.sem_cat.01_reuse_analysis
 
 # 3. translations
 python3 -m src.sem_cat.02_translate_glosses --model-key google

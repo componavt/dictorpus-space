@@ -13,6 +13,7 @@ results
 data/sem_cat/02_glosses_translated_*.csv
 data/sem_cat/*.txt
 data/sem_cat/03_translation_*.csv
+data/sem_cat/2translate
 
 
 # Distribution / packaging

@@ -1,3 +1,16 @@
+Укажи точечные изменения в файле `src/sem_cat/README.md`, отражающие новую реальность в шаге `01 reuse_analysis`. Такжи кратко дай команды для тестирования этого шага. 
+
+
+
+Остаются запланированные работы:
+
+- **H.4:** Step 02 начинает читать `data/sem_cat/2translate/pos_meanings_ru.csv` и переходит на identity `(pos, meaning_ru)`;
+- **H.5:** Step 03 начинает работать с новым Step 02 contract;
+- **H.6:** документация и final repository-wide sweep устаревших терминов;
+- отдельное решение по `lemma_sense_count`/`meaning_count`, если эта метрика когда-либо понадобится для экспертного review;
+- отдельная работа с глобальными окружениями HASEE/мощной машины — но сейчас она не блокирует Step 01, поскольку полный `pytest tests/sem_cat -q` на HASEE успешно завершился.
+
+
 `H.4 — миграция Step 02 от task_key=(pos, primary_gloss_ru) к task_key=(pos, meaning_ru).`
 
 Предлагаемое разбиение H.4 на 4 задачи одобряю. 
@@ -8,10 +21,9 @@
 
 == H.4B — Миграция task identity и TranslationTaskMetadata ==
 
+Согласен удалить оба поля (`meaning_hint` и `sourcecount`) из task metadata в H.4B, а не оставлять с фиктивными значениями.
 
-
-
-
+Также Удалить `pos_meaning` как избыточный CLI mode, то есть удалить `pos_meaning` как режим 
 
 
 
