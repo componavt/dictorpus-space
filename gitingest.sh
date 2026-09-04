@@ -25,4 +25,4 @@ gitingest . \
   --exclude-pattern "*.pyc" \
   --exclude-pattern "*.ipynb" \
   --exclude-pattern "out_gitingest/*" \
-  --output out_gitingest/semcat_52.md
+  --output out_gitingest/semcat_53.md
