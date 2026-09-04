@@ -1,13 +1,16 @@
-2translate:
-`missing_en_reusable_unambiguous_by_task.csv`
-`missing_en_reusable_ambiguous_by_task.csv`
-`needs_translation_no_reuse.csv`
-`missing_en_reusable_unambiguous_by_task_summary.csv`
-`missing_en_reusable_ambiguous_by_task_summary.csv`
 
 
-Обсудим файл первого шага: `needs_translation_no_reuse.csv`.
-Я предлагаю на шаге 2 и следующих работать не со всеми 5 файлами в папке `data/sem_cat/2translate`, а только с теми строками/задачами, которые вовсе не имеют перевод на английский язык, то есть я говорю про информацию в файле `needs_translation_no_reuse.csv`. 
+
+
+
+
+
+
+
+
+
+
+
 
 Вот фрагмент этого файла `needs_translation_no_reuse.csv`:
 ```

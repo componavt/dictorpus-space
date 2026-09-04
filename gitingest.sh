@@ -9,7 +9,6 @@ mkdir -p out_gitingest
 gitingest . \
   --include-pattern "README.md" \
   --include-pattern "requirements.txt" \
-  --include-pattern "requirements.lock" \
   --include-pattern "pytest.ini" \
   --include-pattern "src/sem_cat/*.py" \
   --include-pattern "src/sem_cat/**/*.py" \
@@ -26,4 +25,4 @@ gitingest . \
   --exclude-pattern "*.pyc" \
   --exclude-pattern "*.ipynb" \
   --exclude-pattern "out_gitingest/*" \
-  --output out_gitingest/semcat_50.md
+  --output out_gitingest/semcat_52.md

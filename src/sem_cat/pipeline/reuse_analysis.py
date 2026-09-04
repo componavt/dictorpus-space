@@ -180,6 +180,17 @@ def _is_blank_series(series: pd.Series) -> pd.Series:
     return series.isna() | series.astype(str).str.strip().eq("")
 
 
+def count_unique_pos_meaning_groups(df: pd.DataFrame) -> int:
+    """Return the number of exact unique (pos, meaning_ru) groups."""
+    if df.empty:
+        return 0
+    return int(
+        df[["pos", "meaning_ru"]]
+        .drop_duplicates()
+        .shape[0]
+    )
+
+
 def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
     """Analyze missing-English rows for reuse evidence grouped by (pos, meaning_ru).
     
@@ -194,7 +205,6 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
     work = df.copy()
 
     work["task_pos"] = work["pos"].fillna("").astype(str).str.strip()
-    work["meaning_ru"] = work["meaning_ru"].fillna("").astype(str).str.strip()
     work["meaning_ru"] = work["meaning_ru"].fillna("").astype(str).str.strip()
     work["existing_en_norm"] = work["meaning_en"].map(normalize_existing_en)
     work["has_existing_en"] = work["existing_en_norm"].notna()
@@ -408,9 +418,9 @@ def analyze_missing_en_reuse(df: pd.DataFrame) -> ReuseAnalysisResult:
             "rows_missing_en_without_reuse": int(len(no_reuse_df)),
             "rows_concept_covered_skip": int(len(concept_covered_df)),
             "rows_invalid_concept_category_pair": int(len(invalid_pair_df)),
-            "unambiguous_group_count": int(unambiguous_df["pos"].nunique()) if not unambiguous_df.empty else 0,
-            "ambiguous_group_count": int(ambiguous_df["pos"].nunique()) if not ambiguous_df.empty else 0,
-            "no_reuse_group_count": int(no_reuse_df["pos"].nunique()) if not no_reuse_df.empty else 0,
+            "unambiguous_group_count": count_unique_pos_meaning_groups(unambiguous_df),
+            "ambiguous_group_count": count_unique_pos_meaning_groups(ambiguous_df),
+            "no_reuse_group_count": count_unique_pos_meaning_groups(no_reuse_df),
         },
         per_lang_stats=None,
         pos_meanings_ru=pos_meanings_ru,

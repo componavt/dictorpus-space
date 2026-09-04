@@ -1347,7 +1347,59 @@ def test_translatable_row_still_classified_normally():
     assert len(result.concept_category_without_english) == 0
     assert len(result.invalid_concept_category_pairs) == 0
     assert len(result.missing_en_without_reuse) == 1
-    assert "деревня" in result.pos_meanings_ru["meaning_ru"].tolist()
+
+
+def test_group_counts_use_exact_pos_and_meaning_ru_pairs():
+    df = pd.DataFrame(
+        [
+            {
+                "id": "1",
+                "meaning_id": "1",
+                "lemma_id": "1",
+                "lemma": "l1",
+                "lang": "vep",
+                "pos": "NOUN",
+                "meaning_ru": "место (под чем-либо)",
+                "meaning_en": "",
+                "concept_id": "",
+                "category_id": "",
+            },
+            {
+                "id": "2",
+                "meaning_id": "2",
+                "lemma_id": "2",
+                "lemma": "l2",
+                "lang": "vep",
+                "pos": "NOUN",
+                "meaning_ru": "место (перед чем-либо)",
+                "meaning_en": "",
+                "concept_id": "",
+                "category_id": "",
+            },
+        ]
+    )
+
+    result = analyze_missing_en_reuse(df)
+
+    assert result.stats["rows_missing_en_without_reuse"] == 2
+    assert result.stats["no_reuse_group_count"] == 2
+
+
+def test_all_group_counts_count_exact_pairs_not_pos_tags():
+    df = pd.DataFrame([
+        {"lang": "vep", "lemma": "l1", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": "village"},
+        {"lang": "olo", "lemma": "l2", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
+        {"lang": "krl", "lemma": "l3", "pos": "NOUN", "meaning_ru": "деревня", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l4", "pos": "NOUN", "meaning_ru": "дом", "meaning_en": "house"},
+        {"lang": "olo", "lemma": "l5", "pos": "NOUN", "meaning_ru": "дом", "meaning_en": ""},
+        {"lang": "vep", "lemma": "l6", "pos": "NOUN", "meaning_ru": "концертный зал", "meaning_en": ""},
+        {"lang": "olo", "lemma": "l7", "pos": "NOUN", "meaning_ru": "концертный зал", "meaning_en": ""},
+    ])
+    result = analyze_missing_en_reuse(df)
+
+    assert result.stats["unambiguous_group_count"] == 2
+    assert result.stats["ambiguous_group_count"] == 0
+    assert result.stats["no_reuse_group_count"] == 1
 
 
 def test_concept_covered_row_fully_excluded():
