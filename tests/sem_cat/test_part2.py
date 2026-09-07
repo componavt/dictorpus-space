@@ -36,11 +36,10 @@ import pandas as pd
 from src.sem_cat.io.translation_rows import (
     build_translation_row,
     CANONICAL_COLUMNS,
-    QA_VERSION,
 )
 from src.sem_cat.io.translation_cache import (
     load_translation_cache,
-    REQUIRED_CACHE_COLUMNS,
+    CANONICAL_COLUMNS,
     build_cached_identity_set,
 )
 
@@ -194,14 +193,16 @@ def test_cache_loader_returns_empty_for_missing_file():
     assert "meaning_ru" in result.df.columns
 
 
-def test_cache_required_columns_defined():
-    assert "pos" in REQUIRED_CACHE_COLUMNS
-    assert "meaning_ru" in REQUIRED_CACHE_COLUMNS
-    assert "meaning_en" in REQUIRED_CACHE_COLUMNS
-    assert "qa_keep" in REQUIRED_CACHE_COLUMNS
-    assert "qa_score" in REQUIRED_CACHE_COLUMNS
-    assert "qa_flags" in REQUIRED_CACHE_COLUMNS
-    assert "model_key" in REQUIRED_CACHE_COLUMNS
+def test_cache_canonical_columns_defined():
+    assert "pos" in CANONICAL_COLUMNS
+    assert "meaning_ru" in CANONICAL_COLUMNS
+    assert "meaning_en" in CANONICAL_COLUMNS
+    assert "qa_keep" in CANONICAL_COLUMNS
+    assert "qa_score" in CANONICAL_COLUMNS
+    assert "qa_flags" in CANONICAL_COLUMNS
+    assert "meaning_ru_back" in CANONICAL_COLUMNS
+    assert "roundtrip_distance" in CANONICAL_COLUMNS
+    assert len(CANONICAL_COLUMNS) == 8
 
 
 # ---------------------------------------------------------------------------
@@ -215,19 +216,14 @@ def test_row_builder_emits_canonical_columns():
         meaning_ru="дом",
         meaning_en="house",
         qa_result=qa_result,
-        model_key="google",
-        model_name="google",
-        backend_family="google",
-        translation_input_mode="raw",
-        input_text_used="дом",
     )
-    assert list(row.keys()) == CANONICAL_COLUMNS
+    assert list(row.keys()) == list(CANONICAL_COLUMNS)
     assert row["pos"] == "NOUN"
     assert row["meaning_ru"] == "дом"
     assert row["meaning_en"] == "house"
     assert row["qa_keep"] is True
-    assert row["qa_version"] == QA_VERSION
-    assert row["model_key"] == "google"
+    assert "model_key" not in row
+    assert "qa_version" not in row
 
 
 def test_row_builder_with_roundtrip():
@@ -237,11 +233,6 @@ def test_row_builder_with_roundtrip():
         meaning_ru="дом",
         meaning_en="house",
         qa_result=qa_result,
-        model_key="google",
-        model_name="google",
-        backend_family="google",
-        translation_input_mode="raw",
-        input_text_used="дом",
         meaning_ru_back="дом",
         roundtrip_distance=0.2,
     )

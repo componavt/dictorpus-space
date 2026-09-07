@@ -15,9 +15,7 @@ Workflow:
     -> model-specific translation CSV
 
 Output cache file uses schema:
-  pos, meaning_ru, meaning_en, qa_keep, qa_score, qa_flags, qa_version,
-  model_key, model_name, backend_family, translation_input_mode, input_text_used,
-  meaning_ru_back, roundtrip_distance, is_single_word_ru, input_token_count, output_token_count
+  pos, meaning_ru, meaning_en, qa_keep, qa_score, qa_flags, meaning_ru_back, roundtrip_distance
 """
 
 import sys
@@ -69,7 +67,6 @@ from src.sem_cat.io.translation_cache import (
 from src.sem_cat.io.translation_rows import (
     build_translation_row,
     CANONICAL_COLUMNS,
-    QA_VERSION,
 )
 from src.sem_cat.pipeline.vepkar_translation_selection import (
     TranslationTaskMetadata,
@@ -314,13 +311,6 @@ def main() -> None:
         help='Device for local HuggingFace models: "cpu" or "cuda" (default: cpu)',
     )
     parser.add_argument(
-        "--out-file", type=str, default=None,
-        help=(
-            "Full path to output CSV file. If provided, overrides --out-dir "
-            "and the auto-generated filename."
-        ),
-    )
-    parser.add_argument(
         "--round-trip", action="store_true", default=False,
         help="also back-translate meaning_en -> ru for quality checking",
     )
@@ -332,11 +322,6 @@ def main() -> None:
                         help="Shuffle tasks before applying offset/limit")
     parser.add_argument("--seed", type=int, default=42,
                         help="Random seed used with --shuffle (default: 42)")
-    parser.add_argument(
-        "--translation-input-mode", type=str, choices=["raw", "pos"],
-        default="pos",
-        help="How to prepare input for translator (default: pos)",
-    )
     parser.add_argument("--debug-sample", type=int, default=0,
                         help="Print raw translation output for first N items (default: 0 = off)")
     parser.add_argument("--retry", type=int, default=None,
@@ -401,13 +386,9 @@ def main() -> None:
         print(f"ERROR: --model-variant is only valid for hf_causal models, not {spec.backend_family}")
         sys.exit(1)
 
-    if args.out_file:
-        out_path = pathlib.Path(args.out_file)
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-    else:
-        out_dir = pathlib.Path(args.out_dir)
-        out_dir.mkdir(parents=True, exist_ok=True)
-        out_path = out_dir / f"02_glosses_translated_{resolved_model_key}.csv"
+    out_dir = pathlib.Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"02_meanings_translated_{resolved_model_key}.csv"
 
     print(f"Model key: {resolved_model_key}")
     print(f"Model name: {spec.model_name}")
@@ -539,12 +520,12 @@ def main() -> None:
     else:
         effective_batch_size = spec.default_batch_size or 1
 
-    print(f"Translating with {resolved_model_key} (mode: {args.translation_input_mode})...")
+    print(f"Translating with {resolved_model_key}...")
     print(f"Effective batch size: {effective_batch_size}")
 
     input_texts: list[str] = []
     for task in tasks_to_translate:
-        input_text = prepare_translation_input_for_task(task, args.translation_input_mode)
+        input_text = prepare_translation_input_for_task(task)
         input_texts.append(input_text)
 
     _causal_generation_preflight(
@@ -620,11 +601,6 @@ def main() -> None:
                 meaning_ru=task.meaning_ru,
                 meaning_en=trans_clean,
                 qa_result=qa_result,
-                model_key=resolved_model_key,
-                model_name=spec.model_name,
-                backend_family=spec.backend_family,
-                translation_input_mode=args.translation_input_mode,
-                input_text_used=input_text,
                 meaning_ru_back=roundtrip_text if roundtrip_text else "",
                 roundtrip_distance=qa_result.roundtrip_distance,
             )
@@ -656,7 +632,7 @@ def main() -> None:
         if batch_rows:
             print("   - preview:")
             for preview in batch_rows[:3]:
-                print(f"     - {preview.get('pos', '')} | {preview.get('meaning_ru', '')} => {preview.get('meaning_en', '')} | input={preview.get('input_text_used', '')}")
+                print(f"     - {preview.get('pos', '')} | {preview.get('meaning_ru', '')} => {preview.get('meaning_en', '')}")
 
         if good_rows:
             good_df = pd.DataFrame(good_rows, columns=CANONICAL_COLUMNS)

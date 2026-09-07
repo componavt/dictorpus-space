@@ -11,14 +11,13 @@ import pandas as pd
 from src.sem_cat.io.translation_rows import (
     build_translation_row,
     CANONICAL_COLUMNS,
-    QA_VERSION,
 )
 from src.sem_cat.io.pos_meaning_ru_reader import read_pos_meaning_ru_tasks
 import pytest
 
 from src.sem_cat.io.translation_cache import (
     load_translation_cache,
-    REQUIRED_CACHE_COLUMNS,
+    CANONICAL_COLUMNS,
     build_cached_identity_set,
 )
 from src.sem_cat.qa.translation_qa import (
@@ -40,19 +39,11 @@ def test_new_translation_row_schema_columns():
         meaning_ru="дом",
         meaning_en="house",
         qa_result=qa_result,
-        model_key="google",
-        model_name="google",
-        backend_family="google",
-        translation_input_mode="raw",
-        input_text_used="дом",
     )
     expected_columns = [
         "pos", "meaning_ru", "meaning_en",
-        "qa_keep", "qa_score", "qa_flags", "qa_version",
-        "model_key", "model_name", "backend_family",
-        "translation_input_mode", "input_text_used",
+        "qa_keep", "qa_score", "qa_flags",
         "meaning_ru_back", "roundtrip_distance",
-        "is_single_word_ru", "input_token_count", "output_token_count",
     ]
     assert list(row.keys()) == expected_columns
 
@@ -65,11 +56,6 @@ def test_new_translation_row_has_required_identity_fields():
         meaning_ru="дом",
         meaning_en="house",
         qa_result=qa_result,
-        model_key="google",
-        model_name="google",
-        backend_family="google",
-        translation_input_mode="raw",
-        input_text_used="дом",
     )
     assert row["pos"] == "NOUN"
     assert row["meaning_ru"] == "дом"
@@ -77,43 +63,36 @@ def test_new_translation_row_has_required_identity_fields():
 
 
 def test_new_translation_row_no_legacy_fields():
-    """New translation row must NOT contain legacy task_key or gloss fields."""
+    """New translation row must NOT contain legacy fields."""
     qa_result = QAResult(qa_keep=True, qa_score=0.0)
     row = build_translation_row(
         pos="NOUN",
         meaning_ru="дом",
         meaning_en="house",
         qa_result=qa_result,
-        model_key="google",
-        model_name="google",
-        backend_family="google",
-        translation_input_mode="raw",
-        input_text_used="дом",
     )
     
-    legacy_fields = ["task_key", "task_pos", "gloss_ru", "gloss_en", "gloss_ru_back", 
-                     "primary_gloss_ru", "pos_hint", "meaning_hint", "sourcecount"]
+    legacy_fields = ["model_key", "model_name", "backend_family", "translation_input_mode",
+                     "input_text_used", "qa_version", "is_single_word_ru", 
+                     "input_token_count", "output_token_count", "task_key", "task_pos", 
+                     "gloss_ru", "gloss_en", "gloss_ru_back", "primary_gloss_ru", 
+                     "pos_hint", "meaning_hint", "sourcecount"]
     for field in legacy_fields:
         assert field not in row, f"Legacy field {field} should not be present"
 
 
 def test_new_translation_row_token_metadata():
-    """Token counts should be computed from meaning_ru and meaning_en."""
+    """Token counts are no longer included in the compact schema."""
     qa_result = QAResult(qa_keep=True, qa_score=0.0)
     row = build_translation_row(
         pos="PART",
         meaning_ru="а",
         meaning_en="a",
         qa_result=qa_result,
-        model_key="google",
-        model_name="google",
-        backend_family="google",
-        translation_input_mode="raw",
-        input_text_used="а",
     )
-    assert row["input_token_count"] == 1
-    assert row["output_token_count"] == 1
-    assert row["is_single_word_ru"] is True
+    assert "input_token_count" not in row
+    assert "output_token_count" not in row
+    assert "is_single_word_ru" not in row
 
 
 def test_new_translation_row_roundtrip_qa():
@@ -124,11 +103,6 @@ def test_new_translation_row_roundtrip_qa():
         meaning_ru="дом",
         meaning_en="house",
         qa_result=qa_result,
-        model_key="google",
-        model_name="google",
-        backend_family="google",
-        translation_input_mode="raw",
-        input_text_used="дом",
         meaning_ru_back="дом",
         roundtrip_distance=0.2,
     )
@@ -144,23 +118,18 @@ def test_new_translation_row_blank_meaning_en():
         meaning_ru="дом",
         meaning_en="",
         qa_result=qa_result,
-        model_key="google",
-        model_name="google",
-        backend_family="google",
-        translation_input_mode="raw",
-        input_text_used="дом",
     )
     assert row["meaning_en"] == ""
     assert row["qa_keep"] is False
 
 
-def test_cache_loads_new_schema(tmp_path):
-    """Cache with new schema should load successfully."""
+def test_cache_loads_exact_schema(tmp_path):
+    """Cache with exact canonical schema should load successfully."""
     df = pd.DataFrame([
         {"pos": "NOUN", "meaning_ru": "дом", "meaning_en": "house", 
-         "qa_keep": "True", "qa_score": "0.0", "qa_flags": "", "model_key": "google"},
+         "qa_keep": "True", "qa_score": "0.0", "qa_flags": "", "meaning_ru_back": "", "roundtrip_distance": ""},
         {"pos": "VERB", "meaning_ru": "читать", "meaning_en": "read",
-         "qa_keep": "True", "qa_score": "0.1", "qa_flags": "", "model_key": "google"},
+         "qa_keep": "True", "qa_score": "0.1", "qa_flags": "", "meaning_ru_back": "", "roundtrip_distance": ""},
     ])
     path = tmp_path / "cache.csv"
     df.to_csv(path, index=False)
@@ -173,31 +142,31 @@ def test_cache_loads_new_schema(tmp_path):
     assert "meaning_en" in result.df.columns
 
 
-def test_cache_rejects_legacy_schema(tmp_path):
-    """Cache with legacy task_key/gloss_ru fields should be rejected with clear error."""
+def test_cache_rejects_extra_columns(tmp_path):
+    """Cache with extra columns should be rejected."""
     df = pd.DataFrame([
-        {"gloss_ru": "дом", "gloss_en": "house", "qa_keep": "True", 
-         "qa_score": "0.0", "qa_flags": "", "model_key": "google", "task_key": "NOUN::дом"},
+        {"pos": "NOUN", "meaning_ru": "дом", "meaning_en": "house", 
+         "qa_keep": "True", "qa_score": "0.0", "qa_flags": "", 
+         "meaning_ru_back": "", "roundtrip_distance": "", "extra_col": "x"},
     ])
-    path = tmp_path / "legacy_cache.csv"
+    path = tmp_path / "extra_cache.csv"
     df.to_csv(path, index=False)
     
     result = load_translation_cache(path, expected_model_key="google")
     
     assert result.state == "malformed"
-    assert "obsolete" in result.reason.lower() or "legacy" in result.reason.lower()
-    assert "gloss_ru" in result.reason or "gloss_en" in result.reason
+    assert "extra" in result.reason.lower() or "canonical" in result.reason.lower()
 
 
 def test_cache_identity_is_pos_meaning_ru_pair(tmp_path):
     """Cache identity must be exact (pos, meaning_ru) pair."""
     df = pd.DataFrame([
         {"pos": "NOUN", "meaning_ru": "дом", "meaning_en": "house", 
-         "qa_keep": "True", "qa_score": "0.0", "qa_flags": "", "model_key": "google"},
+         "qa_keep": "True", "qa_score": "0.0", "qa_flags": "", "meaning_ru_back": "", "roundtrip_distance": ""},
         {"pos": "VERB", "meaning_ru": "дом", "meaning_en": "to house",
-         "qa_keep": "True", "qa_score": "0.1", "qa_flags": "", "model_key": "google"},
+         "qa_keep": "True", "qa_score": "0.1", "qa_flags": "", "meaning_ru_back": "", "roundtrip_distance": ""},
         {"pos": "NOUN", "meaning_ru": "дома", "meaning_en": "houses",
-         "qa_keep": "True", "qa_score": "0.2", "qa_flags": "", "model_key": "google"},
+         "qa_keep": "True", "qa_score": "0.2", "qa_flags": "", "meaning_ru_back": "", "roundtrip_distance": ""},
     ])
     path = tmp_path / "cache.csv"
     df.to_csv(path, index=False)
@@ -213,14 +182,14 @@ def test_cache_identity_is_pos_meaning_ru_pair(tmp_path):
 
 
 def test_cache_deduplicates_by_pos_meaning_ru(tmp_path):
-    """Duplicate (pos, meaning_ru) rows should be deduplicated keeping highest qa_score."""
+    """Duplicate (pos, meaning_ru) rows should be deduplicated keeping best qa_keep then lowest qa_score."""
     df = pd.DataFrame([
         {"pos": "NOUN", "meaning_ru": "дом", "meaning_en": "house", 
-         "qa_keep": "True", "qa_score": "0.0", "qa_flags": "", "model_key": "google"},
+         "qa_keep": "True", "qa_score": "0.0", "qa_flags": "", "meaning_ru_back": "", "roundtrip_distance": ""},
         {"pos": "NOUN", "meaning_ru": "дом", "meaning_en": "home",
-         "qa_keep": "True", "qa_score": "0.5", "qa_flags": "suspicious", "model_key": "google"},
+         "qa_keep": "False", "qa_score": "0.1", "qa_flags": "suspicious", "meaning_ru_back": "", "roundtrip_distance": ""},
         {"pos": "NOUN", "meaning_ru": "дом", "meaning_en": "residence",
-         "qa_keep": "True", "qa_score": "0.2", "qa_flags": "", "model_key": "google"},
+         "qa_keep": "True", "qa_score": "0.2", "qa_flags": "", "meaning_ru_back": "", "roundtrip_distance": ""},
     ])
     path = tmp_path / "cache_with_dupes.csv"
     df.to_csv(path, index=False)
@@ -230,7 +199,46 @@ def test_cache_deduplicates_by_pos_meaning_ru(tmp_path):
     
     cached_set = build_cached_identity_set(result.df)
     assert len(cached_set) == 1
-    assert ("NOUN", "дом") in cached_set
+
+
+def test_cache_keeps_qa_keep_true_over_false(tmp_path):
+    """When duplicates exist, qa_keep=True is preferred over qa_keep=False."""
+    df = pd.DataFrame([
+        {"pos": "NOUN", "meaning_ru": "дом", "meaning_en": "house", 
+         "qa_keep": "False", "qa_score": "0.0", "qa_flags": "", "meaning_ru_back": "", "roundtrip_distance": ""},
+        {"pos": "NOUN", "meaning_ru": "дом", "meaning_en": "home",
+         "qa_keep": "True", "qa_score": "1.0", "qa_flags": "", "meaning_ru_back": "", "roundtrip_distance": ""},
+    ])
+    path = tmp_path / "cache_with_dupes.csv"
+    df.to_csv(path, index=False)
+    
+    result = load_translation_cache(path, expected_model_key="google")
+    assert result.state == "valid"
+    
+    cached_df = result.df
+    assert len(cached_df) == 1
+    assert cached_df.iloc[0]["meaning_en"] == "home"
+    assert cached_df.iloc[0]["qa_keep"] == "True"
+
+
+def test_cache_keeps_lowest_qa_score_when_equal_keep(tmp_path):
+    """Among qa_keep=True rows, lowest qa_score is preferred."""
+    df = pd.DataFrame([
+        {"pos": "NOUN", "meaning_ru": "дом", "meaning_en": "house", 
+         "qa_keep": "True", "qa_score": "0.5", "qa_flags": "", "meaning_ru_back": "", "roundtrip_distance": ""},
+        {"pos": "NOUN", "meaning_ru": "дом", "meaning_en": "home",
+         "qa_keep": "True", "qa_score": "0.1", "qa_flags": "", "meaning_ru_back": "", "roundtrip_distance": ""},
+    ])
+    path = tmp_path / "cache_with_dupes.csv"
+    df.to_csv(path, index=False)
+    
+    result = load_translation_cache(path, expected_model_key="google")
+    assert result.state == "valid"
+    
+    cached_df = result.df
+    assert len(cached_df) == 1
+    assert cached_df.iloc[0]["meaning_en"] == "home"
+    assert cached_df.iloc[0]["qa_score"] == "0.1"
 
 
 def test_builder_from_pos_meaning_ru():

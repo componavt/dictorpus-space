@@ -1,7 +1,7 @@
 """Shared meaning preparation for reuse analysis and translation steps.
 
-This module provides neutral helpers that are used by both Step 01 (reuse analysis)
-and Step 02 (translation) to prepare meanings for processing.
+This module provides neutral helpers that are used by Step 01 (reuse analysis)
+for preparing meanings for processing.
 
 Key responsibilities:
 - Normalizing primary_gloss_ru and task_pos
@@ -31,9 +31,9 @@ def normalize_text(value: object) -> str:
 
 
 def prepare_meanings_for_reuse_and_translation(df_meanings: pd.DataFrame) -> pd.DataFrame:
-    """Prepare meanings DataFrame for reuse analysis and translation workflow.
+    """Prepare meanings DataFrame for reuse analysis workflow.
 
-    This is the shared preparation logic used by both Step 01 and Step 02.
+    This is the shared preparation logic used by Step 01 (reuse analysis).
 
     Adds derived columns:
     - primary_gloss_ru: normalized primary gloss from meaning_ru
@@ -71,7 +71,7 @@ def prepare_meanings_for_reuse_and_translation(df_meanings: pd.DataFrame) -> pd.
 def prepare_meanings_for_translation(df_meanings: pd.DataFrame) -> pd.DataFrame:
     """Compatibility wrapper; use prepare_meanings_for_reuse_and_translation.
 
-    This wrapper exists only for backward compatibility with Step 02.
+    This wrapper exists only for backward compatibility with reuse analysis.
     The implementation delegates to the shared neutral function.
 
     Args:

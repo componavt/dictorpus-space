@@ -865,8 +865,8 @@ def test_extract_unique_translation_tasks_deduplicates():
         assert not hasattr(task, "sourcecount")
 
 
-def test_translation_input_mode_pos():
-    """pos mode includes POS in input."""
+def test_translation_input_format():
+    """Fixed input format: POS | meaning_ru."""
     from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata, prepare_translation_input_for_task
     
     task = TranslationTaskMetadata(
@@ -874,34 +874,25 @@ def test_translation_input_mode_pos():
         meaning_ru="дом",
     )
     
-    assert prepare_translation_input_for_task(task, "pos") == "NOUN | дом"
-    assert prepare_translation_input_for_task(task, "raw") == "дом"
+    assert prepare_translation_input_for_task(task) == "NOUN | дом"
 
 
-def test_translation_input_mode_rejects_pos_meaning():
-    """pos_meaning mode is no longer supported via type hints."""
-    from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata
+def test_translation_input_mode_removed():
+    """mode parameter is no longer present."""
+    from src.sem_cat.pipeline.vepkar_translation_selection import prepare_translation_input_for_task
     from typing import get_type_hints
-    import inspect
     
     hints = get_type_hints(prepare_translation_input_for_task)
-    mode_param = hints.get("mode")
     
-    # The mode parameter should only accept "raw" or "pos"
-    # pos_meaning should not be in the Literal union
-    assert mode_param is not None
+    assert "mode" not in hints
 
 
-def test_translation_input_mode_default_changed_to_pos():
-    """Default translation input mode should be pos, not raw."""
+def test_translation_input_no_mode_parameter():
+    """prepare_translation_input_for_task has no mode parameter."""
     from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata, prepare_translation_input_for_task
+    import inspect
     
-    task = TranslationTaskMetadata(
-        pos="NOUN",
-        meaning_ru="дом",
-    )
+    sig = inspect.signature(prepare_translation_input_for_task)
+    params = list(sig.parameters.keys())
     
-    # When called without mode (defaults to pos in new code)
-    # The prepare_translation_input_for_task has no default, so caller must specify
-    # But the 02_translate_glosses.py now defaults to "pos" in CLI
-    assert prepare_translation_input_for_task(task, "pos") == "NOUN | дом"
+    assert params == ["task"]

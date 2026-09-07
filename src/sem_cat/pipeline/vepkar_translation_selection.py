@@ -65,32 +65,24 @@ class TranslationTaskMetadata:
 
 def prepare_translation_input_for_task(
     task: TranslationTaskMetadata,
-    mode: Literal["raw", "pos"],
 ) -> str:
     """Prepare translation input for a task.
     
+    Fixed input format: POS | meaning_ru
+    
     Args:
         task: Translation task metadata
-        mode: One of "raw", "pos"
         
     Returns:
         Input string to send to translator
     """
-    if mode == "raw":
-        return task.meaning_ru
-
-    pos_str = task.pos
-
-    if mode == "pos":
-        return f"{pos_str} | {task.meaning_ru}"
-
-    return task.meaning_ru
+    return f"{task.pos} | {task.meaning_ru}"
 
 
 def prepare_meanings_for_translation(df_meanings: pd.DataFrame) -> pd.DataFrame:
     """Compatibility wrapper; use prepare_meanings_for_reuse_and_translation.
 
-    This wrapper exists only for backward compatibility.
+    This wrapper exists only for backward compatibility with reuse analysis.
     The implementation delegates to the shared neutral function.
 
     Args:

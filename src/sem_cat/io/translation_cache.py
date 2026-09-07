@@ -20,15 +20,16 @@ class TranslationCacheLoadResult:
     row_count: int = 0
 
 
-REQUIRED_CACHE_COLUMNS = [
+CANONICAL_COLUMNS = (
     "pos",
     "meaning_ru",
     "meaning_en",
     "qa_keep",
     "qa_score",
     "qa_flags",
-    "model_key",
-]
+    "meaning_ru_back",
+    "roundtrip_distance",
+)
 
 
 def _detect_legacy_fields(detected_columns: list[str]) -> list[str]:
@@ -48,19 +49,6 @@ def _detect_legacy_fields(detected_columns: list[str]) -> list[str]:
     return [f for f in legacy_fields if f in detected_columns]
 
 
-def _has_required_new_schema(df: pd.DataFrame) -> bool:
-    """Check if DataFrame has all required new schema columns.
-    
-    Args:
-        df: DataFrame to validate
-        
-    Returns:
-        True if all required columns exist
-    """
-    required = set(REQUIRED_CACHE_COLUMNS)
-    return required.issubset(df.columns)
-
-
 def load_translation_cache(
     out_path: pathlib.Path,
     expected_model_key: str | None = None,
@@ -71,7 +59,7 @@ def load_translation_cache(
     
     Args:
         out_path: Path to the CSV cache file.
-        expected_model_key: If provided, validates that cached rows match.
+        expected_model_key: If provided, validates that cached rows match (ignored).
         
     Returns:
         TranslationCacheLoadResult with structured state information.
@@ -79,7 +67,7 @@ def load_translation_cache(
     if not out_path.exists():
         return TranslationCacheLoadResult(
             state="missing",
-            df=pd.DataFrame(columns=REQUIRED_CACHE_COLUMNS),
+            df=pd.DataFrame(columns=CANONICAL_COLUMNS),
             reason="file does not exist",
         )
 
@@ -88,7 +76,7 @@ def load_translation_cache(
     except Exception as e:
         return TranslationCacheLoadResult(
             state="malformed",
-            df=pd.DataFrame(columns=REQUIRED_CACHE_COLUMNS),
+            df=pd.DataFrame(columns=CANONICAL_COLUMNS),
             reason=f"csv read failed: {e}",
         )
 
@@ -100,35 +88,27 @@ def load_translation_cache(
     if legacy_fields:
         return TranslationCacheLoadResult(
             state="malformed",
-            df=pd.DataFrame(columns=REQUIRED_CACHE_COLUMNS),
+            df=pd.DataFrame(columns=CANONICAL_COLUMNS),
             reason=(
                 f"Cache uses obsolete translation schema with legacy fields: "
                 f"{sorted(legacy_fields)}. "
-                "New translation cache requires columns: pos, meaning_ru, meaning_en. "
+                f"New translation cache requires exact columns: {CANONICAL_COLUMNS}. "
                 "Please rename or remove the old cache file and rerun."
             ),
             columns=cols,
             row_count=len(df),
         )
 
-    # Check for required new schema columns
-    missing_required = set(REQUIRED_CACHE_COLUMNS) - set(detected_columns)
-    if missing_required:
-        first_line_preview = ""
-        try:
-            with open(out_path, "r", encoding="utf-8") as f:
-                first_line = f.readline().strip()
-                if first_line:
-                    first_line_preview = f" First line: {first_line[:80]}{'...' if len(first_line) > 80 else ''}"
-        except Exception:
-            pass
+    # Strict schema validation: exact columns in exact order
+    if detected_columns != list(CANONICAL_COLUMNS):
         return TranslationCacheLoadResult(
             state="malformed",
-            df=pd.DataFrame(columns=REQUIRED_CACHE_COLUMNS),
+            df=pd.DataFrame(columns=CANONICAL_COLUMNS),
             reason=(
-                f"Missing required columns: {sorted(missing_required)}. "
-                f"Detected columns: {detected_columns}.{first_line_preview} "
-                "This often happens when a previous run wrote data rows before the CSV header."
+                f"Cache columns do not match canonical schema. "
+                f"Expected: {list(CANONICAL_COLUMNS)}, "
+                f"got: {detected_columns}. "
+                "Exact column order and all 8 columns are required."
             ),
             columns=cols,
             row_count=len(df),
@@ -136,14 +116,6 @@ def load_translation_cache(
 
     df = df.copy()
     
-    if expected_model_key:
-        if "model_key" in df.columns:
-            detected_model_keys = df["model_key"].dropna().unique().tolist()
-            if detected_model_keys and not any(mk == expected_model_key for mk in detected_model_keys):
-                print(f"WARNING: Cache was created with model_key(s) {detected_model_keys}, "
-                      f"but expected {expected_model_key}. "
-                      "Proceeding with caution.")
-
     df = _deduplicate_cache_by_pos_meaning_ru(df)
 
     return TranslationCacheLoadResult(
@@ -155,13 +127,18 @@ def load_translation_cache(
 
 
 def _deduplicate_cache_by_pos_meaning_ru(df: pd.DataFrame) -> pd.DataFrame:
-    """Deduplicate cache rows by (pos, meaning_ru), keeping highest qa_score.
+    """Deduplicate cache rows by (pos, meaning_ru), keeping best qa_keep then lowest qa_score.
+    
+    Duplicate selection rule (in order):
+    1. Prefer qa_keep=True
+    2. Then prefer lowest numeric qa_score
+    3. On a tie, retain the first source-file row
     
     Args:
         df: DataFrame with pos and meaning_ru columns
         
     Returns:
-        Deduplicated DataFrame, keeping row with highest qa_score per (pos, meaning_ru)
+        Deduplicated DataFrame
     """
     if df.empty:
         return df
@@ -180,13 +157,21 @@ def _deduplicate_cache_by_pos_meaning_ru(df: pd.DataFrame) -> pd.DataFrame:
     
     print(f"WARNING: cache has {dup_count} duplicate (pos, meaning_ru) rows.")
     print(f"  Examples: {dup_examples[:5]}")
-    print(f"  Keeping row with highest qa_score per (pos, meaning_ru).")
+    print(f"  Keeping rows per rule: qa_keep=True preferred, then lowest qa_score, then first-row order.")
     
     df_work = df.copy()
-    df_work["_qa_score_num"] = pd.to_numeric(df_work.get("qa_score", 0), errors="coerce").fillna(0.0)
-    df_work = df_work.sort_values("_qa_score_num", ascending=False)
+    df_work = df_work.assign(
+        _qa_keep_bool=df_work.get("qa_keep", "").apply(
+            lambda x: str(x).lower() in ("true", "1", "yes") if pd.notna(x) else False
+        ),
+        _qa_score_num=pd.to_numeric(df_work.get("qa_score", 0), errors="coerce").fillna(0.0),
+    )
+    df_work = df_work.sort_values(
+        ["_qa_keep_bool", "_qa_score_num"],
+        ascending=[False, True],
+    )
     df_work = df_work.drop_duplicates(subset=["pos", "meaning_ru"], keep="first")
-    df_work = df_work.drop(columns=["_qa_score_num"])
+    df_work = df_work.drop(columns=["_qa_keep_bool", "_qa_score_num"])
     
     return df_work
 
