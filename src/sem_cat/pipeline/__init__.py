@@ -6,7 +6,6 @@ from .vepkar_translation_selection import (
     build_task_key,
     prepare_meanings_for_translation,
     prepare_translation_input_for_task,
-    extract_unique_translation_tasks,
     build_translation_tasks_from_pos_meaning_ru,
     TranslationTaskMetadata,
 )
@@ -23,7 +22,6 @@ __all__ = [
     "build_task_key",
     "prepare_meanings_for_translation",
     "prepare_translation_input_for_task",
-    "extract_unique_translation_tasks",
     "build_translation_tasks_from_pos_meaning_ru",
     "TranslationTaskMetadata",
     "ReuseAnalysisResult",

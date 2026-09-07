@@ -1,6 +1,7 @@
 """Gloss metadata extraction and translation input preparation.
 
-This module provides task-based helpers for VepKar-aware translation.
+This module provides task-based helpers for Step-02 translation workflow.
+The helpers build TranslationTaskMetadata objects from the pos_meanings_ru.csv task file.
 """
 
 from __future__ import annotations
@@ -95,65 +96,6 @@ def prepare_meanings_for_translation(df_meanings: pd.DataFrame) -> pd.DataFrame:
     return prepare_meanings_for_reuse_and_translation(df_meanings)
 
 
-def split_by_existing_en_reuse(
-    df: pd.DataFrame,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Split rows into reusable (unambiguous), reusable (ambiguous), and needs-model.
-    
-    Args:
-        df: Prepared DataFrame from prepare_meanings_for_translation
-        
-    Returns:
-        Tuple of (unambiguous, ambiguous, needs_model) DataFrames
-    """
-    # Group by task_key to analyze reuse patterns
-    reusable_unambiguous_parts = []
-    reusable_ambiguous_parts = []
-    needs_model_parts = []
-    
-    for (pos, meaning_ru), group in df.groupby(["pos", "meaning_ru"], dropna=False, sort=False):
-        # Get all existing English values for this task (pos, meaning_ru pair)
-        existing_en_values = group["meaning_en"].dropna().apply(canonical_existing_en)
-        existing_en_values = existing_en_values[existing_en_values.str.len() > 0]
-        unique_existing = set(existing_en_values)
-        
-        # Rows with existing English reuse the existing translation
-        has_en_mask = group["has_existing_en"]
-        missing_en_mask = ~has_en_mask
-        
-        if len(unique_existing) == 0:
-            # No existing English values - all missing rows go to needs_model
-            needs_model_parts.append(group[missing_en_mask])
-        elif len(unique_existing) == 1:
-            # Exactly one existing English - all missing become unambiguous reuse
-            reused_value = next(iter(unique_existing))
-            group_copy = group[missing_en_mask].copy()
-            group_copy["reused_existing_en"] = reused_value
-            reusable_unambiguous_parts.append(group_copy)
-        else:
-            # Multiple existing English values - ambiguous reuse
-            candidates_str = " || ".join(sorted(unique_existing))
-            candidates_count = len(unique_existing)
-            group_copy = group[missing_en_mask].copy()
-            group_copy["existing_en_candidates"] = candidates_str
-            group_copy["existing_en_candidate_count"] = candidates_count
-            reusable_ambiguous_parts.append(group_copy)
-    
-    # Combine results
-    reusable_unambiguous_df = pd.DataFrame()
-    reusable_ambiguous_df = pd.DataFrame()
-    needs_model_df = pd.DataFrame()
-    
-    if reusable_unambiguous_parts:
-        reusable_unambiguous_df = pd.concat(reusable_unambiguous_parts, ignore_index=True)
-    if reusable_ambiguous_parts:
-        reusable_ambiguous_df = pd.concat(reusable_ambiguous_parts, ignore_index=True)
-    if needs_model_parts:
-        needs_model_df = pd.concat(needs_model_parts, ignore_index=True)
-    
-    return reusable_unambiguous_df, reusable_ambiguous_df, needs_model_df
-
-
 def build_task_metadata_map(df: pd.DataFrame) -> dict[tuple[str, str], TranslationTaskMetadata]:
     """Build a map from (pos, meaning_ru) tuple to TranslationTaskMetadata.
     
@@ -195,40 +137,6 @@ def compute_suggested_candidate_index(existing_en_candidates: str) -> int | None
         return None
     candidates = [x.strip() for x in existing_en_candidates.split(" || ") if x.strip()]
     return 1 if candidates else None
-
-
-def extract_unique_translation_tasks(
-    df: pd.DataFrame,
-) -> list[TranslationTaskMetadata]:
-    """Extract unique translation tasks from needs-model DataFrame.
-    
-    Args:
-        df: DataFrame from needs_model output (missing meaning_en)
-        
-    Returns:
-        List of unique TranslationTaskMetadata objects
-    """
-    tasks: list[TranslationTaskMetadata] = []
-    
-    if df.empty:
-        return tasks
-
-    seen_keys = set()
-    for pos, meaning_ru in df[["pos", "meaning_ru"]].dropna().itertuples(index=False):
-        key = (pos, meaning_ru)
-        if key in seen_keys:
-            continue
-        seen_keys.add(key)
-        
-        first_row = df[(df["pos"] == pos) & (df["meaning_ru"] == meaning_ru)].iloc[0]
-        
-        task = TranslationTaskMetadata(
-            pos=first_row.get("pos"),
-            meaning_ru=first_row.get("meaning_ru"),
-        )
-        tasks.append(task)
-    
-    return tasks
 
 
 def build_translation_tasks_from_pos_meaning_ru(

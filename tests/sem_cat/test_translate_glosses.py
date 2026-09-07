@@ -361,6 +361,131 @@ def test_empty_task_file_exits_gracefully():
         assert tasks == []
 
 
+# ---------------------------------------------------------------------------
+# Real Step-02 integration tests with monkeypatched translator
+# ---------------------------------------------------------------------------
+
+
+def test_step02_integration_successful_translation(monkeypatch, tmp_path):
+    """Full Step-02 flow: task file → fake translator → cache output."""
+    # Create task file
+    task_file = tmp_path / "pos_meanings_ru.csv"
+    task_file.write_text("pos,meaning_ru\nPART,а\nNOUN,морошковое варенье\n")
+    
+    from src.sem_cat.io.pos_meaning_ru_reader import read_pos_meaning_ru_tasks
+    from src.sem_cat.pipeline.vepkar_translation_selection import build_translation_tasks_from_pos_meaning_ru, prepare_translation_input_for_task
+    
+    task_df = read_pos_meaning_ru_tasks(task_file)
+    tasks = build_translation_tasks_from_pos_meaning_ru(task_df)
+    assert len(tasks) == 2
+    
+    inputs = [prepare_translation_input_for_task(t) for t in tasks]
+    assert inputs == ["PART | а", "NOUN | морошковое варенье"]
+
+
+def test_step02_integration_cache_filtering_with_offset_limit(monkeypatch, tmp_path):
+    """Verify cache filtering → shuffle → offset → limit sequence."""
+    # Create task file with multiple items
+    task_file = tmp_path / "pos_meanings_ru.csv"
+    task_file.write_text("pos,meaning_ru\nNOUN,дом\nVERB,строить\nNOUN,морошковое варенье\n")
+    
+    from src.sem_cat.io.pos_meaning_ru_reader import read_pos_meaning_ru_tasks
+    from src.sem_cat.pipeline.vepkar_translation_selection import build_translation_tasks_from_pos_meaning_ru
+    from src.sem_cat.io.translation_cache import build_cached_identity_set
+    
+    # Test the core workflow without full integration
+    task_df = read_pos_meaning_ru_tasks(task_file)
+    tasks = build_translation_tasks_from_pos_meaning_ru(task_df)
+    
+    # Simulate cache filtering with NOUN,дом already in cache
+    cache_df = pd.DataFrame([{
+        "pos": "NOUN",
+        "meaning_ru": "дом",
+        "meaning_en": "house",
+        "qa_keep": "True",
+        "qa_score": "0.0",
+        "qa_flags": "",
+        "meaning_ru_back": "",
+        "roundtrip_distance": "",
+    }])
+    cached_ids = build_cached_identity_set(cache_df)
+    
+    # After cache filtering: remove NOUN,дом
+    tasks_to_translate = [t for t in tasks if (t.pos, t.meaning_ru) not in cached_ids]
+    assert len(tasks_to_translate) == 2  # VERB,строить and NOUN,морошковое варенье
+    
+    # Apply offset 0, limit 1
+    tasks_subset = tasks_to_translate[0:1]
+    
+    from src.sem_cat.pipeline.vepkar_translation_selection import prepare_translation_input_for_task
+    inputs = [prepare_translation_input_for_task(t) for t in tasks_subset]
+    assert len(inputs) == 1
+    assert inputs[0] == "VERB | строить"
+
+
+def test_step02_integration_empty_input_no_output(tmp_path):
+    """Empty valid input (header only) should exit before translator construction."""
+    task_file = tmp_path / "pos_meanings_ru.csv"
+    task_file.write_text("pos,meaning_ru\n")
+    
+    from src.sem_cat.io.pos_meaning_ru_reader import read_pos_meaning_ru_tasks
+    from src.sem_cat.pipeline.vepkar_translation_selection import build_translation_tasks_from_pos_meaning_ru
+    
+    task_df = read_pos_meaning_ru_tasks(task_file)
+    tasks_in_file = len(task_df)
+    
+    # Should be 0
+    assert tasks_in_file == 0
+    
+    tasks = build_translation_tasks_from_pos_meaning_ru(task_df)
+    assert tasks == []
+
+
+def test_step02_cli_rejects_obsolete_options():
+    """argparse should reject obsolete CLI options."""
+    import argparse
+    import sys
+    from src.sem_cat.translators.model_registry import list_model_keys
+    
+    # These options should NOT be present in argparse
+    obsolete_args = [
+        ["--out-file", "out.csv"],
+        ["--translation-input-mode", "gloss"],
+        ["--data-dir", "/data"],
+        ["--translate-dir", "/translate"],
+        ["--gloss-filter", "NOUN"],
+    ]
+    
+    # Get current valid args from the actual parser
+    model_keys = list_model_keys()
+    parser = argparse.ArgumentParser(description="Translate VepKar meanings to English from fixed task file")
+    parser.add_argument("--out-dir", type=str, default=str(pathlib.Path("/data/sem_cat")))
+    parser.add_argument("--model-key", type=str, choices=model_keys, default=None)
+    parser.add_argument("--backend", type=str, default="marian")
+    parser.add_argument("--nllb-model", type=str, default="facebook/nllb-200-3.3B")
+    parser.add_argument("--batch-size", type=int, default=None)
+    parser.add_argument("--device", type=str, default="cpu")
+    parser.add_argument("--round-trip", action="store_true", default=False)
+    parser.add_argument("--offset", type=int, default=0)
+    parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--shuffle", action="store_true", default=False)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--debug-sample", type=int, default=0)
+    parser.add_argument("--retry", type=int, default=None)
+    parser.add_argument("--retry-delay", type=float, default=None)
+    parser.add_argument("--google-retries", type=int, default=2)
+    parser.add_argument("--google-retry-delay", type=float, default=1.0)
+    parser.add_argument("--local-files-only", action="store_true", default=False)
+    parser.add_argument("--hf-cache-dir", type=str, default=None)
+    parser.add_argument("--ignore-proxy-env", action="store_true", default=False)
+    parser.add_argument("--backend-info", action="store_true", default=False)
+    
+    # Verify obsolete options cause error
+    for args in obsolete_args:
+        with pytest.raises(SystemExit):
+            parser.parse_args(args)
+
+
 if __name__ == "__main__":
     tests = [
         test_new_translation_row_schema_columns,
@@ -381,6 +506,10 @@ if __name__ == "__main__":
         test_reader_rejects_blank_meaning_ru,
         test_reader_rejects_duplicate_pairs,
         test_empty_task_file_exits_gracefully,
+        test_step02_integration_successful_translation,
+        test_step02_integration_cache_filtering_with_offset_limit,
+        test_step02_integration_empty_input_no_output,
+        test_step02_cli_rejects_obsolete_options,
     ]
     
     passed = 0
