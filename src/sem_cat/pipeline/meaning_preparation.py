@@ -7,17 +7,13 @@ Key responsibilities:
 - Normalizing primary_gloss_ru and task_pos
 - Determining has_existing_en
 - Creating normalized English comparison values
-- Building task keys when part of the shared contract
 """
 
 from __future__ import annotations
 
 import pandas as pd
 
-from src.sem_cat.pipeline.vepkar_translation_selection import (
-    serialize_task_key,
-    canonical_existing_en,
-)
+from src.sem_cat.pipeline.vepkar_translation_selection import canonical_existing_en
 
 
 def normalize_text(value: object) -> str:
@@ -45,7 +41,6 @@ def prepare_meanings_for_reuse_and_translation(df_meanings: pd.DataFrame) -> pd.
     - existing_en_norm: normalized existing English value
     - has_primary_gloss_ru: whether primary_gloss_ru is non-empty
     - has_existing_en: whether meaning_en has content after normalization
-    - task_key: serialized task key (pos::gloss)
 
     Filters out rows with empty primary_gloss_ru.
 
@@ -70,12 +65,6 @@ def prepare_meanings_for_reuse_and_translation(df_meanings: pd.DataFrame) -> pd.
     out = out.loc[out["has_primary_gloss_ru"]].copy()
 
     out["has_existing_en"] = out["existing_en_norm"].ne("")
-    out["task_key"] = [
-        serialize_task_key(pos, meaning_ru)
-        for pos, meaning_ru in zip(
-            out["pos"], out["meaning_ru"], strict=True
-        )
-    ]
     return out
 
 

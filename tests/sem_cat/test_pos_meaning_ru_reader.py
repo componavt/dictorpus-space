@@ -16,7 +16,6 @@ from src.sem_cat.io.pos_meaning_ru_reader import (
 )
 from src.sem_cat.pipeline.vepkar_translation_selection import (
     build_translation_tasks_from_pos_meaning_ru,
-    serialize_task_key,
 )
 
 
@@ -214,17 +213,17 @@ def test_build_translation_tasks_from_pos_meaning_ru():
     
     assert len(tasks) == 3
     
-    assert tasks[0].task_key == "NOUN::дом"
-    assert tasks[0].meaning_ru == "дом"
     assert tasks[0].pos == "NOUN"
+    assert tasks[0].meaning_ru == "дом"
+    assert not hasattr(tasks[0], "task_key")
     
-    assert tasks[1].task_key == "VERB::читать"
-    assert tasks[1].meaning_ru == "читать"
     assert tasks[1].pos == "VERB"
+    assert tasks[1].meaning_ru == "читать"
+    assert not hasattr(tasks[1], "task_key")
     
-    assert tasks[2].task_key == "PART::а"
-    assert tasks[2].meaning_ru == "а"
     assert tasks[2].pos == "PART"
+    assert tasks[2].meaning_ru == "а"
+    assert not hasattr(tasks[2], "task_key")
 
 
 def test_build_translation_tasks_preserves_order():
@@ -236,8 +235,8 @@ def test_build_translation_tasks_preserves_order():
     
     tasks = build_translation_tasks_from_pos_meaning_ru(df)
     
-    task_keys = [t.task_key for t in tasks]
-    assert task_keys == ["NOUN::дом", "VERB::читать", "PART::а"]
+    keys = [(t.pos, t.meaning_ru) for t in tasks]
+    assert keys == [("NOUN", "дом"), ("VERB", "читать"), ("PART", "а")]
 
 
 def test_build_translation_tasks_from_empty():
@@ -247,6 +246,37 @@ def test_build_translation_tasks_from_empty():
     tasks = build_translation_tasks_from_pos_meaning_ru(df)
     
     assert tasks == []
+
+
+def test_build_translation_tasks_empty_dataframe_no_task_key():
+    """Empty DataFrame yields empty list (no task_key field to check)."""
+    df = pd.DataFrame()
+    
+    tasks = build_translation_tasks_from_pos_meaning_ru(df)
+    
+    assert tasks == []
+
+
+def test_build_translation_tasks_from_multiple_rows():
+    """DataFrame with multiple valid rows produces same number of task objects."""
+    df = pd.DataFrame({
+        "pos": ["NOUN", "VERB", "PART", "ADJ"],
+        "meaning_ru": ["дом", "читать", "а", "красный"],
+    })
+    
+    tasks = build_translation_tasks_from_pos_meaning_ru(df)
+    
+    assert len(tasks) == 4
+    assert tasks[0].pos == "NOUN"
+    assert tasks[0].meaning_ru == "дом"
+    assert tasks[1].pos == "VERB"
+    assert tasks[1].meaning_ru == "читать"
+    assert tasks[2].pos == "PART"
+    assert tasks[2].meaning_ru == "а"
+    assert tasks[3].pos == "ADJ"
+    assert tasks[3].meaning_ru == "красный"
+    for task in tasks:
+        assert not hasattr(task, "task_key")
 
 
 def test_build_translation_tasks_preserves_meaning_with_parens():
@@ -259,8 +289,43 @@ def test_build_translation_tasks_preserves_meaning_with_parens():
     tasks = build_translation_tasks_from_pos_meaning_ru(df)
     
     assert len(tasks) == 1
-    assert tasks[0].task_key == "NOUN::место (под чем-либо)"
+    assert tasks[0].pos == "NOUN"
     assert tasks[0].meaning_ru == "место (под чем-либо)"
+    assert not hasattr(tasks[0], "task_key")
+
+
+def test_build_translation_tasks_no_task_key_field():
+    """Tasks should not have task_key field."""
+    df = pd.DataFrame({
+        "pos": ["NOUN"],
+        "meaning_ru": ["дом"],
+    })
+    
+    tasks = build_translation_tasks_from_pos_meaning_ru(df)
+    
+    assert len(tasks) == 1
+    assert not hasattr(tasks[0], "task_key")
+    assert not hasattr(tasks[0], "primary_gloss_ru")
+    assert not hasattr(tasks[0], "meaning_hint")
+    assert not hasattr(tasks[0], "sourcecount")
+
+
+def test_build_translation_tasks_distinct_pos_same_meaning():
+    """Same meaning_ru with distinct POS values yields two distinct task objects."""
+    df = pd.DataFrame({
+        "pos": ["NOUN", "VERB"],
+        "meaning_ru": ["дом", "дом"],
+    })
+    
+    tasks = build_translation_tasks_from_pos_meaning_ru(df)
+    
+    assert len(tasks) == 2
+    assert tasks[0].pos == "NOUN"
+    assert tasks[0].meaning_ru == "дом"
+    assert tasks[1].pos == "VERB"
+    assert tasks[1].meaning_ru == "дом"
+    # The two tasks are distinct by (pos, meaning_ru)
+    assert (tasks[0].pos, tasks[0].meaning_ru) != (tasks[1].pos, tasks[1].meaning_ru)
 
 
 def test_build_translation_tasks_from_reader_output():
@@ -273,8 +338,10 @@ def test_build_translation_tasks_from_reader_output():
         tasks = build_translation_tasks_from_pos_meaning_ru(reader_df)
         
         assert len(tasks) == 2
-        assert tasks[0].task_key == "NOUN::дом"
-        assert tasks[1].task_key == "VERB::читать"
+        assert tasks[0].pos == "NOUN"
+        assert tasks[0].meaning_ru == "дом"
+        assert tasks[1].pos == "VERB"
+        assert tasks[1].meaning_ru == "читать"
 
 
 if __name__ == "__main__":

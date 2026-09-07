@@ -3,9 +3,11 @@ set -eu
 
 # Run from the repository root
 #
-# Not Step 01
-# --exclude-pattern "tests/sem_cat/test_reuse_analysis.py" \ 
+# To EXCLUDE *.py, uncomment the next line.
+# To INCLUDE it again, leave this assignment commented out.
 #
+# Not Step 01 (Optional exclusions):
+#EXCLUDE_TEST_STEP01='--exclude-pattern tests/sem_cat/test_reuse_analysis.py'
 
 mkdir -p out_gitingest
 
@@ -23,10 +25,10 @@ gitingest . \
   --include-pattern "tests/sem_cat/**/*.py" \
   --include-pattern "data/sem_cat/concepts/get_concepts_with_english.py" \
   --include-pattern "data/sem_cat/concepts/split_concepts_for_translation.py" \
-  --exclude-pattern "tests/sem_cat/test_reuse_analysis.py" \
   --exclude-pattern "src/notebooks/*" \
   --exclude-pattern "*/__pycache__/*" \
   --exclude-pattern "*.pyc" \
   --exclude-pattern "*.ipynb" \
   --exclude-pattern "out_gitingest/*" \
-  --output out_gitingest/semcat_56.md
+  ${EXCLUDE_TEST_STEP01:+$EXCLUDE_TEST_STEP01} \
+  --output out_gitingest/semcat_58.md

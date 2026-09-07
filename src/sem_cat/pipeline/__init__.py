@@ -7,8 +7,6 @@ from .translation_input import (
     prepare_translation_input,
 )
 from .vepkar_translation_selection import (
-    serialize_task_key,
-    parse_serialized_task_key,
     canonical_existing_en,
     has_existing_english,
     build_task_key,
@@ -33,8 +31,6 @@ __all__ = [
     "extract_unique_primary_glosses",
     "build_gloss_metadata_map",
     "prepare_translation_input",
-    "serialize_task_key",
-    "parse_serialized_task_key",
     "canonical_existing_en",
     "has_existing_english",
     "build_task_key",

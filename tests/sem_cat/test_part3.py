@@ -31,6 +31,7 @@ from src.sem_cat.pipeline.vepkar_translation_selection import (
     split_by_existing_en_reuse,
     prepare_translation_input_for_task,
     extract_unique_translation_tasks,
+    build_task_metadata_map,
 )
 from src.sem_cat.utils.gloss_normalizer import primary_gloss
 
@@ -857,7 +858,7 @@ def test_split_by_existing_en_with_existing_and_all_missing():
 
 
 def test_extract_unique_translation_tasks_deduplicates():
-    """Tasks deduplicated by task_key, not just gloss."""
+    """Tasks deduplicated by (pos, meaning_ru), not just gloss."""
     from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata
     
     df = pd.DataFrame({
@@ -874,15 +875,14 @@ def test_extract_unique_translation_tasks_deduplicates():
     tasks = extract_unique_translation_tasks(work)
     
     assert len(tasks) == 2
-    task_keys = [t.task_key for t in tasks]
-    # NOUN::дом and VERB::дом should be separate tasks (:: separator)
-    assert "NOUN::дом" in task_keys
-    assert "VERB::дом" in task_keys
+    keys = [(t.pos, t.meaning_ru) for t in tasks]
+    assert ("NOUN", "дом") in keys
+    assert ("VERB", "дом") in keys
     
     # Verify metadata fields
     for task in tasks:
         assert isinstance(task, TranslationTaskMetadata)
-        assert hasattr(task, "task_key")
+        assert not hasattr(task, "task_key")
         assert hasattr(task, "meaning_ru")
         assert hasattr(task, "pos")
         assert not hasattr(task, "primary_gloss_ru")
@@ -895,9 +895,8 @@ def test_translation_input_mode_pos():
     from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata, prepare_translation_input_for_task
     
     task = TranslationTaskMetadata(
-        task_key="NOUN::дом",
-        meaning_ru="дом",
         pos="NOUN",
+        meaning_ru="дом",
     )
     
     assert prepare_translation_input_for_task(task, "pos") == "NOUN | дом"
@@ -923,9 +922,8 @@ def test_translation_input_mode_default_changed_to_pos():
     from src.sem_cat.pipeline.vepkar_translation_selection import TranslationTaskMetadata, prepare_translation_input_for_task
     
     task = TranslationTaskMetadata(
-        task_key="NOUN::дом",
-        meaning_ru="дом",
         pos="NOUN",
+        meaning_ru="дом",
     )
     
     # When called without mode (defaults to pos in new code)

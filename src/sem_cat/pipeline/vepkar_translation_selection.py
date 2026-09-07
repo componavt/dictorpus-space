@@ -12,48 +12,6 @@ import pandas as pd
 
 from src.sem_cat.utils.gloss_normalizer import primary_gloss
 
-TASK_KEY_SEP = "::"
-
-
-def serialize_task_key(pos: str, meaning_ru: str) -> str:
-    """Serialize task key to a stable string format.
-    
-    Args:
-        pos: Part of speech (e.g., "NOUN", "VERB")
-        meaning_ru: Russian meaning string
-        
-    Returns:
-        Serialized task key in format "POS::meaning_ru"
-    """
-    return f"{pos}{TASK_KEY_SEP}{meaning_ru}"
-
-
-def parse_serialized_task_key(value: str) -> tuple[str, str] | None:
-    """Parse a serialized task key back to (pos, meaning_ru) tuple.
-    
-    Supports both new :: format and legacy \\t format for backward compatibility.
-    
-    Args:
-        value: Serialized task key string
-        
-    Returns:
-        (pos, meaning_ru) tuple or None if parsing fails
-    """
-    if not value or not isinstance(value, str):
-        return None
-    value = value.strip()
-    if not value:
-        return None
-    if TASK_KEY_SEP in value:
-        pos, meaning_ru = value.split(TASK_KEY_SEP, 1)
-        return pos, meaning_ru
-    if "\t" in value:
-        pos, meaning_ru = value.split("\t", 1)
-        return pos, meaning_ru
-    return None
-
-
-
 
 
 def canonical_existing_en(meaning_en: str | None) -> str:
@@ -83,7 +41,7 @@ def has_existing_english(meaning_en: str | None) -> bool:
 
 
 def build_task_key(pos: str, meaning_ru: str) -> tuple[str, str]:
-    """Build task key as (pos, meaning_ru) tuple.
+    """Return (pos, meaning_ru) tuple as task identity.
     
     Args:
         pos: Part of speech
@@ -97,10 +55,12 @@ def build_task_key(pos: str, meaning_ru: str) -> tuple[str, str]:
 
 @dataclass(frozen=True)
 class TranslationTaskMetadata:
-    """Metadata for a translation task."""
-    task_key: str
-    meaning_ru: str
+    """Metadata for a translation task.
+    
+    The semantic identity of a translation task is the ordered pair (pos, meaning_ru).
+    """
     pos: str
+    meaning_ru: str
 
 
 def prepare_translation_input_for_task(
@@ -159,8 +119,8 @@ def split_by_existing_en_reuse(
     reusable_ambiguous_parts = []
     needs_model_parts = []
     
-    for task_key, group in df.groupby("task_key", dropna=False, sort=False):
-        # Get all existing English values for this task
+    for (pos, meaning_ru), group in df.groupby(["pos", "meaning_ru"], dropna=False, sort=False):
+        # Get all existing English values for this task (pos, meaning_ru pair)
         existing_en_values = group["meaning_en"].dropna().apply(canonical_existing_en)
         existing_en_values = existing_en_values[existing_en_values.str.len() > 0]
         unique_existing = set(existing_en_values)
@@ -202,27 +162,26 @@ def split_by_existing_en_reuse(
     return reusable_unambiguous_df, reusable_ambiguous_df, needs_model_df
 
 
-def build_task_metadata_map(df: pd.DataFrame) -> dict[str, TranslationTaskMetadata]:
-    """Build a map from task_key to TranslationTaskMetadata.
+def build_task_metadata_map(df: pd.DataFrame) -> dict[tuple[str, str], TranslationTaskMetadata]:
+    """Build a map from (pos, meaning_ru) tuple to TranslationTaskMetadata.
     
     Args:
-        df: DataFrame with task_key column
+        df: DataFrame with pos and meaning_ru columns
         
     Returns:
-        Dict mapping task_key to TranslationTaskMetadata
+        Dict mapping (pos, meaning_ru) tuple to TranslationTaskMetadata
     """
-    metadata_map: dict[str, TranslationTaskMetadata] = {}
+    metadata_map: dict[tuple[str, str], TranslationTaskMetadata] = {}
     
     if df.empty:
         return metadata_map
     
-    for task_key, group in df.groupby("task_key", dropna=False, sort=False):
+    for (pos, meaning_ru), group in df.groupby(["pos", "meaning_ru"], dropna=False, sort=False):
         first_row = group.iloc[0]
         
-        metadata_map[str(task_key)] = TranslationTaskMetadata(
-            task_key=str(task_key),
-            meaning_ru=first_row.get("meaning_ru"),
+        metadata_map[(pos, meaning_ru)] = TranslationTaskMetadata(
             pos=first_row.get("pos"),
+            meaning_ru=first_row.get("meaning_ru"),
         )
     
     return metadata_map
@@ -263,17 +222,17 @@ def extract_unique_translation_tasks(
         return tasks
 
     seen_keys = set()
-    for task_key in df["task_key"].dropna().unique():
-        if task_key in seen_keys:
+    for pos, meaning_ru in df[["pos", "meaning_ru"]].dropna().itertuples(index=False):
+        key = (pos, meaning_ru)
+        if key in seen_keys:
             continue
-        seen_keys.add(task_key)
+        seen_keys.add(key)
         
-        first_row = df[df["task_key"] == task_key].iloc[0]
+        first_row = df[(df["pos"] == pos) & (df["meaning_ru"] == meaning_ru)].iloc[0]
         
         task = TranslationTaskMetadata(
-            task_key=str(task_key),
-            meaning_ru=first_row.get("meaning_ru"),
             pos=first_row.get("pos"),
+            meaning_ru=first_row.get("meaning_ru"),
         )
         tasks.append(task)
     
@@ -304,9 +263,8 @@ def build_translation_tasks_from_pos_meaning_ru(
         meaning_ru = row.get("meaning_ru", "")
 
         metadata = TranslationTaskMetadata(
-            task_key=serialize_task_key(str(pos), str(meaning_ru)),
-            meaning_ru=str(meaning_ru),
             pos=str(pos),
+            meaning_ru=str(meaning_ru),
         )
         tasks.append(metadata)
 
