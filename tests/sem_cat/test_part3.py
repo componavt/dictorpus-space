@@ -26,12 +26,10 @@ from src.sem_cat.compare.data_structures import ModelOutput, ConsensusCluster
 from src.sem_cat.pipeline.vepkar_translation_selection import (
     canonical_existing_en,
     has_existing_english,
-    build_task_key,
     prepare_meanings_for_translation,
-    split_by_existing_en_reuse,
     prepare_translation_input_for_task,
+    split_by_existing_en_reuse,
     extract_unique_translation_tasks,
-    build_task_metadata_map,
 )
 from src.sem_cat.utils.gloss_normalizer import primary_gloss
 
@@ -670,15 +668,7 @@ if __name__ == "__main__":
         test_review_queue_only_has_relevant_columns,
         test_canonical_existing_en,
         test_has_existing_english,
-        test_build_task_key,
-        test_split_by_existing_en_excludes_human_translations,
-        test_split_by_existing_en_unambiguous_reuse,
-        test_split_by_existing_en_ambiguous_reuse,
-        test_split_by_existing_en_all_missing,
-        test_extract_unique_translation_tasks_deduplicates,
-        test_translation_input_mode_pos,
-        test_translation_input_mode_rejects_pos_meaning,
-        test_translation_input_mode_default_changed_to_pos,
+
     ]
 
     passed = 0
@@ -716,21 +706,6 @@ def test_has_existing_english():
     assert has_existing_english("   ") is False
     assert has_existing_english("rock") is True
     assert has_existing_english("  rock  ") is True
-
-
-def test_build_task_key():
-    """task_key is (pos, meaning_ru) tuple."""
-    # Normal case
-    key = build_task_key("NOUN", "дом")
-    assert key == ("NOUN", "дом")
-    
-    # Empty POS flows through as-is
-    key = build_task_key("", "дом")
-    assert key == ("", "дом")
-    
-    # Missing POS flows through as-is
-    key = build_task_key(None, "дом")
-    assert key == (None, "дом")
 
 
 def test_split_by_existing_en_excludes_human_translations():

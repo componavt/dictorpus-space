@@ -1,11 +1,23 @@
 """
-Translates only rows from VepKar meanings files that need translation.
-Skips rows with existing human English (meaning_en).
-Detects reusable translations by (pos, primary_gloss_ru).
-Only translates truly unique tasks.
+Translates VepKar meanings from a fixed task file.
+Reads pos_meanings_ru.csv and produces model-specific translation CSV.
 
-Results saved to data/sem_cat/02_glosses_translated_{model_key}.csv and
-helper files in data/sem_cat/2translate/
+Workflow:
+  pos_meanings_ru.csv
+    -> strict reader
+    -> TranslationTaskMetadata(pos, meaning_ru)
+    -> cache filtering by (pos, meaning_ru)
+    -> optional shuffle
+    -> offset
+    -> limit
+    -> translation
+    -> QA using meaning_ru
+    -> model-specific translation CSV
+
+Output cache file uses schema:
+  pos, meaning_ru, meaning_en, qa_keep, qa_score, qa_flags, qa_version,
+  model_key, model_name, backend_family, translation_input_mode, input_text_used,
+  meaning_ru_back, roundtrip_distance, is_single_word_ru, input_token_count, output_token_count
 """
 
 import sys
@@ -14,19 +26,17 @@ import argparse
 import dataclasses
 import random
 import re
+import math
 from dataclasses import dataclass
-from math import ceil
 from typing import Literal
 
 import pandas as pd
 
 _THIS_FILE = pathlib.Path(__file__).resolve()
 _PROJECT_ROOT = _THIS_FILE.parent.parent.parent
-_DEFAULT_DATA_DIR = _PROJECT_ROOT / "data" / "vepkar"
-_DEFAULT_OUT_DIR = _PROJECT_ROOT / "data" / "sem_cat"
-_DEFAULT_TRANSLATE_DIR = _DEFAULT_OUT_DIR / "2translate"
 
-from src.sem_cat.utils.vepkar_loader import load_meanings
+DEFAULT_TASKS_FILE = _PROJECT_ROOT / "data" / "sem_cat" / "2translate" / "pos_meanings_ru.csv"
+
 from src.sem_cat.translators.model_registry import (
     get_model_spec,
     list_model_keys,
@@ -44,27 +54,27 @@ from src.sem_cat.translators.diagnostics import (
     run_backend_diagnostics,
     summarize_diagnostics,
 )
-from src.sem_cat.pipeline.meaning_preparation import prepare_meanings_for_reuse_and_translation
-from src.sem_cat.compare.loading import normalize_loaded_task_key
-from src.sem_cat.pipeline.vepkar_translation_selection import (
-    compute_suggested_candidate_index,
-)
-
 from src.sem_cat.qa.translation_qa import (
     analyze_translation,
     TranslationQAConfig,
     QAResult,
 )
+from src.sem_cat.io.pos_meaning_ru_reader import read_pos_meaning_ru_tasks
 from src.sem_cat.io.translation_cache import (
     load_translation_cache,
-    build_cached_gloss_set,
     count_cached_rows,
     TranslationCacheLoadResult,
+    build_cached_identity_set,
 )
 from src.sem_cat.io.translation_rows import (
     build_translation_row,
     CANONICAL_COLUMNS,
     QA_VERSION,
+)
+from src.sem_cat.pipeline.vepkar_translation_selection import (
+    TranslationTaskMetadata,
+    prepare_translation_input_for_task,
+    build_translation_tasks_from_pos_meaning_ru,
 )
 
 _POS_PREFIX_RE = re.compile(r"^(NOUN|VERB|ADJ|ADV|PROPN|PRON|NUM|PART|INTJ|ADP|AUX|CCONJ|SCONJ|DET)\s+[|:-]?\s*(.+)$")
@@ -76,17 +86,6 @@ def strip_pos_echo_prefix(text: str) -> str:
     Some models repeat the POS label as a prefix in the English output.
     This helper detects and removes that pattern while preserving
     legitimate content that starts with uppercase words.
-    
-    Examples:
-        "NOUN concert hall" -> "concert hall"
-        "VERB to run" -> "to run"
-        "NOUN United Nations" -> "NOUN United Nations" (preserved, not a clean echo)
-        
-    Args:
-        text: Translation output text
-        
-    Returns:
-        Text with POS echo prefix removed if detected, otherwise original text
     """
     s = str(text or "").strip()
     if not s:
@@ -98,64 +97,6 @@ def strip_pos_echo_prefix(text: str) -> str:
     return cleaned or s
 
 
-def validate_translation_rows_for_write(rows: list[dict[str, object]]) -> None:
-    """Validate that translation rows have all required schema fields.
-    
-    Args:
-        rows: List of translation row dicts to validate
-        
-    Raises:
-        ValueError: If any row is missing required fields
-    """
-    required = ("gloss_ru", "gloss_en", "task_key", "task_pos", "primary_gloss_ru")
-    bad = []
-    for idx, row in enumerate(rows):
-        missing = [k for k in required if not str(row.get(k, "")).strip()]
-        if missing:
-            bad.append((idx, missing, row))
-    if bad:
-        sample = bad[:3]
-        raise ValueError(
-            "Refusing to write malformed translation rows; "
-            f"{len(bad)} rows are missing required fields. Sample: {sample}"
-        )
-import re
-import dataclasses
-
-
-@dataclass(frozen=True)
-class HelperWriteResult:
-    wrote_krl: bool = False
-    wrote_lud: bool = False
-    wrote_olo: bool = False
-    wrote_vep: bool = False
-    wrote_ambiguous: bool = False
-    wrote_ambiguous_summary: bool = False
-
-
-def _normalize_writer_df(df: pd.DataFrame) -> pd.DataFrame:
-    if df.empty:
-        return df
-
-    out = df.copy()
-
-    if "task_key" in out.columns:
-        out["task_key"] = out["task_key"].map(normalize_loaded_task_key)
-
-    if "task_key_str" in out.columns:
-        out = out.drop(columns=["task_key_str"])
-
-    return out
-
-
-@dataclass(frozen=True)
-class ReverseSetupResult:
-    """Status of reverse translator initialization."""
-    translator: Translator | None
-    status: Literal["ready", "unsupported", "init_failed"]
-    message: str | None = None
-
-
 def _setup_reverse_translator(
     spec,
     device: str,
@@ -164,7 +105,7 @@ def _setup_reverse_translator(
     local_files_only: bool,
     cache_dir: str | None,
     ignore_proxy_env: bool,
-) -> ReverseSetupResult:
+) -> "ReverseSetupResult":
     """Attempt to build a reverse translator and return explicit status."""
     if not spec.supports_roundtrip or spec.reverse_model_name is None:
         return ReverseSetupResult(
@@ -205,13 +146,7 @@ def _setup_reverse_translator(
 
 
 def _print_summary(
-    total_rows: int,
-    existing_human_en: int,
-    raw_needs_mt: int,
-    reusable_unambiguous: int,
-    reusable_ambiguous: int,
-    needs_model: int,
-    unique_tasks: int,
+    tasks_in_file: int,
     already_cached: int,
     remaining_after_cache: int,
     to_translate_count: int,
@@ -223,26 +158,16 @@ def _print_summary(
     total_rejected_nonblank: int,
     total_roundtrip: int,
     flag_counts: dict[str, int],
-    blanks_path: str | None = None,
 ) -> None:
-    """Print final summary statistics."""
+    """Print final translation processing summary."""
     print(f"\n{'=' * 60}")
     print("SUMMARY")
     print(f"{'=' * 60}")
-    print(f"VepKar coverage (per-language):")
-    print(f"  Total rows:                   {total_rows}")
-    print(f"  Existing human English:       {existing_human_en}")
-    print(f"  Raw needs MT:                 {raw_needs_mt}")
-    print(f"  Reusable (unambiguous):       {reusable_unambiguous}")
-    print(f"  Reusable (ambiguous):         {reusable_ambiguous}")
-    print(f"  Needs model translation:      {needs_model}")
-    print(f"  Unique translation tasks:     {unique_tasks}")
-    print()
     print(f"Translation processing:")
+    print(f"  Tasks in fixed input file:    {tasks_in_file}")
     print(f"  Already cached (skipped):     {already_cached}")
     print(f"  Remaining after cache:        {remaining_after_cache}")
     print(f"  Selected for this run:        {to_translate_count}")
-    print(f"  (cache filter applied after reuse analysis, then --offset/--limit)")
     print(f"  Newly translated:             {total_written}")
     print(f"    - Kept (good quality):      {total_kept}")
     print(f"    - Kept (suspicious):        {total_suspicious}")
@@ -256,45 +181,6 @@ def _print_summary(
         print("  QA flag breakdown:")
         for flag, count in sorted(flag_counts.items()):
             print(f"    - {flag}: {count}")
-
-    if total_empty_output > 0:
-        print(f"\nEmpty output rows written to: {blanks_path}")
-
-
-def _print_coverage_summary(
-    per_lang_stats: dict[str, dict],
-    total_rows: int,
-    existing_human_en: int,
-    raw_needs_mt: int,
-    reusable_unambiguous: int,
-    reusable_ambiguous: int,
-    needs_model: int,
-    unique_tasks: int,
-) -> None:
-    """Print per-language and global coverage summary."""
-    print(f"\n{'=' * 60}")
-    print("VepKar translation coverage")
-    print(f"{'=' * 60}")
-    
-    for lang in ["krl", "lud", "olo", "vep"]:
-        stats = per_lang_stats[lang]
-        print(f"\nmeanings_{lang}.csv")
-        print(f"  total_rows              {stats['total_rows']}")
-        print(f"  existing_human_en       {stats['existing_human_en']}")
-        print(f"  raw_needs_mt            {stats['raw_needs_mt']}")
-        print(f"  reusable_unambiguous    {stats['reusable_unambiguous']}")
-        print(f"  reusable_ambiguous      {stats['reusable_ambiguous']}")
-        print(f"  needs_model             {stats['needs_model']}")
-        print(f"  unique_tasks            {stats['unique_tasks']}")
-    
-    print(f"\nALL FILES")
-    print(f"  total_rows              {total_rows}")
-    print(f"  existing_human_en       {existing_human_en}")
-    print(f"  raw_needs_mt            {raw_needs_mt}")
-    print(f"  reusable_unambiguous    {reusable_unambiguous}")
-    print(f"  reusable_ambiguous      {reusable_ambiguous}")
-    print(f"  needs_model             {needs_model}")
-    print(f"  unique_tasks            {unique_tasks}")
 
 
 def _run_backend_info(
@@ -395,96 +281,22 @@ def _should_abort_for_early_empty_run(
     return (total_empty_output / total_written) >= empty_ratio_threshold
 
 
-def save_translate_helper_files(
-    df_krl: pd.DataFrame,
-    df_lud: pd.DataFrame,
-    df_olo: pd.DataFrame,
-    df_vep: pd.DataFrame,
-    ambiguous_df: pd.DataFrame,
-    translate_dir: pathlib.Path,
-) -> HelperWriteResult:
-    """Save helper CSV files for translation workflow."""
-    translate_dir.mkdir(parents=True, exist_ok=True)
-    
-    result = HelperWriteResult()
-
-    if not df_krl.empty:
-        df_krl = _normalize_writer_df(df_krl)
-        df_krl.to_csv(translate_dir / "meanings_krl_to_translate.csv", index=False)
-        result = dataclasses.replace(result, wrote_krl=True)
-    if not df_lud.empty:
-        df_lud = _normalize_writer_df(df_lud)
-        df_lud.to_csv(translate_dir / "meanings_lud_to_translate.csv", index=False)
-        result = dataclasses.replace(result, wrote_lud=True)
-    if not df_olo.empty:
-        df_olo = _normalize_writer_df(df_olo)
-        df_olo.to_csv(translate_dir / "meanings_olo_to_translate.csv", index=False)
-        result = dataclasses.replace(result, wrote_olo=True)
-    if not df_vep.empty:
-        df_vep = _normalize_writer_df(df_vep)
-        df_vep.to_csv(translate_dir / "meanings_vep_to_translate.csv", index=False)
-        result = dataclasses.replace(result, wrote_vep=True)
-    
-    if not ambiguous_df.empty:
-        ambiguous_df = _normalize_writer_df(ambiguous_df)
-        ambiguous_df.to_csv(translate_dir / "ambiguous_existing_en_by_task.csv", index=False)
-        result = dataclasses.replace(result, wrote_ambiguous=True)
-    
-    if not ambiguous_df.empty:
-        ambiguous_task_df = _build_ambiguous_task_summary(ambiguous_df)
-        ambiguous_task_df.to_csv(translate_dir / "ambiguous_existing_en_by_task_summary.csv", index=False)
-        result = dataclasses.replace(result, wrote_ambiguous_summary=True)
-
-    return result
-
-
-def _build_ambiguous_task_summary(df: pd.DataFrame) -> pd.DataFrame:
-    """Build task-level summary for ambiguous reuse cases.
-    
-    Returns a DataFrame with one row per unique task_key that has ambiguous existing English,
-    instead of one row per missing meaning.
-    """
-    if df.empty:
-        return pd.DataFrame()
-
-    out = df.copy()
-
-    if "task_key" in out.columns:
-        out["task_key"] = out["task_key"].map(normalize_loaded_task_key)
-
-    summaryParts = []
-    for _, group in out.groupby(["task_key", "task_pos", "primary_gloss_ru", "existing_en_candidates", "existing_en_candidate_count"], dropna=False, sort=False):
-        suggested_idx = compute_suggested_candidate_index(
-            str(group["existing_en_candidates"].iloc[0]) if "existing_en_candidates" in group.columns else ""
-        )
-        summary = {
-            "task_key": group["task_key"].iloc[0] if "task_key" in group.columns else "",
-            "task_pos": str(group["task_pos"].iloc[0]) if "task_pos" in group.columns else "",
-            "primary_gloss_ru": str(group["primary_gloss_ru"].iloc[0]) if "primary_gloss_ru" in group.columns else "",
-            "existing_en_candidates": str(group["existing_en_candidates"].iloc[0]) if "existing_en_candidates" in group.columns else "",
-            "existing_en_candidate_count": int(group["existing_en_candidate_count"].iloc[0]) if "existing_en_candidate_count" in group.columns else 0,
-            "suggested_candidate_index": suggested_idx if suggested_idx is not None else "",
-            "missing_row_count": len(group),
-            "example_lemma": str(group["lemma"].iloc[0]) if "lemma" in group.columns and not group["lemma"].isna().any() else "",
-            "langs": " || ".join(sorted(set(str(x) for x in group["lang"].dropna().tolist()))) if "lang" in group.columns else "",
-        }
-        summaryParts.append(summary)
-    
-    return pd.DataFrame(summaryParts)
+@dataclass(frozen=True)
+class ReverseSetupResult:
+    """Status of reverse translator initialization."""
+    translator: Translator | None
+    status: Literal["ready", "unsupported", "init_failed"]
+    message: str | None = None
 
 
 def main() -> None:
     model_keys = list_model_keys()
 
     parser = argparse.ArgumentParser(
-        description="Translate VepKar meanings to English (skips existing human translations)"
+        description="Translate VepKar meanings to English from fixed task file"
     )
-    parser.add_argument("--data-dir", type=str, default=str(_DEFAULT_DATA_DIR),
-                        help=f"path to data/vepkar/ (default: {_DEFAULT_DATA_DIR})")
-    parser.add_argument("--out-dir", type=str, default=str(_DEFAULT_OUT_DIR),
-                        help=f"output directory for translated CSV (default: {_DEFAULT_OUT_DIR})")
-    parser.add_argument("--translate-dir", type=str, default=str(_DEFAULT_TRANSLATE_DIR),
-                        help=f"output directory for translation helpers (default: {_DEFAULT_TRANSLATE_DIR})")
+    parser.add_argument("--out-dir", type=str, default=str(_PROJECT_ROOT / "data" / "sem_cat"),
+                        help=f"output directory for translated CSV")
     parser.add_argument("--model-key", type=str, choices=model_keys, default=None,
                         help=f"translation model key (default: resolved from --backend)")
     parser.add_argument("--backend", type=str, choices=["marian", "google", "nllb"], default="marian",
@@ -505,14 +317,12 @@ def main() -> None:
         "--out-file", type=str, default=None,
         help=(
             "Full path to output CSV file. If provided, overrides --out-dir "
-            "and the auto-generated filename. "
-            "Blank/None translations are excluded from this file and written "
-            "to <out_file>.blanks.csv instead."
+            "and the auto-generated filename."
         ),
     )
     parser.add_argument(
         "--round-trip", action="store_true", default=False,
-        help="also back-translate gloss_en -> ru for quality checking",
+        help="also back-translate meaning_en -> ru for quality checking",
     )
     parser.add_argument("--offset", type=int, default=0,
                         help="Skip the first N tasks after cache filtering (default: 0)")
@@ -522,10 +332,8 @@ def main() -> None:
                         help="Shuffle tasks before applying offset/limit")
     parser.add_argument("--seed", type=int, default=42,
                         help="Random seed used with --shuffle (default: 42)")
-    parser.add_argument("--gloss-filter", type=str, default=None,
-                        help="Optional substring filter applied to primary_gloss_ru before translation")
     parser.add_argument(
-        "--translation-input-mode", type=str, choices=["raw", "pos", "pos_meaning"],
+        "--translation-input-mode", type=str, choices=["raw", "pos"],
         default="pos",
         help="How to prepare input for translator (default: pos)",
     )
@@ -601,14 +409,10 @@ def main() -> None:
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / f"02_glosses_translated_{resolved_model_key}.csv"
 
-    translate_dir = pathlib.Path(args.translate_dir)
-    translate_dir.mkdir(parents=True, exist_ok=True)
-
     print(f"Model key: {resolved_model_key}")
     print(f"Model name: {spec.model_name}")
     print(f"Backend family: {spec.backend_family}")
     print(f"Output file: {out_path}")
-    print(f"Translate helper dir: {translate_dir}")
 
     if args.backend_info:
         _run_backend_info(
@@ -618,97 +422,28 @@ def main() -> None:
         )
         return
 
-    data_dir = pathlib.Path(args.data_dir)
-    if not data_dir.exists():
-        print(f"ERROR: data directory not found: {data_dir}")
+    tasks_file = DEFAULT_TASKS_FILE
+    print(f"Translation tasks file: {tasks_file}")
+    
+    if not tasks_file.exists():
+        print(f"ERROR: Tasks file not found: {tasks_file}")
         sys.exit(1)
-
-    print("Loading meanings...")
-    df_meanings = load_meanings(str(data_dir))
     
-    print("Preparing meanings for translation...")
-    work = prepare_meanings_for_reuse_and_translation(df_meanings)
-    print(f"Total rows with non-empty primary gloss: {len(work)}")
+    print("Loading translation tasks...")
+    task_df = read_pos_meaning_ru_tasks(tasks_file)
+    tasks_in_file = len(task_df)
+    print(f"  Loaded {tasks_in_file} tasks")
     
-    print("Computing reuse analysis by (pos, primary_gloss_ru)...")
-    reusable_unambiguous_df, reusable_ambiguous_df, needs_model_df = split_by_existing_en_reuse(work)
+    if tasks_in_file == 0:
+        print("No tasks to translate. Exiting.")
+        return
     
-    print(f"  Reusable (unambiguous): {len(reusable_unambiguous_df)}")
-    print(f"  Reusable (ambiguous):   {len(reusable_ambiguous_df)}")
-    print(f"  Needs model:            {len(needs_model_df)}")
+    print("Building translation tasks...")
+    tasks = build_translation_tasks_from_pos_meaning_ru(task_df)
+    print(f"  Built {len(tasks)} task objects")
     
-    per_lang_stats = {}
-    for lang in ["krl", "lud", "olo", "vep"]:
-        lang_work = work[work["lang"] == lang] if "lang" in work.columns else work
-        lang_has_en = lang_work[lang_work["has_existing_en"]] if "lang" in lang_work.columns else lang_work
-        lang_missing = lang_work[~lang_work["has_existing_en"]] if "lang" in lang_work.columns else lang_work
-        
-        lang_reuse_unamb = reusable_unambiguous_df[
-            reusable_unambiguous_df["lang"] == lang
-        ] if "lang" in reusable_unambiguous_df.columns else pd.DataFrame()
-        lang_reuse_amb = reusable_ambiguous_df[
-            reusable_ambiguous_df["lang"] == lang
-        ] if "lang" in reusable_ambiguous_df.columns else pd.DataFrame()
-        lang_needs = needs_model_df[
-            needs_model_df["lang"] == lang
-        ] if "lang" in needs_model_df.columns else pd.DataFrame()
-        
-        per_lang_stats[lang] = {
-            "total_rows": len(lang_work),
-            "existing_human_en": len(lang_has_en),
-            "raw_needs_mt": len(lang_missing),
-            "reusable_unambiguous": len(lang_reuse_unamb),
-            "reusable_ambiguous": len(lang_reuse_amb),
-            "needs_model": len(lang_needs),
-            "unique_tasks": len(lang_needs["task_key"].unique()) if not lang_needs.empty else 0,
-        }
-
-    total_rows = len(work)
-    existing_human_en = len(work[work["has_existing_en"]])
-    raw_needs_mt = len(work[~work["has_existing_en"]])
-    reusable_unambiguous = len(reusable_unambiguous_df)
-    reusable_ambiguous = len(reusable_ambiguous_df)
-    needs_model = len(needs_model_df)
-    
-    unique_tasks_df = needs_model_df.drop_duplicates(subset=["task_key"]) if not needs_model_df.empty else pd.DataFrame()
-    unique_tasks = len(unique_tasks_df)
-    
-    _print_coverage_summary(
-        per_lang_stats,
-        total_rows, existing_human_en, raw_needs_mt,
-        reusable_unambiguous, reusable_ambiguous, needs_model, unique_tasks,
-    )
-    
-    print("\nSaving helper files...")
-    
-    write_result = save_translate_helper_files(
-        df_krl=needs_model_df[needs_model_df["lang"] == "krl"] if "lang" in needs_model_df.columns else pd.DataFrame(),
-        df_lud=needs_model_df[needs_model_df["lang"] == "lud"] if "lang" in needs_model_df.columns else pd.DataFrame(),
-        df_olo=needs_model_df[needs_model_df["lang"] == "olo"] if "lang" in needs_model_df.columns else pd.DataFrame(),
-        df_vep=needs_model_df[needs_model_df["lang"] == "vep"] if "lang" in needs_model_df.columns else pd.DataFrame(),
-        ambiguous_df=reusable_ambiguous_df,
-        translate_dir=translate_dir,
-    )
-    
-    print(f"  Helper file manifest:")
-    df_krl_len = len(needs_model_df[needs_model_df["lang"] == "krl"]) if "lang" in needs_model_df.columns else 0
-    df_lud_len = len(needs_model_df[needs_model_df["lang"] == "lud"]) if "lang" in needs_model_df.columns else 0
-    df_olo_len = len(needs_model_df[needs_model_df["lang"] == "olo"]) if "lang" in needs_model_df.columns else 0
-    df_vep_len = len(needs_model_df[needs_model_df["lang"] == "vep"]) if "lang" in needs_model_df.columns else 0
-    print(f"    {translate_dir}/meanings_krl_to_translate.csv — {'written' if write_result.wrote_krl else 'not written'}, {df_krl_len} rows")
-    print(f"    {translate_dir}/meanings_lud_to_translate.csv — {'written' if write_result.wrote_lud else 'not written'}, {df_lud_len} rows")
-    print(f"    {translate_dir}/meanings_olo_to_translate.csv — {'written' if write_result.wrote_olo else 'not written'}, {df_olo_len} rows")
-    print(f"    {translate_dir}/meanings_vep_to_translate.csv — {'written' if write_result.wrote_vep else 'not written'}, {df_vep_len} rows")
-    print(f"    {translate_dir}/ambiguous_existing_en_by_task.csv — {'written' if write_result.wrote_ambiguous else 'not written'}, {len(reusable_ambiguous_df) if reusable_ambiguous_df is not None else 0} rows")
-    print(f"    {translate_dir}/ambiguous_existing_en_by_task_summary.csv — {'written' if write_result.wrote_ambiguous_summary else 'not written'}, {len(reusable_ambiguous_df) if reusable_ambiguous_df is not None else 0} rows")
-    
-    print("Extracting unique translation tasks...")
-    tasks = extract_unique_translation_tasks(needs_model_df)
-    total_tasks = len(tasks)
-    print(f"Found {total_tasks} unique translation tasks")
-
     print("Loading and validating translation cache...")
-    cache_result = load_and_validate_cache_for_step02(out_path, expected_model_key=resolved_model_key)
+    cache_result = load_translation_cache(out_path, expected_model_key=resolved_model_key)
     cache_df = cache_result.df
     
     writer_mode: Literal["start_new_file", "append_to_existing_valid_file", "abort_due_to_malformed_existing_file"]
@@ -725,41 +460,39 @@ def main() -> None:
         print(f"\nFATAL: Output file exists but is malformed: {out_path}")
         print(f"  Detected columns: {list(detected_cols)}")
         print(f"  Validation error: {cache_result.reason}")
-        print("\n likely cause: a previous run wrote data rows before the CSV header.")
+        print("  Likely cause: a previous run wrote data rows before the CSV header,")
+        print("  or the file uses the obsolete gloss-based schema.")
         print("  Action: Remove or rename the file, then rerun.")
         sys.exit(1)
     
     need_header_for_good_output = writer_mode == "start_new_file"
 
-    tasks_to_translate = [t for t in tasks if t.task_key not in cached_tasks]
+    print("Filtering by cache...")
+    cached_ids = build_cached_identity_set(cache_df) if not cache_df.empty else set()
+    tasks_to_translate = [t for t in tasks if (t.pos, t.meaning_ru) not in cached_ids]
     remaining_after_cache = len(tasks_to_translate)
-    print(f"Remaining after cache: {remaining_after_cache}")
-
-    if args.gloss_filter:
-        tasks_to_translate = [
-            t for t in tasks_to_translate
-            if args.gloss_filter in t.primary_gloss_ru
-        ]
-        print(f"After gloss filter '{args.gloss_filter}': {len(tasks_to_translate)}")
+    cached_count = len(tasks) - remaining_after_cache
+    print(f"  Already cached: {cached_count}")
+    print(f"  Remaining after cache: {remaining_after_cache}")
 
     if args.shuffle:
         random.seed(args.seed)
         random.shuffle(tasks_to_translate)
-        print(f"Shuffled tasks with seed {args.seed}")
+        print(f"  Shuffled tasks with seed {args.seed}")
 
     if args.offset > 0:
         tasks_to_translate = tasks_to_translate[args.offset:]
-        print(f"After offset {args.offset}: {len(tasks_to_translate)}")
+        print(f"  After offset {args.offset}: {len(tasks_to_translate)}")
 
     if args.limit is not None:
         tasks_to_translate = tasks_to_translate[:args.limit]
-        print(f"After limit {args.limit}: {len(tasks_to_translate)}")
+        print(f"  After limit {args.limit}: {len(tasks_to_translate)}")
 
     to_translate_count = len(tasks_to_translate)
-    print(f"Selected for this run: {to_translate_count}")
+    print(f"  Selected for this run: {to_translate_count}")
 
     if to_translate_count == 0:
-        print("No new tasks to translation. Exiting.")
+        print("No new tasks to translate. Exiting.")
         return
 
     try:
@@ -823,15 +556,8 @@ def main() -> None:
     )
 
     n = len(tasks_to_translate)
-    n_batches = ceil(n / effective_batch_size) if n > 0 else 0
+    n_batches = math.ceil(n / effective_batch_size) if n > 0 else 0
     
-    cached_tasks = set()
-    if not cache_df.empty and "task_key" in cache_df.columns:
-        cached_tasks = set(cache_df["task_key"].dropna().tolist())
-        print(f"  Found {len(cached_tasks)} cached task keys")
-    else:
-        print("  Cache has no task_key column - will not skip any cached tasks")
-
     file_exists = out_path.exists()
     file_size = out_path.stat().st_size if file_exists else 0
     
@@ -843,7 +569,7 @@ def main() -> None:
     print(f"  Cache status: {cache_result.state}")
     print(f"  Detected columns: {list(cache_result.columns) if cache_result.columns else []}")
     print(f"  Valid cache rows: {len(cache_df)}")
-    print(f"  Cached task count: {len(cached_tasks)}")
+    print(f"  Cached task count: {len(cached_ids)}")
     print(f"  Writer mode: {writer_mode}")
     print(f"  First good batch writes header: {need_header_for_good_output}")
     qa_config = TranslationQAConfig()
@@ -878,34 +604,29 @@ def main() -> None:
 
         batch_rows = []
         for task, input_text, trans in zip(batch_tasks, batch_inputs, raw_batch):
-            roundtrip_text = back_translated[
-                list(batch_tasks).index(task)
-            ] if back_translator is not None else None
+            batch_idx_in_tasks = list(batch_tasks).index(task)
+            roundtrip_text = back_translated[batch_idx_in_tasks] if back_translator is not None else None
 
             trans_clean = strip_pos_echo_prefix(trans if trans else "")
             qa_result = analyze_translation(
-                task.primary_gloss_ru,
+                task.meaning_ru,
                 trans_clean,
                 roundtrip_text,
                 config=qa_config
             )
 
             row = build_translation_row(
-                gloss_ru=task.primary_gloss_ru,
-                gloss_en=trans_clean,
+                pos=task.pos,
+                meaning_ru=task.meaning_ru,
+                meaning_en=trans_clean,
                 qa_result=qa_result,
                 model_key=resolved_model_key,
                 model_name=spec.model_name,
                 backend_family=spec.backend_family,
                 translation_input_mode=args.translation_input_mode,
                 input_text_used=input_text,
-                pos_hint=task.pos,
-                meaning_hint=task.meaning_hint,
-                source_count=task.sourcecount,
-                gloss_ru_back=roundtrip_text if roundtrip_text else "",
-                task_key=task.task_key,
-                task_pos=task.pos,
-                primary_gloss_ru=task.primary_gloss_ru,
+                meaning_ru_back=roundtrip_text if roundtrip_text else "",
+                roundtrip_distance=qa_result.roundtrip_distance,
             )
             batch_rows.append(row)
 
@@ -928,17 +649,16 @@ def main() -> None:
 
         batch_df = pd.DataFrame(batch_rows, columns=CANONICAL_COLUMNS)
 
-        good_rows = [r for r in batch_rows if r.get("gloss_en", "").strip()]
-        blank_rows = [r for r in batch_rows if not r.get("gloss_en", "").strip()]
+        good_rows = [r for r in batch_rows if r.get("meaning_en", "").strip()]
+        blank_rows = [r for r in batch_rows if not r.get("meaning_en", "").strip()]
         
-        print(f"  Batch schema check: rows={len(batch_rows)}, blank_task_key={sum(1 for r in batch_rows if not str(r.get('task_key', '')).strip())}, blank_task_pos={sum(1 for r in batch_rows if not str(r.get('task_pos', '')).strip())}, blank_primary_gloss_ru={sum(1 for r in batch_rows if not str(r.get('primary_gloss_ru', '')).strip())}, blank_gloss_en={sum(1 for r in good_rows if not str(r.get('gloss_en', '')).strip())}")
+        print(f"  Batch schema check: rows={len(batch_rows)}, blank_pos={sum(1 for r in batch_rows if not str(r.get('pos', '')).strip())}, blank_meaning_ru={sum(1 for r in batch_rows if not str(r.get('meaning_ru', '')).strip())}, blank_meaning_en={sum(1 for r in good_rows if not str(r.get('meaning_en', '')).strip())}")
         if batch_rows:
             print("   - preview:")
             for preview in batch_rows[:3]:
-                print(f"     - {preview.get('gloss_ru', '') or ''} => {preview.get('gloss_en', '') or ''} | task_key={preview.get('task_key', '') or ''} | task_pos={preview.get('task_pos', '') or ''} | input={preview.get('input_text_used', '') or ''}")
+                print(f"     - {preview.get('pos', '')} | {preview.get('meaning_ru', '')} => {preview.get('meaning_en', '')} | input={preview.get('input_text_used', '')}")
 
         if good_rows:
-            validate_translation_rows_for_write(good_rows)
             good_df = pd.DataFrame(good_rows, columns=CANONICAL_COLUMNS)
             good_df.to_csv(out_path, mode="a", header=need_header_for_good_output, index=False, encoding="utf-8")
             if need_header_for_good_output:
@@ -970,14 +690,8 @@ def main() -> None:
 
     blanks_path = out_path.with_suffix(out_path.suffix + ".blanks.csv")
     _print_summary(
-        total_rows=total_rows,
-        existing_human_en=existing_human_en,
-        raw_needs_mt=raw_needs_mt,
-        reusable_unambiguous=reusable_unambiguous,
-        reusable_ambiguous=reusable_ambiguous,
-        needs_model=needs_model,
-        unique_tasks=unique_tasks,
-        already_cached=len(cached_tasks),
+        tasks_in_file=tasks_in_file,
+        already_cached=cached_count,
         remaining_after_cache=remaining_after_cache,
         to_translate_count=to_translate_count,
         total_written=total_written,
@@ -988,7 +702,6 @@ def main() -> None:
         total_rejected_nonblank=total_rejected_nonblank,
         total_roundtrip=total_roundtrip,
         flag_counts=flag_counts,
-        blanks_path=str(blanks_path) if total_empty_output > 0 else None,
     )
 
 
