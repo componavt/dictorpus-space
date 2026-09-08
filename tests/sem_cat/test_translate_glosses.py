@@ -450,55 +450,6 @@ def test_step02_integration_empty_input_no_output(tmp_path):
     assert tasks == []
 
 
-def test_step02_model_key_mismatch_aborts_brief(tmp_path, monkeypatch):
-    """Mismatched output filename model key should abort before cache loading."""
-    import importlib
-    mod = importlib.import_module("src.sem_cat.02_translate_glosses")
-    
-    out_dir = tmp_path / "output"
-    out_dir.mkdir()
-    out_path = out_dir / "02_meanings_translated_expected_model.csv"
-    
-    tc_load_calls = []
-    from src.sem_cat.io.translation_cache import TranslationCacheLoadResult, CANONICAL_COLUMNS
-    
-    def mock_load_translation_cache(path):
-        tc_load_calls.append(str(path))
-        return TranslationCacheLoadResult(
-            state="valid",
-            df=pd.DataFrame(columns=CANONICAL_COLUMNS),
-            columns=CANONICAL_COLUMNS,
-            row_count=0,
-        )
-    
-    def mock_extract(path):
-        return "expected_model"
-    
-    monkeypatch.setattr(mod, "_extract_model_key_from_filename", mock_extract)
-    monkeypatch.setattr(mod, "load_translation_cache", mock_load_translation_cache)
-    
-    def mock_exit(code):
-        raise SystemExit(code)
-    monkeypatch.setattr("sys.exit", mock_exit)
-    
-    import sys as sys_module
-    monkeypatch.setattr(mod, "sys", sys_module)
-    
-    def patched_main():
-        resolved_model_key = "my_model_v1"
-        filename_model_key = mod._extract_model_key_from_filename(out_path)
-        if filename_model_key != resolved_model_key:
-            sys_module.exit(1)
-        mod.load_translation_cache(out_path)
-    
-    try:
-        patched_main()
-    except SystemExit as e:
-        assert e.code == 1, "Should exit with code 1 on model key mismatch"
-    
-    assert len(tc_load_calls) == 0, "load_translation_cache should not be called when model key mismatches"
-
-
 def test_step02_integration_successful_translation_with_pipe_format():
     """prepare_translation_input_for_task should use pipe separator."""
     task = TranslationTaskMetadata(pos="NOUN", meaning_ru="дом")
@@ -576,7 +527,6 @@ if __name__ == "__main__":
         test_step02_integration_cache_filtering_with_offset_limit,
         test_step02_integration_empty_input_no_output,
         test_load_translation_cache_no_expected_model_key_param,
-        test_step02_model_key_mismatch_aborts,
         test_step02_cli_rejects_obsolete_options,
     ]
     
