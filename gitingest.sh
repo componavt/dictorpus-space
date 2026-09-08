@@ -31,4 +31,4 @@ gitingest . \
   --exclude-pattern "*.ipynb" \
   --exclude-pattern "out_gitingest/*" \
   ${EXCLUDE_TEST_STEP01:+$EXCLUDE_TEST_STEP01} \
-  --output out_gitingest/semcat_61.md
+  --output out_gitingest/semcat_62.md

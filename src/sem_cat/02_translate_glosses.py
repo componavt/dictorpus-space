@@ -220,6 +220,30 @@ def _run_backend_info(
         print("\nTranslator is working correctly.")
 
 
+def _extract_model_key_from_filename(path: pathlib.Path) -> str:
+    """Extract model key from translation output filename.
+    
+    The filename format is 02_meanings_translated_<model_key>.csv.
+    This function extracts the <model_key> segment.
+    
+    Args:
+        path: Path to the CSV file
+        
+    Returns:
+        Model key extracted from the filename
+        
+    Raises:
+        ValueError: If filename does not match expected pattern
+    """
+    stem = path.stem
+    prefix = "02_meanings_translated_"
+    suffix = ".csv"
+    filename = path.name
+    if not stem.startswith(prefix) or not filename.endswith(suffix):
+        raise ValueError(f"Filename does not match expected pattern: {path.name}")
+    return stem[len(prefix):]
+
+
 def _causal_generation_preflight(
     translator: Translator,
     prepared_inputs: list[str],
@@ -423,8 +447,15 @@ def main() -> None:
     tasks = build_translation_tasks_from_pos_meaning_ru(task_df)
     print(f"  Built {len(tasks)} task objects")
     
+    print(f"Resolved model key: {resolved_model_key}")
+    filename_model_key = _extract_model_key_from_filename(out_path)
+    if filename_model_key != resolved_model_key:
+        print(f"FATAL: Output filename expects model key '{filename_model_key}' but resolved model key is '{resolved_model_key}'")
+        print(f"Action: Use a different output directory or remove/rename the mismatched file ({out_path.name})")
+        sys.exit(1)
+    
     print("Loading and validating translation cache...")
-    cache_result = load_translation_cache(out_path, expected_model_key=resolved_model_key)
+    cache_result = load_translation_cache(out_path)
     cache_df = cache_result.df
     
     writer_mode: Literal["start_new_file", "append_to_existing_valid_file", "abort_due_to_malformed_existing_file"]

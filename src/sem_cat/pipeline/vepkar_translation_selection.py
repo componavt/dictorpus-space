@@ -41,19 +41,6 @@ def has_existing_english(meaning_en: str | None) -> bool:
     return bool(canonical_existing_en(meaning_en))
 
 
-def build_task_key(pos: str, meaning_ru: str) -> tuple[str, str]:
-    """Return (pos, meaning_ru) tuple as task identity.
-    
-    Args:
-        pos: Part of speech
-        meaning_ru: Full Russian meaning string
-        
-    Returns:
-        (pos, meaning_ru) tuple
-    """
-    return (pos, meaning_ru)
-
-
 @dataclass(frozen=True)
 class TranslationTaskMetadata:
     """Metadata for a translation task.

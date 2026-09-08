@@ -51,7 +51,6 @@ def _detect_legacy_fields(detected_columns: list[str]) -> list[str]:
 
 def load_translation_cache(
     out_path: pathlib.Path,
-    expected_model_key: str | None = None,
 ) -> TranslationCacheLoadResult:
     """Load and validate an existing translation cache file.
     
@@ -59,7 +58,6 @@ def load_translation_cache(
     
     Args:
         out_path: Path to the CSV cache file.
-        expected_model_key: If provided, validates that cached rows match (ignored).
         
     Returns:
         TranslationCacheLoadResult with structured state information.

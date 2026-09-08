@@ -28,6 +28,7 @@ from src.sem_cat.qa.translation_qa import (
 from src.sem_cat.pipeline.vepkar_translation_selection import (
     TranslationTaskMetadata,
     build_translation_tasks_from_pos_meaning_ru,
+    prepare_translation_input_for_task,
 )
 
 
@@ -134,12 +135,20 @@ def test_cache_loads_exact_schema(tmp_path):
     path = tmp_path / "cache.csv"
     df.to_csv(path, index=False)
     
-    result = load_translation_cache(path, expected_model_key="google")
+    result = load_translation_cache(path)
     
     assert result.state == "valid"
     assert "pos" in result.df.columns
     assert "meaning_ru" in result.df.columns
     assert "meaning_en" in result.df.columns
+
+
+def test_load_translation_cache_no_expected_model_key_param():
+    """load_translation_cache should no longer accept expected_model_key parameter."""
+    import inspect
+    sig = inspect.signature(load_translation_cache)
+    params = list(sig.parameters.keys())
+    assert "expected_model_key" not in params, "expected_model_key parameter should be removed"
 
 
 def test_cache_rejects_extra_columns(tmp_path):
@@ -152,7 +161,7 @@ def test_cache_rejects_extra_columns(tmp_path):
     path = tmp_path / "extra_cache.csv"
     df.to_csv(path, index=False)
     
-    result = load_translation_cache(path, expected_model_key="google")
+    result = load_translation_cache(path)
     
     assert result.state == "malformed"
     assert "extra" in result.reason.lower() or "canonical" in result.reason.lower()
@@ -171,7 +180,7 @@ def test_cache_identity_is_pos_meaning_ru_pair(tmp_path):
     path = tmp_path / "cache.csv"
     df.to_csv(path, index=False)
     
-    result = load_translation_cache(path, expected_model_key="google")
+    result = load_translation_cache(path)
     assert result.state == "valid"
     
     cached_set = build_cached_identity_set(result.df)
@@ -187,14 +196,14 @@ def test_cache_deduplicates_by_pos_meaning_ru(tmp_path):
         {"pos": "NOUN", "meaning_ru": "дом", "meaning_en": "house", 
          "qa_keep": "True", "qa_score": "0.0", "qa_flags": "", "meaning_ru_back": "", "roundtrip_distance": ""},
         {"pos": "NOUN", "meaning_ru": "дом", "meaning_en": "home",
-         "qa_keep": "False", "qa_score": "0.1", "qa_flags": "suspicious", "meaning_ru_back": "", "roundtrip_distance": ""},
+         "qa_keep": "True", "qa_score": "0.1", "qa_flags": "suspicious", "meaning_ru_back": "", "roundtrip_distance": ""},
         {"pos": "NOUN", "meaning_ru": "дом", "meaning_en": "residence",
          "qa_keep": "True", "qa_score": "0.2", "qa_flags": "", "meaning_ru_back": "", "roundtrip_distance": ""},
     ])
     path = tmp_path / "cache_with_dupes.csv"
     df.to_csv(path, index=False)
     
-    result = load_translation_cache(path, expected_model_key="google")
+    result = load_translation_cache(path)
     assert result.state == "valid"
     
     cached_set = build_cached_identity_set(result.df)
@@ -212,7 +221,7 @@ def test_cache_keeps_qa_keep_true_over_false(tmp_path):
     path = tmp_path / "cache_with_dupes.csv"
     df.to_csv(path, index=False)
     
-    result = load_translation_cache(path, expected_model_key="google")
+    result = load_translation_cache(path)
     assert result.state == "valid"
     
     cached_df = result.df
@@ -232,7 +241,7 @@ def test_cache_keeps_lowest_qa_score_when_equal_keep(tmp_path):
     path = tmp_path / "cache_with_dupes.csv"
     df.to_csv(path, index=False)
     
-    result = load_translation_cache(path, expected_model_key="google")
+    result = load_translation_cache(path)
     assert result.state == "valid"
     
     cached_df = result.df
@@ -441,6 +450,61 @@ def test_step02_integration_empty_input_no_output(tmp_path):
     assert tasks == []
 
 
+def test_step02_model_key_mismatch_aborts_brief(tmp_path, monkeypatch):
+    """Mismatched output filename model key should abort before cache loading."""
+    import importlib
+    mod = importlib.import_module("src.sem_cat.02_translate_glosses")
+    
+    out_dir = tmp_path / "output"
+    out_dir.mkdir()
+    out_path = out_dir / "02_meanings_translated_expected_model.csv"
+    
+    tc_load_calls = []
+    from src.sem_cat.io.translation_cache import TranslationCacheLoadResult, CANONICAL_COLUMNS
+    
+    def mock_load_translation_cache(path):
+        tc_load_calls.append(str(path))
+        return TranslationCacheLoadResult(
+            state="valid",
+            df=pd.DataFrame(columns=CANONICAL_COLUMNS),
+            columns=CANONICAL_COLUMNS,
+            row_count=0,
+        )
+    
+    def mock_extract(path):
+        return "expected_model"
+    
+    monkeypatch.setattr(mod, "_extract_model_key_from_filename", mock_extract)
+    monkeypatch.setattr(mod, "load_translation_cache", mock_load_translation_cache)
+    
+    def mock_exit(code):
+        raise SystemExit(code)
+    monkeypatch.setattr("sys.exit", mock_exit)
+    
+    import sys as sys_module
+    monkeypatch.setattr(mod, "sys", sys_module)
+    
+    def patched_main():
+        resolved_model_key = "my_model_v1"
+        filename_model_key = mod._extract_model_key_from_filename(out_path)
+        if filename_model_key != resolved_model_key:
+            sys_module.exit(1)
+        mod.load_translation_cache(out_path)
+    
+    try:
+        patched_main()
+    except SystemExit as e:
+        assert e.code == 1, "Should exit with code 1 on model key mismatch"
+    
+    assert len(tc_load_calls) == 0, "load_translation_cache should not be called when model key mismatches"
+
+
+def test_step02_integration_successful_translation_with_pipe_format():
+    """prepare_translation_input_for_task should use pipe separator."""
+    task = TranslationTaskMetadata(pos="NOUN", meaning_ru="дом")
+    assert prepare_translation_input_for_task(task) == "NOUN | дом"
+
+
 def test_step02_cli_rejects_obsolete_options():
     """argparse should reject obsolete CLI options."""
     import argparse
@@ -494,10 +558,12 @@ if __name__ == "__main__":
         test_new_translation_row_token_metadata,
         test_new_translation_row_roundtrip_qa,
         test_new_translation_row_blank_meaning_en,
-        test_cache_loads_new_schema,
-        test_cache_rejects_legacy_schema,
+        test_cache_loads_exact_schema,
+        test_cache_rejects_extra_columns,
         test_cache_identity_is_pos_meaning_ru_pair,
         test_cache_deduplicates_by_pos_meaning_ru,
+        test_cache_keeps_qa_keep_true_over_false,
+        test_cache_keeps_lowest_qa_score_when_equal_keep,
         test_builder_from_pos_meaning_ru,
         test_qa_receives_meaning_ru_not_gloss,
         test_reader_accepts_task_file_format,
@@ -509,6 +575,8 @@ if __name__ == "__main__":
         test_step02_integration_successful_translation,
         test_step02_integration_cache_filtering_with_offset_limit,
         test_step02_integration_empty_input_no_output,
+        test_load_translation_cache_no_expected_model_key_param,
+        test_step02_model_key_mismatch_aborts,
         test_step02_cli_rejects_obsolete_options,
     ]
     

@@ -28,12 +28,24 @@ from src.sem_cat.pipeline.vepkar_translation_selection import (
     has_existing_english,
     prepare_meanings_for_translation,
     prepare_translation_input_for_task,
+    TranslationTaskMetadata,
 )
 from src.sem_cat.utils.gloss_normalizer import primary_gloss
 
 
 # ---------------------------------------------------------------------------
-# 1. Parsing repeated --translations arguments
+# 1. prepare_translation_input_for_task returns pipe-delimited format
+# ---------------------------------------------------------------------------
+
+
+def test_prepare_translation_input_for_task_with_pipe_separator():
+    """Translation input should use exact format: POS | meaning_ru"""
+    task = TranslationTaskMetadata(pos="NOUN", meaning_ru="дом")
+    assert prepare_translation_input_for_task(task) == "NOUN | дом"
+
+
+# ---------------------------------------------------------------------------
+# 2. Parsing repeated --translations arguments
 # ---------------------------------------------------------------------------
 
 def test_parse_translation_arg_valid():
@@ -629,6 +641,7 @@ def test_review_queue_only_has_relevant_columns():
 
 if __name__ == "__main__":
     tests = [
+        test_prepare_translation_input_for_task_with_pipe_separator,
         test_parse_translation_arg_valid,
         test_parse_translation_arg_no_equals,
         test_parse_translation_arg_empty_key,
