@@ -2,6 +2,7 @@
 
 import sys
 import pathlib
+import csv
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent))
 
@@ -10,7 +11,11 @@ import os
 
 import pandas as pd
 
-from src.sem_cat.compare.loading import parse_translation_arg, load_single_model
+from src.sem_cat.compare.loading import (
+    parse_translation_arg,
+    load_single_model,
+    merge_all_models,
+)
 from src.sem_cat.compare.normalization import (
     normalize_output_for_comparison,
     output_similarity,
@@ -93,61 +98,105 @@ def test_load_and_prefix_columns():
     with tempfile.TemporaryDirectory() as td:
         csv_path = os.path.join(td, "test.csv")
         _make_csv(csv_path, [
-            {"gloss_ru": "дом", "gloss_en": "house", "qa_keep": "True",
-             "qa_score": "0.0", "qa_flags": "", "model_key": "google"},
+            {"pos": "NOUN", "meaning_ru": "дом", "meaning_en": "house", "qa_keep": "True",
+             "qa_score": "0.0", "qa_flags": "", "meaning_ru_back": "дом", "roundtrip_distance": "0.1"},
         ])
         df = load_single_model(pathlib.Path(csv_path), "google")
-        assert "google__gloss_en" in df.columns
-        assert "google__qa_keep" in df.columns
-        assert "google__qa_score" in df.columns
-        assert "google__qa_flags" in df.columns
-        assert df.iloc[0]["google__gloss_en"] == "house"
+        assert "google_en" in df.columns
+        assert "google_keep" in df.columns
+        assert "google_score" in df.columns
+        assert "google_flags" in df.columns
+        assert "google_ru" in df.columns
+        assert "google_rt" in df.columns
+        assert df.iloc[0]["google_en"] == "house"
+        assert "google__" not in df.columns[0] and df.columns[0] == "pos"
 
 
-def test_load_rejects_mismatched_model_key():
-    """A CLI label that mismatches the file's model_key column must fail."""
+def test_load_rejects_missing_column():
     with tempfile.TemporaryDirectory() as td:
         csv_path = os.path.join(td, "test.csv")
-        _make_csv(csv_path, [
-            {"gloss_ru": "дом", "gloss_en": "house", "qa_keep": "True",
-             "qa_score": "0.0", "qa_flags": "", "model_key": "helsinki_opus_mt_ru_en"},
-        ])
+        with open(csv_path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=["pos", "meaning_ru", "meaning_en", "qa_keep", "qa_score", "qa_flags"])
+            writer.writeheader()
+            writer.writerow({"pos": "NOUN", "meaning_ru": "дом", "meaning_en": "house", "qa_keep": "True", "qa_score": "0.0", "qa_flags": ""})
         try:
-            load_single_model(pathlib.Path(csv_path), "helsinkiopusmtruen")
-            assert False, "Expected ValueError for mismatched model key"
+            load_single_model(pathlib.Path(csv_path), "google")
+            assert False, "Expected ValueError for missing required column"
         except ValueError as e:
-            assert "helsinki_opus_mt_ru_en" in str(e)
-            assert "helsinkiopusmtruen" in str(e)
+            assert "meaning_ru_back" in str(e) or "roundtrip_distance" in str(e)
+
+
+def test_load_preserves_row_order():
+    with tempfile.TemporaryDirectory() as td:
+        csv_path = os.path.join(td, "test.csv")
+        rows = [
+            {"pos": "NOUN", "meaning_ru": "дом", "meaning_en": "house", "qa_keep": "True",
+             "qa_score": "0.0", "qa_flags": "", "meaning_ru_back": "дом", "roundtrip_distance": "0.1"},
+            {"pos": "VERB", "meaning_ru": "жить", "meaning_en": "live", "qa_keep": "True",
+             "qa_score": "0.1", "qa_flags": "", "meaning_ru_back": "жить", "roundtrip_distance": "0.2"},
+        ]
+        _make_csv(csv_path, rows)
+        df = load_single_model(pathlib.Path(csv_path), "google")
+        assert list(df["meaning_ru"]) == ["дом", "жить"]
+        assert list(df["pos"]) == ["NOUN", "VERB"]
 
 
 # ---------------------------------------------------------------------------
-# 3. Consensus clustering groups near-identical outputs
+# 3. Merging multiple model DataFrames
 # ---------------------------------------------------------------------------
 
-def test_consensus_clustering_groups_identical():
-    outputs = [
-        ModelOutput("m1", "M1", "house", True, 0.0, normalized_gloss_en="house"),
-        ModelOutput("m2", "M2", "house", True, 0.0, normalized_gloss_en="house"),
-        ModelOutput("m3", "M3", "home", True, 0.1, normalized_gloss_en="home"),
-    ]
-    clusters = cluster_outputs(outputs, threshold=0.85)
-    assert len(clusters) == 2
-    assert len(clusters[0].model_keys) == 2  # "house" cluster
-    assert clusters[0].representative == "house"
+
+def test_merge_all_models_two_models_shared():
+    df1 = pd.DataFrame({
+        "pos": ["NOUN", "NOUN"],
+        "meaning_ru": ["дом", "машина"],
+        "google_en": ["house", "car"],
+        "google_keep": ["True", "True"],
+    })
+    df2 = pd.DataFrame({
+        "pos": ["NOUN", "VERB"],
+        "meaning_ru": ["дом", "жить"],
+        "helsinki_en": ["house", "live"],
+        "helsinki_keep": ["True", "True"],
+    })
+    merged = merge_all_models({"google": df1, "helsinki": df2})
+    assert len(merged) == 3
+    assert "pos" in merged.columns
+    assert "meaning_ru" in merged.columns
+    assert "google_en" in merged.columns
+    assert "helsinki_en" in merged.columns
+    shared_row = merged[(merged["pos"] == "NOUN") & (merged["meaning_ru"] == "дом")].iloc[0]
+    assert shared_row["google_en"] == "house"
+    assert shared_row["helsinki_en"] == "house"
 
 
-def test_consensus_all_different():
-    outputs = [
-        ModelOutput("m1", "M1", "house", True, 0.0, normalized_gloss_en="house"),
-        ModelOutput("m2", "M2", "building", True, 0.2, normalized_gloss_en="building"),
-        ModelOutput("m3", "M3", "residence", True, 0.3, normalized_gloss_en="residence"),
-    ]
-    clusters = cluster_outputs(outputs, threshold=0.85)
-    assert len(clusters) == 3
+def test_merge_all_models_empty():
+    merged = merge_all_models({})
+    assert list(merged.columns) == ["pos", "meaning_ru"]
+    assert len(merged) == 0
+
+
+def test_merge_all_models_distinct_pos_same_meaning_ru():
+    df1 = pd.DataFrame({
+        "pos": ["NOUN", "NOUN"],
+        "meaning_ru": ["дом", "дом"],
+        "google_en": ["house1", "house2"],
+        "google_keep": ["True", "True"],
+    })
+    df2 = pd.DataFrame({
+        "pos": ["NOUN", "VERB"],
+        "meaning_ru": ["дом", "жить"],
+        "helsinki_en": ["house", "live"],
+        "helsinki_keep": ["True", "True"],
+    })
+    merged = merge_all_models({"google": df1, "helsinki": df2})
+    assert len(merged) == 3
+    noun_rows = merged[merged["pos"] == "NOUN"]
+    assert len(noun_rows) == 2
 
 
 # ---------------------------------------------------------------------------
-# 4. Strong consensus lowers risk
+# 4. Consensus clustering groups near-identical outputs
 # ---------------------------------------------------------------------------
 
 def test_strong_consensus_lowers_risk():
@@ -646,12 +695,11 @@ if __name__ == "__main__":
         test_parse_translation_arg_no_equals,
         test_parse_translation_arg_empty_key,
         test_load_and_prefix_columns,
-        test_load_rejects_mismatched_model_key,
-        test_consensus_clustering_groups_identical,
-        test_consensus_all_different,
-        test_strong_consensus_lowers_risk,
-        test_all_blank_high_risk,
-        test_severe_disagreement_raises_risk,
+        test_load_rejects_missing_column,
+        test_load_preserves_row_order,
+        test_merge_all_models_two_models_shared,
+        test_merge_all_models_empty,
+        test_merge_all_models_distinct_pos_same_meaning_ru,
         test_review_sorting_logic,
         test_gold_template_columns,
         test_normalization_strips_punctuation,
@@ -666,6 +714,11 @@ if __name__ == "__main__":
         test_particle_or_clitic_fires_on_standalone,
         test_particle_or_clitic_fires_on_suffixed,
         test_particle_or_clitic_not_fires_on_lexical,
+        test_consensus_clustering_groups_identical,
+        test_consensus_all_different,
+        test_strong_consensus_lowers_risk,
+        test_all_blank_high_risk,
+        test_severe_disagreement_raises_risk,
         test_proposal_strong_consensus,
         test_proposal_all_blank,
         test_risk_levels,
